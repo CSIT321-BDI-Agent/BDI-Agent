@@ -192,25 +192,78 @@
     let nextX = 80;
 
     let beliefs = {
-      blocks: {},
+      blocks: {
+        A: { on: 'table' },
+        B: { on: 'table' },
+        C: { on: 'table' }
+      },
       holding: null
     };
+
+    // Initialize positions for default blocks
+    positions['A'] = 80;
+    positions['B'] = 180;
+    positions['C'] = 280;
+    nextX = 380;
 
     let armX = 100, armY = 0, holdingBlock = null;
     let armTargetX = null, armTargetY = null;
     let actionQueue = [];
     let currentAction = null;
+    let ws = null;
+    let connectionAttempts = 0;
+    const maxRetries = 3;
 
-    const ws = new WebSocket("ws://localhost:8080");
+    function connectWebSocket() {
+      try {
+        ws = new WebSocket("ws://localhost:8080");
+        
+        ws.onopen = () => {
+          connectionAttempts = 0;
+          document.getElementById("status").innerHTML = "🟢 Connected to server";
+          log("✅ Connected to BDI agent");
+        };
 
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === "plan") {
-        log(`📦 Plan received: ${JSON.stringify(msg.plan)}`);
-        actionQueue = msg.plan.map(([type, ...args]) => ({ type, args }));
-        runNextAction();
+        ws.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "plan") {
+            log(`📦 Plan received: ${JSON.stringify(msg.plan)}`);
+            actionQueue = msg.plan.map(([type, ...args]) => ({ type, args }));
+            runNextAction();
+          } else if (msg.type === "state") {
+            // Update frontend state with server state
+            beliefs = msg.beliefs;
+            updatePositions();
+            log("🔄 State synchronized with server");
+          } else if (msg.type === "error") {
+            log(`❌ Server error: ${msg.message}`);
+            document.getElementById("status").innerHTML = `❌ Error: ${msg.message}`;
+          }
+        };
+
+        ws.onerror = (error) => {
+          log("❌ Connection error");
+          document.getElementById("status").innerHTML = "🔴 Connection error";
+        };
+
+        ws.onclose = () => {
+          log("🔌 Disconnected from server");
+          document.getElementById("status").innerHTML = "🔴 Disconnected";
+          
+          if (connectionAttempts < maxRetries) {
+            connectionAttempts++;
+            log(`🔄 Retrying connection (${connectionAttempts}/${maxRetries})...`);
+            setTimeout(connectWebSocket, 2000);
+          } else {
+            log("❌ Failed to connect after multiple attempts");
+            document.getElementById("status").innerHTML = "❌ Connection failed - is server running?";
+          }
+        };
+      } catch (error) {
+        log("❌ Failed to create WebSocket connection");
+        document.getElementById("status").innerHTML = "❌ Cannot connect to server";
       }
-    };
+    }
 
     function log(text) {
       const logBox = document.getElementById("logBox");
@@ -220,12 +273,56 @@
 
     function sendGoal() {
       const goalText = document.getElementById("goalInput").value.trim();
-      if (!goalText.includes(" on ")) {
-        alert("Goal must be in format: A on B");
+      
+      // Enhanced validation
+      if (!goalText) {
+        alert("Please enter a goal");
         return;
       }
+      
+      if (!goalText.includes(" on ")) {
+        alert("Goal must be in format: 'block1 on block2' (e.g., 'A on B')");
+        return;
+      }
+      
+      const parts = goalText.split(" on ");
+      if (parts.length !== 2) {
+        alert("Goal must have exactly one 'on' keyword (e.g., 'A on B')");
+        return;
+      }
+      
+      const [block1, block2] = parts.map(p => p.trim());
+      
+      // Validate block names
+      if (!/^[A-Z]$/.test(block1) || !/^[A-Z]$/.test(block2)) {
+        alert("Block names must be single uppercase letters (A-Z)");
+        return;
+      }
+      
+      if (block1 === block2) {
+        alert("Cannot place a block on itself");
+        return;
+      }
+      
+      // Check if blocks exist
+      if (!beliefs.blocks[block1]) {
+        alert(`Block ${block1} does not exist. Add it first.`);
+        return;
+      }
+      
+      if (block2 !== "table" && !beliefs.blocks[block2]) {
+        alert(`Block ${block2} does not exist. Add it first or use 'table'.`);
+        return;
+      }
+      
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert("Not connected to server. Please wait for connection...");
+        return;
+      }
+      
       ws.send(JSON.stringify({ type: "goal", goal: goalText }));
       document.getElementById("status").textContent = `🎯 Goal sent: ${goalText}`;
+      log(`🎯 Goal sent: ${goalText}`);
     }
 
     function runNextAction() {
@@ -365,8 +462,15 @@
       holdingBlock = null;
       actionQueue = [];
       currentAction = null;
+      
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "reset" }));
+        log("🔄 Reset command sent to server");
+      } else {
+        log("� Local environment reset (server not connected)");
+      }
+      
       document.getElementById("status").textContent = "🔄 Reset complete.";
-      log("🔁 Environment reset.");
     }
 
     function addBlock() {
@@ -386,6 +490,18 @@
       log(`➕ Added block: ${name}`);
     }
 
+    function updatePositions() {
+      // Update positions based on current beliefs
+      Object.keys(beliefs.blocks).forEach(block => {
+        if (!positions[block]) {
+          positions[block] = nextX;
+          nextX += 100;
+        }
+      });
+    }
+
+    // Initialize connection and start animation
+    connectWebSocket();
     animate();
   </script>
 </body>
