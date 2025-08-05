@@ -1,0 +1,13 @@
+{
+  "name": "bdi-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^5.1.0",
+    "js": "^0.1.0",
+    "ws": "^8.18.3"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
