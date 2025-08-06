@@ -8,7 +8,7 @@ class BdiAgent {
     deliberate(goal) {
         const beliefState = this.beliefs.getBeliefs();
         const parsedGoal = goal.split(" on ").map(x => x.trim());
-        console.log(" Parsed goal:", parsedGoal);
+        console.log("🧠 Parsed goal:", parsedGoal);
         const plan = generatePlan(beliefState, parsedGoal);
         return plan;
     }

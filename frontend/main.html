@@ -20,7 +20,7 @@
       position: fixed;
       left: 0; top: 0; bottom: 0;
       width: 220px;
-      background: #4FD1C5; /* updated */
+      background: #4FD1C5;
       color: white;
       padding: 25px 20px;
     }
@@ -41,7 +41,7 @@
     }
 
     .header {
-      background: #4FD1C5; /* updated */
+      background: #4FD1C5;
       padding: 20px 30px;
       border-radius: 12px;
       color: white;
@@ -109,10 +109,10 @@
       cursor: pointer;
     }
 
-    .btn-send { background: #4FD1C5; }  /* updated */
-    .btn-add { background: #38B2AC; }   /* darker shade */
-    .btn-reset { background: #319795; } /* even darker */
-    
+    .btn-send { background: #4FD1C5; }
+    .btn-add { background: #38B2AC; }
+    .btn-reset { background: #319795; }
+
     input[type="text"] {
       width: 100%;
       padding: 10px;
@@ -190,80 +190,37 @@
     const blockSize = 50;
     let positions = {};
     let nextX = 80;
+    let currentBlockCharCode = "A".charCodeAt(0);
 
     let beliefs = {
-      blocks: {
-        A: { on: 'table' },
-        B: { on: 'table' },
-        C: { on: 'table' }
-      },
+      blocks: {},
       holding: null
     };
-
-    // Initialize positions for default blocks
-    positions['A'] = 80;
-    positions['B'] = 180;
-    positions['C'] = 280;
-    nextX = 380;
 
     let armX = 100, armY = 0, holdingBlock = null;
     let armTargetX = null, armTargetY = null;
     let actionQueue = [];
     let currentAction = null;
-    let ws = null;
-    let connectionAttempts = 0;
-    const maxRetries = 3;
 
-    function connectWebSocket() {
-      try {
-        ws = new WebSocket("ws://localhost:8080");
-        
-        ws.onopen = () => {
-          connectionAttempts = 0;
-          document.getElementById("status").innerHTML = "🟢 Connected to server";
-          log("✅ Connected to BDI agent");
-        };
+    const ws = new WebSocket("ws://localhost:8080");
 
-        ws.onmessage = (event) => {
-          const msg = JSON.parse(event.data);
-          if (msg.type === "plan") {
-            log(`📦 Plan received: ${JSON.stringify(msg.plan)}`);
-            actionQueue = msg.plan.map(([type, ...args]) => ({ type, args }));
-            runNextAction();
-          } else if (msg.type === "state") {
-            // Update frontend state with server state
-            beliefs = msg.beliefs;
-            updatePositions();
-            log("🔄 State synchronized with server");
-          } else if (msg.type === "error") {
-            log(`❌ Server error: ${msg.message}`);
-            document.getElementById("status").innerHTML = `❌ Error: ${msg.message}`;
-          }
-        };
+    ws.onopen = () => {
+      log("✅ Client connected to BDI WebSocket server.");
+    };
 
-        ws.onerror = (error) => {
-          log("❌ Connection error");
-          document.getElementById("status").innerHTML = "🔴 Connection error";
-        };
+    ws.onerror = (error) => {
+      log("❌ WebSocket error: Could not connect to server.");
+      console.error("WebSocket Error:", error);
+    };
 
-        ws.onclose = () => {
-          log("🔌 Disconnected from server");
-          document.getElementById("status").innerHTML = "🔴 Disconnected";
-          
-          if (connectionAttempts < maxRetries) {
-            connectionAttempts++;
-            log(`🔄 Retrying connection (${connectionAttempts}/${maxRetries})...`);
-            setTimeout(connectWebSocket, 2000);
-          } else {
-            log("❌ Failed to connect after multiple attempts");
-            document.getElementById("status").innerHTML = "❌ Connection failed - is server running?";
-          }
-        };
-      } catch (error) {
-        log("❌ Failed to create WebSocket connection");
-        document.getElementById("status").innerHTML = "❌ Cannot connect to server";
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === "plan") {
+        log(`📦 Plan received: ${JSON.stringify(msg.plan)}`);
+        actionQueue = msg.plan.map(([type, ...args]) => ({ type, args }));
+        runNextAction();
       }
-    }
+    };
 
     function log(text) {
       const logBox = document.getElementById("logBox");
@@ -273,56 +230,12 @@
 
     function sendGoal() {
       const goalText = document.getElementById("goalInput").value.trim();
-      
-      // Enhanced validation
-      if (!goalText) {
-        alert("Please enter a goal");
-        return;
-      }
-      
       if (!goalText.includes(" on ")) {
-        alert("Goal must be in format: 'block1 on block2' (e.g., 'A on B')");
+        alert("Goal must be in format: A on B");
         return;
       }
-      
-      const parts = goalText.split(" on ");
-      if (parts.length !== 2) {
-        alert("Goal must have exactly one 'on' keyword (e.g., 'A on B')");
-        return;
-      }
-      
-      const [block1, block2] = parts.map(p => p.trim());
-      
-      // Validate block names
-      if (!/^[A-Z]$/.test(block1) || !/^[A-Z]$/.test(block2)) {
-        alert("Block names must be single uppercase letters (A-Z)");
-        return;
-      }
-      
-      if (block1 === block2) {
-        alert("Cannot place a block on itself");
-        return;
-      }
-      
-      // Check if blocks exist
-      if (!beliefs.blocks[block1]) {
-        alert(`Block ${block1} does not exist. Add it first.`);
-        return;
-      }
-      
-      if (block2 !== "table" && !beliefs.blocks[block2]) {
-        alert(`Block ${block2} does not exist. Add it first or use 'table'.`);
-        return;
-      }
-      
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        alert("Not connected to server. Please wait for connection...");
-        return;
-      }
-      
       ws.send(JSON.stringify({ type: "goal", goal: goalText }));
       document.getElementById("status").textContent = `🎯 Goal sent: ${goalText}`;
-      log(`🎯 Goal sent: ${goalText}`);
     }
 
     function runNextAction() {
@@ -336,13 +249,13 @@
 
       if (type === "pickup") {
         const block = args[0];
-        armTargetX = positions[block] + 25;
+        armTargetX = positions[block] + blockSize / 2;
         armTargetY = 300 - blockSize * getBlockLevel(block);
-        holdingBlock = block;
+        holdingBlock = block; 
       } else if (type === "putdown") {
-        const dest = args[1];
-        armTargetX = positions[dest] + 25;
-        armTargetY = 300 - blockSize * getNextStackLevel(dest);
+        const [block, dest] = args;
+        armTargetX = positions[dest] + blockSize / 2;
+        armTargetY = 300 - blockSize * (getNextStackLevel(dest) + 1); 
       }
     }
 
@@ -363,6 +276,7 @@
         if (type === "putdown") {
           const [block, base] = args;
           beliefs.blocks[block] = base;
+          positions[block] = positions[base]; 
           holdingBlock = null;
         } else if (type === "pickup") {
           const [block] = args;
@@ -385,7 +299,7 @@
     }
 
     function getNextStackLevel(base) {
-      let level = 1;
+      let level = 0;
       let onTop = Object.keys(beliefs.blocks).find(k => beliefs.blocks[k] === base);
       while (onTop) {
         level++;
@@ -410,35 +324,37 @@
       ctx.lineWidth = 4;
       ctx.stroke();
 
-      const drawn = {};
-      function getStack(block) {
+      const drawn = new Set();
+      const allBlocks = Object.keys(positions);
+      const supportedBlocks = Object.values(beliefs.blocks);
+      const topBlocks = allBlocks.filter(b => !supportedBlocks.includes(b));
+
+      for (const top of topBlocks) {
+        if (top === holdingBlock || drawn.has(top)) continue;
+
         const stack = [];
-        let current = block;
-        while (current && beliefs.blocks[current] !== "table") {
+        let current = top;
+
+        while (current && beliefs.blocks[current] && beliefs.blocks[current] !== 'table') {
           stack.push(current);
+          drawn.add(current);
           current = beliefs.blocks[current];
         }
-        stack.push(current);
-        return stack.reverse();
-      }
 
-      Object.keys(positions).forEach(block => {
-        if (drawn[block] || block === holdingBlock) return;
+        if (current && !drawn.has(current)) {
+          stack.push(current);
+          drawn.add(current);
+        }
 
-        const stack = getStack(block);
-        const baseX = positions[stack[0]];
-
-        stack.forEach((b, i) => {
-          const x = baseX;
-          const y = 300 - blockSize * (stack.length - i);
-          drawn[b] = true;
-
-          ctx.fillStyle = "#4FD1C5"; // updated block color
+        stack.reverse().forEach((b, i) => {
+          const x = positions[b];
+          const y = 300 - blockSize * (i + 1);
+          ctx.fillStyle = "#4FD1C5";
           ctx.fillRect(x, y, blockSize, blockSize);
           ctx.fillStyle = "white";
           ctx.fillText(b, x + 20, y + 30);
         });
-      });
+      }
 
       if (holdingBlock) {
         ctx.fillStyle = "orange";
@@ -458,51 +374,38 @@
       beliefs = { blocks: {}, holding: null };
       positions = {};
       nextX = 80;
-      armX = 100; armY = 0;
+      currentBlockCharCode = "A".charCodeAt(0);
+      armX = 100;
+      armY = 0;
       holdingBlock = null;
       actionQueue = [];
       currentAction = null;
-      
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "reset" }));
-        log("🔄 Reset command sent to server");
-      } else {
-        log("� Local environment reset (server not connected)");
-      }
-      
       document.getElementById("status").textContent = "🔄 Reset complete.";
+      log("🔁 Environment reset.");
     }
 
     function addBlock() {
-      const name = prompt("Enter block name (single uppercase letter):");
-      if (!name || !/^[A-Z]$/.test(name)) {
-        alert("Invalid block name. Use a single uppercase letter (A-Z).");
+      if (currentBlockCharCode > "Z".charCodeAt(0)) {
+        alert("All alphabet blocks (A–Z) have been added.");
         return;
       }
+
+      const name = String.fromCharCode(currentBlockCharCode);
       if (positions[name]) {
-        alert("Block already exists.");
+        alert(`Block ${name} already exists.`);
         return;
       }
 
       beliefs.blocks[name] = "table";
       positions[name] = nextX;
       nextX += 100;
+      currentBlockCharCode++;
+
       log(`➕ Added block: ${name}`);
     }
 
-    function updatePositions() {
-      // Update positions based on current beliefs
-      Object.keys(beliefs.blocks).forEach(block => {
-        if (!positions[block]) {
-          positions[block] = nextX;
-          nextX += 100;
-        }
-      });
-    }
-
-    // Initialize connection and start animation
-    connectWebSocket();
     animate();
   </script>
+
 </body>
 </html>
