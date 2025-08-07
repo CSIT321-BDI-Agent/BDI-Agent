@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,48 +5,209 @@
   <title>Login - BDI Blocks World</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background-color: #e6f7f6;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #e6f7f6;
+    overflow: hidden;
+  }
 
-    .login-container {
-      background-color: white;
-      padding: 40px;
-      border-radius: 10px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.1);
-      text-align: center;
-    }
+  .background {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 100px);
+    grid-template-rows: repeat(auto-fill, 100px);
+    z-index: -1;
+  }
 
-    h2 {
-      color: #4FD1C5;
-      margin-bottom: 30px;
-    }
+  .block {
+    width: 100px;
+    height: 100px;
+    animation: pulse 6s infinite;
+    opacity: 0.7;
+  }
 
-    .btn {
-      background-color: #4FD1C5;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      font-size: 16px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
+  .block:nth-child(3n) {
+    background-color: #4FD1C5;
+    animation-delay: 0s;
+  }
 
-    .btn:hover {
-      background-color: #3bbcb2;
+  .block:nth-child(3n+1) {
+    background-color: #38B2AC;
+    animation-delay: 2s;
+  }
+
+  .block:nth-child(3n+2) {
+    background-color: #319795;
+    animation-delay: 4s;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 0.5;
+      transform: scale(1);
     }
-  </style>
+    50% {
+      opacity: 0.9;
+      transform: scale(1.05);
+    }
+  }
+
+  .top-bar {
+    height: 70px;
+    background: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 30px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    z-index: 2;
+    position: relative;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+  }
+
+  .logo h1 {
+    font-size: 26px;
+    color: #319795;
+    font-weight: 700;
+    margin-left: 12px;
+  }
+
+  .mini-block {
+    width: 20px;
+    height: 20px;
+    margin: 1px 0;
+    border-radius: 4px;
+  }
+
+  .block1 { background-color: #4FD1C5; }
+  .block2 { background-color: #38B2AC; }
+  .block3 { background-color: #319795; }
+
+  .profile-icon {
+    background-color: #4FD1C5;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 70px;
+    left: 0;
+    width: 100px;
+    height: calc(100% - 70px);
+    background-color: #ffffffcc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 20px;
+    z-index: 1;
+    box-shadow: 2px 0 6px rgba(0,0,0,0.05);
+  }
+
+  .sidebar-item {
+    width: 100%;
+    padding: 14px 10px;
+    color: #319795;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+
+  .sidebar-item:hover {
+    background-color: #e0f7f7;
+  }
+
+  .login-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    background-color: white;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    text-align: center;
+    max-width: 320px;
+  }
+
+  h2 {
+    color: #319795;
+    margin-bottom: 30px;
+  }
+
+  .btn {
+    background-color: #4FD1C5;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .btn:hover {
+    background-color: #38B2AC;
+  }
+</style>
+
+
+
 </head>
 <body>
+  <div class="top-bar">
+    <div class="logo">
+      <div class="mini-block block1"></div>
+      <div class="mini-block block2"></div>
+      <div class="mini-block block3"></div>
+      <h1>BDI Blocks World</h1>
+    </div>
+    <div class="profile-icon">👤</div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-item">🏠 Home</div>
+    <div class="sidebar-item">👤 Account</div>
+    <div class="sidebar-item">⚙️ Settings</div>
+    <div class="sidebar-item">🚪 Logout</div>
+  </div>
+
+  <div class="background"></div>
+
   <div class="login-container">
     <h2>Welcome to BDI Blocks World</h2>
     <button class="btn" onclick="window.location.href='main.html'">Sign In</button>
   </div>
+
+  <script>
+    const bg = document.querySelector(".background");
+    const cols = Math.ceil(window.innerWidth / 100);
+    const rows = Math.ceil(window.innerHeight / 100);
+    const total = cols * rows;
+
+    for (let i = 0; i < total; i++) {
+      const div = document.createElement("div");
+      div.className = "block";
+      bg.appendChild(div);
+    }
+  </script>
 </body>
+
+
+
 </html>

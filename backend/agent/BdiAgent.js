@@ -1,21 +1,30 @@
+// BdiAgent.js
 const { generatePlan } = require("./PlanLibrary");
 
 class BdiAgent {
-    constructor(beliefs) {
-        this.beliefs = beliefs;
-    }
+  constructor(worldModel) {
+    this.worldModel = worldModel;
+  }
 
-    deliberate(goal) {
-        const beliefState = this.beliefs.getBeliefs();
-        const parsedGoal = goal.split(" on ").map(x => x.trim());
-        console.log("🧠 Parsed goal:", parsedGoal);
-        const plan = generatePlan(beliefState, parsedGoal);
-        return plan;
-    }
+  handleGoal(goal) {
+    const [block1, , block2] = goal.split(" ");
 
-    updateBeliefs(action) {
-        this.beliefs.updateState(action);
-    }
+    // Add any missing blocks to beliefs
+    this.worldModel.ensureBlockExists(block1);
+    this.worldModel.ensureBlockExists(block2);
+
+    const beliefs = this.worldModel.getBeliefs();
+    const plan = generatePlan(beliefs, block1, block2);
+    return plan;
+  }
+
+  applyAction(action) {
+    this.worldModel.update(action);
+  }
+
+  getBeliefs() {
+    return this.worldModel.getBeliefs();
+  }
 }
 
 module.exports = BdiAgent;

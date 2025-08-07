@@ -160,7 +160,8 @@
     </div>
 
     <div class="canvas-card">
-      <canvas id="simCanvas" width="600" height="350"></canvas>
+      <canvas id="simCanvas" width="900" height="350"></canvas>
+
     </div>
 
     <div class="panels">
@@ -170,6 +171,7 @@
         <button class="button btn-send" onclick="sendGoal()">Send Goal</button>
         <button class="button btn-add" onclick="addBlock()">Add Block</button>
         <button class="button btn-reset" onclick="resetBlocks()">Reset</button>
+		<button class="button btn-reset" onclick="undoAddBlock()">Undo Add</button>
       </div>
 
       <div class="panel">
@@ -185,227 +187,347 @@
   </div>
 
   <script>
-    const canvas = document.getElementById("simCanvas");
-    const ctx = canvas.getContext("2d");
-    const blockSize = 50;
-    let positions = {};
-    let nextX = 80;
-    let currentBlockCharCode = "A".charCodeAt(0);
+  const canvas = document.getElementById("simCanvas");
+  const ctx = canvas.getContext("2d");
+  const blockSize = 50;
+  let positions = {};
+  let nextX = 80;
+  let currentBlockCharCode = "A".charCodeAt(0);
 
-    let beliefs = {
-      blocks: {},
-      holding: null
-    };
+  let beliefs = {
+    blocks: {},
+    holding: null
+  };
 
-    let armX = 100, armY = 0, holdingBlock = null;
-    let armTargetX = null, armTargetY = null;
-    let actionQueue = [];
-    let currentAction = null;
+  let armX = 100, armY = 0, holdingBlock = null;
+  let armTargetX = null, armTargetY = null;
+  let actionQueue = [];
+  let currentAction = null;
+  let moveStage = "lift";
+  let returningHome = false;
 
-    const ws = new WebSocket("ws://localhost:8080");
+  const ws = new WebSocket("ws://localhost:8080");
 
-    ws.onopen = () => {
-      log("✅ Client connected to BDI WebSocket server.");
-    };
+  ws.onopen = () => {
+    log("✅ Client connected to BDI WebSocket server.");
+  };
 
-    ws.onerror = (error) => {
-      log("❌ WebSocket error: Could not connect to server.");
-      console.error("WebSocket Error:", error);
-    };
+  ws.onerror = (error) => {
+    log("❌ WebSocket error: Could not connect to server.");
+    console.error("WebSocket Error:", error);
+  };
 
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === "plan") {
-        log(`📦 Plan received: ${JSON.stringify(msg.plan)}`);
-        actionQueue = msg.plan.map(([type, ...args]) => ({ type, args }));
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    if (msg.type === "plan") {
+      log(`📦 Plan received: ${JSON.stringify(msg.plan)}`);
+      actionQueue = msg.plan.map(([type, ...args]) => ({ type, args }));
+      runNextAction();
+    }
+  };
+
+  function log(text) {
+    const logBox = document.getElementById("logBox");
+    logBox.innerHTML += text + "<br>";
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  function sendGoal() {
+    const goalText = document.getElementById("goalInput").value.trim();
+    if (!goalText.includes(" on ")) {
+      alert("Goal must be in format: A on B");
+      return;
+    }
+    ws.send(JSON.stringify({ type: "goal", goal: goalText }));
+    document.getElementById("status").textContent = `🎯 Goal sent: ${goalText}`;
+  }
+
+  function runNextAction() {
+    if (actionQueue.length === 0) {
+      document.getElementById("status").innerHTML = "✅ <span style='color:#4FD1C5;'>Goal complete.</span>";
+      return;
+    }
+
+    currentAction = actionQueue.shift();
+    const { type, args } = currentAction;
+    moveStage = "lift";
+
+    if (type === "pickup") {
+      const block = args[0];
+      armTargetX = positions[block] + blockSize / 2;
+      armTargetY = 300 - blockSize * getBlockLevel(block);
+      holdingBlock = null;
+    } else if (type === "putdown") {
+      const [block, dest] = args;
+      armTargetX = positions[dest] + blockSize / 2;
+      armTargetY = 300 - blockSize * (getNextStackLevel(dest) + 1);
+    }
+  }
+
+  function updateArmPosition() {
+    const speed = 4;
+    const safeHeight = 20;
+    const homeX = 100, homeY = 0;
+
+    if (returningHome) {
+      let arrived = true;
+
+      if (Math.abs(armX - homeX) > speed) {
+        armX += armX < homeX ? speed : -speed;
+        arrived = false;
+      } else {
+        armX = homeX;
+      }
+
+      if (Math.abs(armY - homeY) > speed) {
+        armY += armY < homeY ? speed : -speed;
+        arrived = false;
+      } else {
+        armY = homeY;
+      }
+
+      if (arrived) {
+        returningHome = false;
         runNextAction();
       }
-    };
 
-    function log(text) {
-      const logBox = document.getElementById("logBox");
-      logBox.innerHTML += text + "<br>";
-      logBox.scrollTop = logBox.scrollHeight;
+      return;
     }
 
-    function sendGoal() {
-      const goalText = document.getElementById("goalInput").value.trim();
-      if (!goalText.includes(" on ")) {
-        alert("Goal must be in format: A on B");
-        return;
-      }
-      ws.send(JSON.stringify({ type: "goal", goal: goalText }));
-      document.getElementById("status").textContent = `🎯 Goal sent: ${goalText}`;
+    if (!currentAction) return;
+
+    const { type, args } = currentAction;
+
+    if (type === "pickup") {
+      const block = args[0];
+      armTargetX = positions[block] + blockSize / 2;
+      armTargetY = 300 - blockSize * getBlockLevel(block);
+    } else if (type === "putdown") {
+      const [block, dest] = args;
+      armTargetX = positions[dest] + blockSize / 2;
+      armTargetY = 300 - blockSize * (getNextStackLevel(dest) + 1);
     }
 
-    function runNextAction() {
-      if (actionQueue.length === 0) {
-        document.getElementById("status").innerHTML = "✅ <span style='color:#4FD1C5;'>Goal complete.</span>";
-        return;
+    if (moveStage === "lift") {
+      if (armY > safeHeight) {
+        armY -= speed;
+      } else {
+        moveStage = "horizontal";
       }
-
-      currentAction = actionQueue.shift();
-      const { type, args } = currentAction;
-
-      if (type === "pickup") {
-        const block = args[0];
-        armTargetX = positions[block] + blockSize / 2;
-        armTargetY = 300 - blockSize * getBlockLevel(block);
-        holdingBlock = block; 
-      } else if (type === "putdown") {
-        const [block, dest] = args;
-        armTargetX = positions[dest] + blockSize / 2;
-        armTargetY = 300 - blockSize * (getNextStackLevel(dest) + 1); 
-      }
-    }
-
-    function updateArmPosition() {
-      if (!currentAction) return;
-
-      const speed = 4;
+    } else if (moveStage === "horizontal") {
       if (Math.abs(armX - armTargetX) > speed) {
         armX += armX < armTargetX ? speed : -speed;
+      } else {
+        armX = armTargetX;
+        moveStage = "lower";
       }
+    } else if (moveStage === "lower") {
       if (Math.abs(armY - armTargetY) > speed) {
         armY += armY < armTargetY ? speed : -speed;
-      }
+      } else {
+        armY = armTargetY;
 
-      if (Math.abs(armX - armTargetX) <= speed && Math.abs(armY - armTargetY) <= speed) {
-        const { type, args } = currentAction;
-
-        if (type === "putdown") {
+        if (type === "pickup") {
+          const [block] = args;
+          if (!holdingBlock) {
+            holdingBlock = block;
+            beliefs.blocks[block] = null;
+          }
+        } else if (type === "putdown") {
           const [block, base] = args;
           beliefs.blocks[block] = base;
-          positions[block] = positions[base]; 
+          positions[block] = positions[base];
           holdingBlock = null;
-        } else if (type === "pickup") {
-          const [block] = args;
-          beliefs.blocks[block] = null;
         }
 
         currentAction = null;
-        setTimeout(runNextAction, 300);
+        returningHome = true; // ✅ Begin moving back to start
       }
     }
+  }
 
-    function getBlockLevel(block) {
-      let level = 0;
-      let under = beliefs.blocks[block];
-      while (under && under !== "table") {
-        level++;
-        under = beliefs.blocks[under];
-      }
-      return level;
+  function getBlockLevel(block) {
+    let level = 0;
+    let under = beliefs.blocks[block];
+    while (under && under !== "table") {
+      level++;
+      under = beliefs.blocks[under];
     }
+    return level;
+  }
 
-    function getNextStackLevel(base) {
-      let level = 0;
-      let onTop = Object.keys(beliefs.blocks).find(k => beliefs.blocks[k] === base);
-      while (onTop) {
-        level++;
-        onTop = Object.keys(beliefs.blocks).find(k => beliefs.blocks[k] === onTop);
-      }
-      return level;
+  function getNextStackLevel(base) {
+    let level = 0;
+    let onTop = Object.keys(beliefs.blocks).find(k => beliefs.blocks[k] === base);
+    while (onTop) {
+      level++;
+      onTop = Object.keys(beliefs.blocks).find(k => beliefs.blocks[k] === onTop);
     }
+    return level;
+  }
 
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.beginPath();
-      ctx.moveTo(0, 300);
-      ctx.lineTo(canvas.width, 300);
-      ctx.strokeStyle = "#999";
-      ctx.lineWidth = 2;
-      ctx.stroke();
+  function drawArm(ctx, x, y) {
+    const gripperWidth = blockSize + 10;
+    const prongLength = 20;
+    const gripperThickness = 4;
 
-      ctx.beginPath();
-      ctx.moveTo(armX, 0);
-      ctx.lineTo(armX, armY);
-      ctx.strokeStyle = "black";
-      ctx.lineWidth = 4;
-      ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, y);
+    ctx.lineWidth = gripperThickness;
+    ctx.strokeStyle = "black";
+    ctx.stroke();
 
-      const drawn = new Set();
-      const allBlocks = Object.keys(positions);
-      const supportedBlocks = Object.values(beliefs.blocks);
-      const topBlocks = allBlocks.filter(b => !supportedBlocks.includes(b));
+    ctx.beginPath();
+    ctx.moveTo(x - gripperWidth / 2, y);
+    ctx.lineTo(x + gripperWidth / 2, y);
+    ctx.stroke();
 
-      for (const top of topBlocks) {
-        if (top === holdingBlock || drawn.has(top)) continue;
+    ctx.beginPath();
+    ctx.moveTo(x - gripperWidth / 2, y);
+    ctx.lineTo(x - gripperWidth / 2, y + prongLength);
+    ctx.stroke();
 
-        const stack = [];
-        let current = top;
+    ctx.beginPath();
+    ctx.moveTo(x + gripperWidth / 2, y);
+    ctx.lineTo(x + gripperWidth / 2, y + prongLength);
+    ctx.stroke();
+  }
 
-        while (current && beliefs.blocks[current] && beliefs.blocks[current] !== 'table') {
-          stack.push(current);
-          drawn.add(current);
-          current = beliefs.blocks[current];
-        }
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.beginPath();
+    ctx.moveTo(0, 300);
+    ctx.lineTo(canvas.width, 300);
+    ctx.strokeStyle = "#999";
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
-        if (current && !drawn.has(current)) {
-          stack.push(current);
-          drawn.add(current);
-        }
+    drawArm(ctx, armX, armY);
 
-        stack.reverse().forEach((b, i) => {
-          const x = positions[b];
-          const y = 300 - blockSize * (i + 1);
-          ctx.fillStyle = "#4FD1C5";
-          ctx.fillRect(x, y, blockSize, blockSize);
-          ctx.fillStyle = "white";
-          ctx.fillText(b, x + 20, y + 30);
-        });
-      }
+    const drawn = new Set();
+    const allBlocks = Object.keys(positions);
+    const supportedBlocks = Object.values(beliefs.blocks);
+    const topBlocks = allBlocks.filter(b => !supportedBlocks.includes(b));
 
-      if (holdingBlock) {
-        ctx.fillStyle = "orange";
-        ctx.fillRect(armX - 25, armY, blockSize, blockSize);
-        ctx.fillStyle = "black";
-        ctx.fillText(holdingBlock, armX - 5, armY + 30);
-      }
-    }
+    for (const top of topBlocks) {
+      if (top === holdingBlock || drawn.has(top)) continue;
 
-    function animate() {
-      updateArmPosition();
-      draw();
-      requestAnimationFrame(animate);
-    }
+      const stack = [];
+      let current = top;
 
-    function resetBlocks() {
-      beliefs = { blocks: {}, holding: null };
-      positions = {};
-      nextX = 80;
-      currentBlockCharCode = "A".charCodeAt(0);
-      armX = 100;
-      armY = 0;
-      holdingBlock = null;
-      actionQueue = [];
-      currentAction = null;
-      document.getElementById("status").textContent = "🔄 Reset complete.";
-      log("🔁 Environment reset.");
-    }
-
-    function addBlock() {
-      if (currentBlockCharCode > "Z".charCodeAt(0)) {
-        alert("All alphabet blocks (A–Z) have been added.");
-        return;
+      while (current && beliefs.blocks[current] && beliefs.blocks[current] !== 'table') {
+        stack.push(current);
+        drawn.add(current);
+        current = beliefs.blocks[current];
       }
 
-      const name = String.fromCharCode(currentBlockCharCode);
-      if (positions[name]) {
-        alert(`Block ${name} already exists.`);
-        return;
+      if (current && !drawn.has(current)) {
+        stack.push(current);
+        drawn.add(current);
       }
 
-      beliefs.blocks[name] = "table";
-      positions[name] = nextX;
-      nextX += 100;
-      currentBlockCharCode++;
-
-      log(`➕ Added block: ${name}`);
+      stack.reverse().forEach((b, i) => {
+        const x = positions[b];
+        const y = 300 - blockSize * (i + 1);
+        ctx.fillStyle = "#4FD1C5";
+        ctx.fillRect(x, y, blockSize, blockSize);
+        ctx.fillStyle = "white";
+        ctx.fillText(b, x + 20, y + 30);
+      });
     }
+
+    if (holdingBlock) {
+      ctx.fillStyle = "orange";
+      ctx.fillRect(armX - 25, armY, blockSize, blockSize);
+      ctx.fillStyle = "black";
+      ctx.fillText(holdingBlock, armX - 5, armY + 30);
+    }
+  }
+
+  function animate() {
+    updateArmPosition();
+    draw();
+    requestAnimationFrame(animate);
+  }
+
+  function resetBlocks() {
+    beliefs = { blocks: {}, holding: null };
+    positions = {};
+    nextX = 80;
+    currentBlockCharCode = "A".charCodeAt(0);
+    armX = 100;
+    armY = 0;
+    holdingBlock = null;
+    actionQueue = [];
+    currentAction = null;
+    moveStage = "lift";
+    returningHome = false;
+    document.getElementById("status").textContent = "🔄 Reset complete.";
+    log("🔁 Environment reset.");
+  }
+
+  function addBlock() {
+    if (currentBlockCharCode > "Z".charCodeAt(0)) {
+      alert("All alphabet blocks (A–Z) have been added.");
+      return;
+    }
+
+    const name = String.fromCharCode(currentBlockCharCode);
+    if (positions[name]) {
+      alert(`Block ${name} already exists.`);
+      return;
+    }
+
+    beliefs.blocks[name] = "table";
+    positions[name] = nextX;
+    nextX += 100;
+    currentBlockCharCode++;
+
+    log(`➕ Added block: ${name}`);
+
+    ws.send(JSON.stringify({
+      type: "update",
+      beliefs: {
+        blocks: { [name]: "table" }
+      }
+    }));
+  }
+
+  function undoAddBlock() {
+    if (currentBlockCharCode <= "A".charCodeAt(0)) {
+      alert("No blocks to undo.");
+      return;
+    }
+
+    currentBlockCharCode--;
+    const name = String.fromCharCode(currentBlockCharCode);
+
+    if (!positions[name]) {
+      alert(`Block ${name} does not exist.`);
+      return;
+    }
+
+    delete beliefs.blocks[name];
+    delete positions[name];
+    nextX -= 100;
+
+    log(`↩️ Undid block: ${name}`);
+
+    ws.send(JSON.stringify({
+      type: "update",
+      beliefs: {
+        blocks: { [name]: null }
+      }
+    }));
 
     animate();
-  </script>
+  }
+
+  animate();
+</script>
+
+
 
 </body>
 </html>

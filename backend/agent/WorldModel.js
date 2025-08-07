@@ -1,44 +1,48 @@
+// WorldModel.js
 class WorldModel {
   constructor() {
-    this.reset();
-  }
-
-  reset() {
-    this.blocks = {
-      A: 'table',
-      B: 'table',
-      C: 'table',
+    this.beliefs = {
+      blocks: {
+        A: "table",
+        B: "table",
+        C: "table"
+      },
+      holding: null
     };
-    this.holding = null;
   }
 
-  isClear(block) {
-    return !Object.values(this.blocks).includes(block);
-  }
+  update(action) {
+    const [command, block, target] = action;
 
-  pickup(block) {
-    if (this.blocks[block] && this.isClear(block) && this.holding === null) {
-      this.holding = block;
-      this.blocks[block] = null;
-      return true;
+    switch (command) {
+      case "pickup":
+        if (this.beliefs.blocks[block] && this.beliefs.holding === null) {
+          this.beliefs.holding = block;
+          this.beliefs.blocks[block] = "arm";
+        }
+        break;
+
+      case "putdown":
+        if (this.beliefs.holding === block) {
+          this.beliefs.blocks[block] = target;
+          this.beliefs.holding = null;
+        }
+        break;
     }
-    return false;
-  }
-
-  putdown(block, target) {
-    if (this.holding === block && this.isClear(target)) {
-      this.blocks[block] = target;
-      this.holding = null;
-      return true;
-    }
-    return false;
   }
 
   getBeliefs() {
-    return {
-      blocks: this.blocks,
-      holding: this.holding
-    };
+    return this.beliefs;
+  }
+
+  setBeliefs(newBeliefs) {
+    this.beliefs = newBeliefs;
+  }
+
+  ensureBlockExists(blockName) {
+    if (!this.beliefs.blocks[blockName]) {
+      this.beliefs.blocks[blockName] = "table";
+    }
   }
 }
 

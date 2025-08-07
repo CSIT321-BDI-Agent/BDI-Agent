@@ -13,31 +13,25 @@ function generatePlan(beliefs, block1, block2) {
   // Goal already satisfied
   if (block1Location === block2) return plan;
 
-  // Case 1: Not holding anything
+  // Step 0: If not holding block1, pick it up (must be clear)
   if (!holding) {
-    // Step 1: Pickup block1 (if something is on top of it, this won't work)
     const topOfBlock1 = Object.keys(beliefs.blocks).find(
       k => beliefs.blocks[k] === block1
     );
-    if (topOfBlock1) return plan; // Something on top, can't move
-
+    if (topOfBlock1) return plan; // block1 isn't clear
     plan.push(["pickup", block1]);
+  } else if (holding !== block1) {
+    return plan; // holding the wrong block
   }
 
-  // Case 2: Holding block1 already (optional safety check)
-  else if (holding !== block1) {
-    return plan; // holding wrong block
-  }
-
-  // Step 2: Ensure block2 has no block on top
+  // Step 1: Make sure block2 is clear
   const topOfBlock2 = Object.keys(beliefs.blocks).find(
     k => beliefs.blocks[k] === block2
   );
-  if (topOfBlock2) return plan; // Can't stack onto a covered block
+  if (topOfBlock2) return plan; // block2 is not clear
 
-  // Step 3: Put block1 on block2
+  // Step 2: Stack
   plan.push(["putdown", block1, block2]);
-
   return plan;
 }
 
