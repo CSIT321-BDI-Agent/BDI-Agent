@@ -187,24 +187,29 @@
   </div>
 
   <script>
+	  // This is the canvas and arm setup 
   const canvas = document.getElementById("simCanvas");
   const ctx = canvas.getContext("2d");
   const blockSize = 50;
+
+	  // Below it stores the X positions of the blocks
   let positions = {};
   let nextX = 80;
   let currentBlockCharCode = "A".charCodeAt(0);
 
+	  // This is the wolrd state and arm control 
   let beliefs = {
     blocks: {},
     holding: null
   };
-
   let armX = 100, armY = 0, holdingBlock = null;
   let armTargetX = null, armTargetY = null;
   let actionQueue = [];
   let currentAction = null;
   let moveStage = "lift";
   let returningHome = false;
+
+	  // Websocket connection 
 
   const ws = new WebSocket("ws://localhost:8080");
 
@@ -217,6 +222,8 @@
     console.error("WebSocket Error:", error);
   };
 
+	  // Below it receives  a plan from the server and it starts executing 
+
   ws.onmessage = (event) => {
     const msg = JSON.parse(event.data);
     if (msg.type === "plan") {
@@ -226,11 +233,15 @@
     }
   };
 
+	  // Below it logs messsages to the log box panel 
+
   function log(text) {
     const logBox = document.getElementById("logBox");
     logBox.innerHTML += text + "<br>";
     logBox.scrollTop = logBox.scrollHeight;
   }
+
+	  // Below fucntion is to send goal such as A on B to the server
 
   function sendGoal() {
     const goalText = document.getElementById("goalInput").value.trim();
@@ -241,6 +252,8 @@
     ws.send(JSON.stringify({ type: "goal", goal: goalText }));
     document.getElementById("status").textContent = `🎯 Goal sent: ${goalText}`;
   }
+
+	  // Below code handles picking up and putting down blocks step by step
 
   function runNextAction() {
     if (actionQueue.length === 0) {
@@ -263,6 +276,8 @@
       armTargetY = 300 - blockSize * (getNextStackLevel(dest) + 1);
     }
   }
+
+	  // Below function is used to move the arm 
 
   function updateArmPosition() {
     const speed = 4;
@@ -346,6 +361,8 @@
     }
   }
 
+	  // Thi sfunction calculates how many blocks are below a given block 
+
   function getBlockLevel(block) {
     let level = 0;
     let under = beliefs.blocks[block];
@@ -356,6 +373,8 @@
     return level;
   }
 
+	  // Calcualktes how tall a stack is for a block 
+
   function getNextStackLevel(base) {
     let level = 0;
     let onTop = Object.keys(beliefs.blocks).find(k => beliefs.blocks[k] === base);
@@ -365,6 +384,8 @@
     }
     return level;
   }
+
+	  // The drawarm function is to draw the robot arm
 
   function drawArm(ctx, x, y) {
     const gripperWidth = blockSize + 10;
@@ -393,6 +414,7 @@
     ctx.lineTo(x + gripperWidth / 2, y + prongLength);
     ctx.stroke();
   }
+	  // This draw function draws the table=, arm , blocks, and the blocks thats being held
 
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -445,11 +467,15 @@
     }
   }
 
+	  // This functon is to keep the animation going 
+
   function animate() {
     updateArmPosition();
     draw();
     requestAnimationFrame(animate);
   }
+
+	  // resets everything to initial state 
 
   function resetBlocks() {
     beliefs = { blocks: {}, holding: null };
@@ -466,6 +492,8 @@
     document.getElementById("status").textContent = "🔄 Reset complete.";
     log("🔁 Environment reset.");
   }
+
+	  // Adds bew blocks to the table up to Z
 
   function addBlock() {
     if (currentBlockCharCode > "Z".charCodeAt(0)) {
@@ -493,6 +521,8 @@
       }
     }));
   }
+
+	  // Removes the last added block 
 
   function undoAddBlock() {
     if (currentBlockCharCode <= "A".charCodeAt(0)) {
@@ -523,6 +553,7 @@
 
     animate();
   }
+	  // Starts the animation loop
 
   animate();
 </script>
