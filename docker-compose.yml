@@ -1,0 +1,28 @@
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bdi-backend
+    ports:
+      - "8080:8080"
+    networks:
+      - bdi-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bdi-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - bdi-network
+    restart: unless-stopped
+
+networks:
+  bdi-network:
+    driver: bridge

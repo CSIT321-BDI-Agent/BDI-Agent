@@ -211,7 +211,7 @@
 
 	  // Websocket connection 
 
-  const ws = new WebSocket("ws://localhost:8080");
+  const ws = new WebSocket(`ws://${window.location.host}/ws`);
 
   ws.onopen = () => {
     log("✅ Client connected to BDI WebSocket server.");

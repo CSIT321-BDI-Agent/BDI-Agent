@@ -1,5 +1,5 @@
 // This here establishers the connection to the BDI agent backend
-const socket = new WebSocket('ws://localhost:8080');
+const socket = new WebSocket(`ws://${window.location.host}/ws`);
 // This is for when the connection opes successfully 
 socket.onopen = () => {
     console.log('Connected to BDI agent');

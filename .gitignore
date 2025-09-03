@@ -129,3 +129,6 @@ logs
 # Any extracted temporary directories
 temp-extract/
 temp-sources/
+
+# Docker
+.dockerignore
