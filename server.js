@@ -43,26 +43,41 @@ app.post('/worlds', async (req, res) => {
   try {
     const { name, blocks, stacks, userId } = req.body;
     
+    console.log('=== SAVE WORLD REQUEST ===');
+    console.log('Request body:', { name, blocks: blocks?.length, stacks: stacks?.length, userId });
+    console.log('UserId type:', typeof userId, 'UserId value:', userId);
+    
     // Enhanced validation
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      console.log('❌ Invalid name');
       return res.status(400).json({ message: 'Valid world name is required' });
     }
     if (!Array.isArray(blocks) || !Array.isArray(stacks)) {
+      console.log('❌ Invalid blocks or stacks');
       return res.status(400).json({ message: 'Blocks and stacks must be arrays' });
     }
     if (!userId) {
+      console.log('❌ Missing userId');
       return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.log('❌ Invalid ObjectId format:', userId);
+      return res.status(400).json({ message: 'Invalid user ID format' });
     }
 
     const world = await World.create({ 
       name: name.trim(), 
       blocks, 
       stacks, 
-      user: userId 
+      user: new mongoose.Types.ObjectId(userId)
     });
+    
+    console.log('✅ World created:', world._id);
     res.status(201).json(world);
   } catch (e) {
-    console.error('Error saving world:', e);
+    console.error('❌ Error saving world:', e);
     if (e.name === 'ValidationError') {
       res.status(400).json({ message: 'Invalid world data provided' });
     } else {
@@ -73,15 +88,27 @@ app.post('/worlds', async (req, res) => {
 
 app.get('/worlds', async (req, res) => {
   const { userId } = req.query;
+  
+  console.log('=== GET WORLDS REQUEST ===');
+  console.log('UserId from query:', userId);
+  
   if (!userId) {
+    console.log('❌ Missing userId in query');
     return res.status(400).json({ message: 'userId is required' });
   }
 
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    console.log('❌ Invalid ObjectId format:', userId);
+    return res.status(400).json({ message: 'Invalid user ID format' });
+  }
+
   try {
-    const worlds = await World.find({ user: userId }).sort({ createdAt: -1 });
+    const worlds = await World.find({ user: new mongoose.Types.ObjectId(userId) }).sort({ createdAt: -1 });
+    console.log('✅ Found worlds:', worlds.length);
+    console.log('Worlds:', worlds.map(w => ({ id: w._id, name: w.name, user: w.user })));
     res.json(worlds);
   } catch (e) {
-    console.error('Error fetching worlds:', e);
+    console.error('❌ Error fetching worlds:', e);
     res.status(500).json({ message: 'Failed to fetch worlds' });
   }
 });
@@ -90,8 +117,15 @@ app.get('/worlds/:id', async (req, res) => {
   const { userId } = req.query;
   if (!userId) return res.status(400).json({ message: "userId required" });
 
+  if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(400).json({ message: 'Invalid ID format' });
+  }
+
   try {
-    const doc = await World.findOne({ _id: req.params.id, user: userId });
+    const doc = await World.findOne({ 
+      _id: new mongoose.Types.ObjectId(req.params.id), 
+      user: new mongoose.Types.ObjectId(userId) 
+    });
     if (!doc) return res.status(404).json({ message: 'World not found or access denied' });
     res.json(doc);
   } catch (e) {

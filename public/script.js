@@ -457,6 +457,10 @@ async function saveWorld() {
   }
   
   const userId = localStorage.getItem('userId');
+  console.log('=== SAVE WORLD DEBUG ===');
+  console.log('UserId from localStorage:', userId);
+  console.log('API_BASE:', API_BASE);
+  
   if (!userId) {
     showMessage('You must be logged in to save a world.', 'error');
     return;
@@ -469,6 +473,8 @@ async function saveWorld() {
     userId
   };
   
+  console.log('Payload to send:', payload);
+  
   try {
     showMessage('Saving world...', 'info');
     const res = await fetch(`${API_BASE}/worlds`, {
@@ -477,14 +483,22 @@ async function saveWorld() {
       body: JSON.stringify(payload)
     });
     
+    console.log('Response status:', res.status);
+    console.log('Response ok:', res.ok);
+    
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
+      console.log('Error response:', errorData);
       throw new Error(errorData.message || `Save failed with status ${res.status}`);
     }
+    
+    const savedWorld = await res.json();
+    console.log('✅ World saved:', savedWorld);
     
     showMessage('World saved successfully!', 'success');
     await refreshLoadList();
   } catch (e) {
+    console.error('❌ Save error:', e);
     handleError(e, 'saveWorld');
   }
 }
@@ -493,25 +507,43 @@ async function refreshLoadList() {
   const userId = localStorage.getItem('userId');
   const sel = document.getElementById('loadSelect');
   
+  console.log('=== REFRESH LOAD LIST DEBUG ===');
+  console.log('UserId from localStorage:', userId);
+  console.log('Select element found:', !!sel);
+  console.log('API_BASE:', API_BASE);
+  
   if (!sel) return;
   
   sel.innerHTML = '<option value="">-- Select a saved world --</option>';
 
-  if (!userId) return;
+  if (!userId) {
+    console.log('❌ No userId, skipping world fetch');
+    return;
+  }
 
   try {
-    const res = await fetch(`${API_BASE}/worlds?userId=${userId}`);
+    const url = `${API_BASE}/worlds?userId=${userId}`;
+    console.log('Fetching from URL:', url);
+    
+    const res = await fetch(url);
+    
+    console.log('Response status:', res.status);
+    console.log('Response ok:', res.ok);
     
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
+      console.log('Error response:', errorData);
       throw new Error(errorData.message || 'Failed to fetch saved worlds');
     }
     
     const worlds = await res.json();
+    console.log('✅ Received worlds:', worlds);
     
     if (!Array.isArray(worlds)) {
       throw new Error('Invalid response format');
     }
+    
+    console.log('Adding', worlds.length, 'worlds to select');
     
     for (const w of worlds) {
       if (w._id && w.name) {
@@ -520,9 +552,11 @@ async function refreshLoadList() {
         const when = w.createdAt ? new Date(w.createdAt).toLocaleString() : 'Unknown date';
         opt.textContent = `${w.name} (${when})`;
         sel.appendChild(opt);
+        console.log('Added option:', opt.textContent);
       }
     }
   } catch (e) {
+    console.error('❌ RefreshLoadList error:', e);
     handleError(e, 'refreshLoadList');
   }
 }
