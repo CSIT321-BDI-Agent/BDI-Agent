@@ -1,5 +1,4 @@
 
-
 :root {
   --block-width: 80px;
   --block-height: 30px;
@@ -20,60 +19,80 @@ body {
   background-color: #f5f7fa;
   color: #333;
   line-height: 1.4;
-  padding: 20px;
+  padding: 12px;
 }
 
 .container {
   max-width: 900px;
   margin: 0 auto;
+  padding: 0 16px;
 }
 
 h1 {
   text-align: center;
   margin-top: 0;
   color: #2c3e50;
+  font-size: 24px;
 }
 
 p {
   margin-bottom: 1rem;
   text-align: center;
+  font-size: 14px;
 }
 
 .controls {
   display: flex;
   justify-content: center;
-  gap: 20px;
+  gap: 12px;
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
 .form-group {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin-bottom: 16px;
+  width: 100%;
 }
 
 label {
   font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 4px;
 }
 
-input[type="text"] {
-  padding: 5px 8px;
-  font-size: 1rem;
+input[type="text"], input[type="email"], input[type="password"] {
+  padding: 10px 12px;
+  font-size: 16px; /* Prevents zoom on iOS */
   border: 1px solid #ccc;
-  border-radius: 4px;
-  min-width: 200px;
+  border-radius: 6px;
+  width: 100%;
+  max-width: 100%;
+  background: #fff;
+}
+
+input[type="text"]:focus, 
+input[type="email"]:focus, 
+input[type="password"]:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
 
 button {
-  padding: 6px 12px;
-  font-size: 1rem;
+  padding: 12px 16px;
+  font-size: 16px;
   border: none;
   background-color: #3498db;
   color: white;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  width: 100%;
+  margin-top: 8px;
 }
 
 button:hover:not(:disabled) {
@@ -91,9 +110,10 @@ button:disabled {
   color: #c0392b;
   margin-top: 8px;   
   margin-bottom: 10px;
-  padding: 5px;
-  border-radius: 4px;
+  padding: 8px;
+  border-radius: 6px;
   transition: all 0.3s ease;
+  font-size: 14px;
 }
 
 .messages.error {
@@ -117,16 +137,19 @@ button:disabled {
 #world-wrapper {
   overflow-x: auto;
   background-color: #ecf0f1;
-  padding: 10px;
+  padding: 8px;
   border-radius: 6px;
   height: calc(var(--world-height) + 40px);
-  border: 1px solid #ddd; 
+  border: 1px solid #ddd;
+  margin: 0 auto;
+  max-width: 100%;
 }
 
 #world {
   position: relative;
   height: var(--world-height);
   margin: 0 auto;
+  min-width: 300px; /* Ensure minimum space for blocks */
 }
 
 .block {
@@ -144,6 +167,7 @@ button:disabled {
   transition: left 0.5s ease, top 0.5s ease;
   cursor: default;
   user-select: none;
+  font-size: 14px;
 }
 
 .block.moving {
@@ -184,7 +208,150 @@ button:disabled {
 
 #loadSelect {
   width: 100%;
-  max-width: 400px;
+  max-width: 100%;
   font-size: 14px;
-  padding: 4px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+}
+
+/* Responsive breakpoints */
+
+/* Tablet styles (768px and up) */
+@media (min-width: 768px) {
+  body {
+    padding: 20px;
+  }
+  
+  .container {
+    padding: 0 20px;
+  }
+  
+  h1 {
+    font-size: 28px;
+  }
+  
+  p {
+    font-size: 16px;
+  }
+  
+  .controls {
+    gap: 20px;
+  }
+  
+  .form-group {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  
+  label {
+    font-size: 16px;
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+  
+  input[type="text"], input[type="email"], input[type="password"] {
+    min-width: 200px;
+    width: auto;
+    flex: 1;
+  }
+  
+  button {
+    width: auto;
+    padding: 10px 16px;
+    margin-top: 0;
+  }
+  
+  #world-wrapper {
+    padding: 10px;
+  }
+  
+  .block {
+    font-size: 16px;
+  }
+}
+
+/* Desktop styles (1024px and up) */
+@media (min-width: 1024px) {
+  h1 {
+    font-size: 32px;
+  }
+  
+  input[type="text"], input[type="email"], input[type="password"] {
+    min-width: 250px;
+    font-size: 18px;
+    padding: 12px 16px;
+  }
+  
+  button {
+    font-size: 18px;
+    padding: 12px 20px;
+  }
+  
+  .messages {
+    font-size: 16px;
+    padding: 10px;
+  }
+  
+  #world-wrapper {
+    padding: 12px;
+  }
+}
+
+/* Large screens (1200px and up) */
+@media (min-width: 1200px) {
+  .container {
+    max-width: 1200px;
+  }
+  
+  input[type="text"], input[type="email"], input[type="password"] {
+    min-width: 300px;
+  }
+}
+
+/* Small mobile adjustments */
+@media (max-width: 480px) {
+  body {
+    padding: 8px;
+  }
+  
+  .container {
+    padding: 0 8px;
+  }
+  
+  h1 {
+    font-size: 20px;
+  }
+  
+  input[type="text"], input[type="email"], input[type="password"] {
+    padding: 8px 10px;
+    font-size: 16px;
+  }
+  
+  button {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  
+  .messages {
+    font-size: 12px;
+    padding: 6px;
+  }
+  
+  #world-wrapper {
+    padding: 6px;
+    height: calc(var(--world-height) + 30px);
+  }
+  
+  .block {
+    font-size: 12px;
+  }
+  
+  #loadSelect {
+    font-size: 12px;
+    padding: 6px;
+  }
 }

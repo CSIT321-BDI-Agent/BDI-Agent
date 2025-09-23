@@ -3,88 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sign Up - BDI Blocks World</title>
+  <title>Sign Up - Blocks World BDI Agent</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand">BDI Blocks World</div>
-      <div class="navsec">
-        <h6>Account</h6>
-        <nav class="nav">
-          <a href="login.html">Sign In</a>
-          <a class="active" href="signup.html">Sign Up</a>
-        </nav>
+  <div class="container">
+    <h1>Sign Up</h1>
+    <p>Create a new account to start using the BDI Blocks World simulation.</p>
+    
+    <form id="signupForm">
+      <div class="form-group">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required placeholder="you@example.com">
       </div>
-    </aside>
-
-    <main class="main">
-      <div class="topbar">
-        <h2>Sign Up</h2>
+      <div class="form-group">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required placeholder="Your username">
       </div>
-
-      <section class="card" style="max-width:400px; margin:auto; margin-top:40px;">
-        <h3>Create Account</h3>
-        <div class="card-body">
-          <form id="signupForm">
-            <div class="form-group" style="margin-bottom:12px;">
-              <label>Email</label><br/>
-              <input type="email" id="email" required placeholder="you@example.com"/>
-            </div>
-            <div class="form-group" style="margin-bottom:12px;">
-              <label>Username</label><br/>
-              <input type="text" id="username" required placeholder="Your username"/>
-            </div>
-            <div class="form-group" style="margin-bottom:12px;">
-              <label>Password</label><br/>
-              <input type="password" id="password" required placeholder="********"/>
-            </div>
-            <button type="submit">Sign Up</button>
-          </form>
-          <div id="signupMsg" style="margin-top:12px; font-size:14px;"></div>
-        </div>
-      </section>
-    </main>
+      <div class="form-group">
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required placeholder="At least 6 characters">
+      </div>
+      <button type="submit">Sign Up</button>
+    </form>
+    
+    <div id="messages" class="messages"></div>
+    
+    <p>Already have an account? <a href="login.html">Sign in here</a></p>
   </div>
 
-  <script src="config.js"></script>
   <script>
+    const API_BASE = 'http://localhost:3000';
+    
     document.getElementById('signupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const email = document.getElementById('email').value.trim();
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
-      const msgElement = document.getElementById('signupMsg');
 
       // Clear previous messages
-      msgElement.textContent = '';
-      msgElement.style.color = 'red';
+      showMessage('', 'info');
 
       // Basic validation
       if (!email || !username || !password) {
-        msgElement.textContent = 'All fields are required';
+        showMessage('All fields are required', 'error');
         return;
       }
 
       if (password.length < 6) {
-        msgElement.textContent = 'Password must be at least 6 characters long';
+        showMessage('Password must be at least 6 characters long', 'error');
         return;
       }
 
       // Email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
-        msgElement.textContent = 'Please enter a valid email address';
+        showMessage('Please enter a valid email address', 'error');
         return;
       }
 
       try {
-        msgElement.textContent = 'Creating account...';
-        msgElement.style.color = 'blue';
-
-        const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
+        showMessage('Creating account...', 'info');
         
         const res = await fetch(`${API_BASE}/users/signup`, {
           method: "POST",
@@ -102,8 +82,7 @@
         localStorage.setItem('userId', data.userId);
         localStorage.setItem('username', username);
 
-        msgElement.textContent = 'Account created successfully! Redirecting...';
-        msgElement.style.color = 'green';
+        showMessage('Account created successfully! Redirecting...', 'success');
 
         // Redirect after short delay
         setTimeout(() => {
@@ -112,10 +91,23 @@
 
       } catch (err) {
         console.error('Signup error:', err);
-        msgElement.textContent = err.message || 'Signup failed. Please try again.';
-        msgElement.style.color = 'red';
+        showMessage(err.message || 'Signup failed. Please try again.', 'error');
       }
     });
+    
+    function showMessage(text, type = 'info') {
+      const messages = document.getElementById('messages');
+      messages.textContent = text;
+      messages.className = `messages ${type}`;
+    }
+    
+    // Check if already logged in
+    if (localStorage.getItem('userId')) {
+      showMessage('You are already logged in. Redirecting...', 'info');
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 1000);
+    }
   </script>
 </body>
 </html>
