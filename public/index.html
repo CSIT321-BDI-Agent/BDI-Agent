@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BDI Blocks World</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root{
+      --teal-1:#24c1b5; --teal-2:#19b1a6; --bg:#f5f7fa; --card:#ffffff;
+      --muted:#6b7a90; --border:#e7eaf0; --shadow:0 8px 24px rgba(0,0,0,.06);
+      --radius:14px;
+    }
+    body{background:var(--bg);}
+    .app{
+      display:grid; grid-template-columns: 240px 1fr; min-height:100vh; gap:22px;
+    }
+    .sidebar{
+      background:#fff; border-right:1px solid var(--border); padding:18px 14px;
+    }
+    .brand{font-weight:800; font-size:20px; letter-spacing:.2px; margin:8px 8px 18px;}
+    .navsec{margin:14px 0;}
+    .navsec h6{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin:10px 10px;}
+    .nav a{
+      display:flex; align-items:center; gap:10px; padding:10px 12px; margin:4px 6px;
+      border-radius:10px; color:#1f2a3a; text-decoration:none;
+    }
+    .nav a.active{background:#e9fbf9; color:#106d67;}
+    .help{
+      margin:18px 8px; padding:12px; background:#e9fbf9; border:1px solid #c6f2ee; border-radius:12px;
+      font-size:13px;
+    }
+    .main{padding:0 22px 28px;}
+    .topbar{
+      display:flex; align-items:center; justify-content:space-between; padding:16px 0;
+    }
+    .search{flex:1; max-width:520px;}
+    .search input{
+      width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:12px; background:#fff;
+    }
+    .user-mini{display:flex; align-items:center; gap:12px; color:var(--muted);}
+    .hero{
+      border-radius:18px; background:linear-gradient(135deg, var(--teal-1), var(--teal-2));
+      color:#fff; padding:28px 24px; box-shadow:var(--shadow); margin-bottom:16px;
+    }
+    .user-strip{
+      display:flex; align-items:center; gap:12px; background:#fff; margin-top:-22px; padding:12px 14px;
+      border-radius:12px; width:max-content; box-shadow:var(--shadow); border:1px solid var(--border);
+    }
+    .grid{
+      display:grid; grid-template-columns: 1.4fr 0.8fr; gap:22px; margin-top:18px;
+    }
+    .card{
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow);
+    }
+    .card h3{padding:14px 16px; border-bottom:1px solid var(--border); margin:0;}
+    .card-body{padding:14px 16px;}
+    .simwrap{padding:14px 16px;}
+    .row-below{
+      display:grid; grid-template-columns: 1.1fr 0.9fr; gap:22px; margin-top:22px;
+    }
+    .info-grid{
+      display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;
+    }
+    .info-tile{
+      border:1px solid var(--border); border-radius:12px; padding:12px; background:#fff;
+      min-height:92px;
+    }
+    .log{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size:13px; max-height:240px; overflow:auto; padding:10px 12px; background:#0b1220; color:#bfe9e6;
+      border-radius:12px; border:1px solid #0f2030;
+    }
+    .controls-grid{display:grid; grid-template-columns: 1fr 1fr; gap:12px;}
+    .controls-grid .form-group{justify-content:flex-start}
+    .pill{background:#e9fbf9; color:#106d67; border:1px solid #c6f2ee; padding:6px 10px; border-radius:999px; font-size:12px;}
+    .inline-controls{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+    .messages{margin-top:8px;}
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">BDI Blocks World</div>
+
+      <div class="navsec">
+        <h6>Simulation</h6>
+        <nav class="nav">
+          <a class="active" href="#">Simulation</a>
+          <a href="#" aria-disabled="true">History</a>
+          <a href="#" aria-disabled="true">Agent Logs</a>
+          <a href="#" aria-disabled="true">Import</a>
+          <a href="#" aria-disabled="true">Export</a>
+        </nav>
+      </div>
+
+      <div class="navsec">
+        <h6>Account</h6>
+        <nav class="nav">
+          <a href="#" aria-disabled="true">Profile</a>
+          <a href="login.html" aria-disabled="false">Sign In</a>
+          <a href="signup.html" aria-disabled="false">Sign Up</a>
+        </nav>
+      </div>
+
+      <div class="help">
+        <strong>Need help?</strong><br/>
+        Read the quick docs and examples.
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="search"><input type="text" placeholder="Type to search…"></div>
+        <div class="user-mini"><span class="pill">Signed out</span></div>
+      </div>
+
+      <section class="hero">
+        <h2 style="margin:0 0 8px;">Simulation</h2>
+        <div class="user-strip">
+          <div>
+            <div style="font-weight:700;">User</div>
+            <div style="font-size:12px; opacity:.85;">you@example.com</div>
+          </div>
+          <span class="pill">Overview</span>
+          <span class="pill">Simulations</span>
+        </div>
+      </section>
+
+      <div class="grid">
+        <section class="card">
+          <h3>Simulation Environment</h3>
+          <div class="simwrap">
+            <div id="world-wrapper" class="card-body" style="padding:0;">
+              <div id="world"></div>
+            </div>
+            <div id="messages" class="messages"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3>Control Panel</h3>
+          <div class="card-body">
+            <div class="controls-grid">
+              <div class="form-group">
+                <label for="blockName">Add block:</label>
+                <input type="text" id="blockName" placeholder="Block name (e.g. A)" />
+                <button id="addBlockBtn">Add Block</button>
+              </div>
+
+              <div class="form-group">
+                <label for="goalInput">Goal stack:</label>
+                <input type="text" id="goalInput" placeholder="e.g. A on C on D" />
+                <button id="startBtn">Start Simulation</button>
+              </div>
+            </div>
+
+            <hr style="border:none;border-top:1px solid var(--border); margin:12px 0;">
+
+            <div class="inline-controls">
+              <button id="saveBtn" type="button">Save</button>
+              <select id="loadSelect" title="Saved worlds"></select>
+              <button id="loadBtn" type="button">Load</button>
+              <span class="pill">BDI Planner</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="row-below">
+        <section class="card">
+          <h3>Information Panel</h3>
+          <div class="card-body">
+            <div class="info-grid">
+              <div class="info-tile">
+                <div style="font-size:12px;color:var(--muted);">Goal State</div>
+                <div id="info-goal" style="margin-top:6px;">—</div>
+              </div>
+              <div class="info-tile">
+                <div style="font-size:12px;color:var(--muted);">Current Configuration</div>
+                <div id="info-current" style="margin-top:6px;">—</div>
+              </div>
+              <div class="info-tile">
+                <div style="font-size:12px;color:var(--muted);">Stats</div>
+                <div id="info-stats" style="margin-top:6px;">Steps: 0<br/>Status: —</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3>Action Tower</h3>
+          <div class="card-body">
+            <div id="actionLog" class="log"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="script.js" defer></script>
+  <script>
+    (function(){
+      const log = document.getElementById('actionLog');
+      const infoGoal = document.getElementById('info-goal');
+      const infoCur  = document.getElementById('info-current');
+      const infoStats= document.getElementById('info-stats');
+
+      const startBtn = document.getElementById('startBtn');
+      const goalInput = document.getElementById('goalInput');
+      const worldElem = document.getElementById('world');
+
+      window.addEventListener('load', () => {
+		const username = localStorage.getItem('username');
+		const userMini = document.querySelector('.user-mini .pill');
+		if (username && userMini) {
+			userMini.textContent = `Signed in as ${username}`;
+		}
+
+		refreshLoadList();
+		});
+	  window._logMove = function(txt){
+        if(!log) return;
+        const p = document.createElement('div');
+        p.textContent = txt;
+        log.appendChild(p);
+        log.scrollTop = log.scrollHeight;
+      };
+
+      const msg = document.getElementById('messages');
+      const obs = new MutationObserver(() => {
+        const t = msg.textContent.trim();
+        if (t) infoStats.innerHTML = `Steps: —<br/>Status: ${t}`;
+      });
+      obs.observe(msg, { childList:true, subtree:true, characterData:true });
+
+      setInterval(() => {
+        if (window.world && Array.isArray(window.world.stacks)) {
+          infoCur.textContent = '('+ window.world.stacks.map(s => s.join(', ')).join(' | ') +')';
+        }
+      }, 500);
+
+      startBtn?.addEventListener('click', () => {
+        const g = goalInput.value.trim();
+        if (g) infoGoal.textContent = '(' + g.split(/\s*on\s*/i).join(', ') + ')';
+      });
+    })();
+  </script>
+</body>
+</html>
