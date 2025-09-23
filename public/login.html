@@ -19,7 +19,7 @@
       <button type="submit">Sign In</button>
     </form>
 
-    <p id="error" style="color:red; display:none;"></p>
+    <p id="error" class="error-text"></p>
 
     <p>
       Don’t have an account?
@@ -37,13 +37,13 @@
       const errorElement = document.getElementById('error');
 
       // Clear previous errors
-      errorElement.style.display = 'none';
+      errorElement.classList.remove('show');
       errorElement.textContent = '';
 
       // Basic validation
       if (!username || !password) {
         errorElement.textContent = 'Please enter both username and password';
-        errorElement.style.display = 'block';
+        errorElement.classList.add('show');
         return;
       }
 
@@ -73,7 +73,7 @@
       } catch (err) {
         console.error('Login error:', err);
         errorElement.textContent = err.message || 'Login failed. Please try again.';
-        errorElement.style.display = 'block';
+        errorElement.classList.add('show');
       }
     });
   </script>
