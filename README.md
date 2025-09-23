@@ -156,14 +156,6 @@ Currently no automated tests. Manual testing workflow:
 4. Verify planning and execution
 5. Save and reload world
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
 ## 📚 Academic Context
 
 This project demonstrates key AI concepts:
@@ -178,10 +170,6 @@ Suitable for courses in:
 - Planning and Scheduling
 - Web Development
 - Human-Computer Interaction
-
-## 📄 License
-
-This project is part of the CSIT321 coursework. Please refer to your institution's academic integrity policies when using this code.
 
 ## 🙋‍♂️ Support
 

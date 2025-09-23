@@ -35,10 +35,19 @@ class World {
   addBlock(name) {
     name = name.trim().toUpperCase();
     if (!name) return;
+    
+    // Check block limit
+    const maxBlocks = window.APP_CONFIG?.MAX_BLOCKS || 26;
+    if (this.blocks.length >= maxBlocks) {
+      this.setMessage(`Maximum ${maxBlocks} blocks allowed.`);
+      return;
+    }
+    
     if (this.blocks.includes(name)) {
       this.setMessage(`Block "${name}" already exists.`);
       return;
     }
+    
     this.blocks.push(name);
     this.stacks.push([name]);
     this.on[name] = 'Table';
@@ -49,8 +58,12 @@ class World {
     div.dataset.block = name;
     div.textContent = name;
     div.style.backgroundColor = this.colours[name];
-    this.container.appendChild(div);
-    this.updatePositions();
+    
+    if (this.container) {
+      this.container.appendChild(div);
+      this.updatePositions();
+    }
+    
     this.setMessage('');
   }
 
@@ -101,7 +114,11 @@ class World {
   }
 
   setMessage(msg) {
-    messagesElem.textContent = msg;
+    const messagesElem = document.getElementById('messages');
+    if (messagesElem) {
+      messagesElem.textContent = msg;
+      messagesElem.className = 'messages';
+    }
   }
 }
 
@@ -195,48 +212,79 @@ function simulateMove(move, callback) {
 
   window._logMove?.(`Move(${move.block} -> ${move.to})`);
 
-  const blockDiv = worldElem.querySelector(`[data-block='${blockName}']`);
+  const blockDiv = worldElem?.querySelector(`[data-block='${blockName}']`);
   if (!blockDiv) {
     console.error('DOM element for block not found:', blockName);
+    handleError(new Error(`Block ${blockName} not found in DOM`), 'simulateMove');
     callback();
     return;
   }
 
-  const startLeft = parseFloat(blockDiv.style.left) || 0;
-  const startTop = parseFloat(blockDiv.style.top) || 0;
+  try {
+    const startLeft = parseFloat(blockDiv.style.left) || 0;
+    const startTop = parseFloat(blockDiv.style.top) || 0;
 
-  world.moveBlock(blockName, dest);
+    // Validate move before executing
+    if (!world.blocks.includes(blockName)) {
+      throw new Error(`Block ${blockName} not found in world`);
+    }
 
-  world.updatePositions(blockName);
+    world.moveBlock(blockName, dest);
+    world.updatePositions(blockName);
 
-  const destStackIndex = world.stacks.findIndex(s => s.includes(blockName));
-  const destPosIndex = world.stacks[destStackIndex].indexOf(blockName);
-  const destLeft = destStackIndex * (BLOCK_WIDTH + STACK_MARGIN);
-  const destTop = WORLD_HEIGHT - (destPosIndex + 1) * BLOCK_HEIGHT;
+    const destStackIndex = world.stacks.findIndex(s => s.includes(blockName));
+    if (destStackIndex === -1) {
+      throw new Error(`Block ${blockName} not found after move`);
+    }
+    
+    const destPosIndex = world.stacks[destStackIndex].indexOf(blockName);
+    const destLeft = destStackIndex * (BLOCK_WIDTH + STACK_MARGIN);
+    const destTop = WORLD_HEIGHT - (destPosIndex + 1) * BLOCK_HEIGHT;
 
-  claw.style.transition = 'none';
-  claw.style.left = `${startLeft}px`;
-  claw.style.top = `${startTop - CLAW_HEIGHT}px`;
+    // Animate claw
+    if (claw) {
+      claw.style.transition = 'none';
+      claw.style.left = `${startLeft}px`;
+      claw.style.top = `${startTop - CLAW_HEIGHT}px`;
+    }
 
-  blockDiv.classList.add('moving');
+    blockDiv.classList.add('moving');
 
-  void claw.offsetWidth;
+    // Force reflow
+    void blockDiv.offsetWidth;
 
-  const duration = 550;
-  blockDiv.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
-  claw.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
-  blockDiv.style.left = `${destLeft}px`;
-  blockDiv.style.top = `${destTop}px`;
-  claw.style.left = `${destLeft}px`;
-  claw.style.top = `${destTop - CLAW_HEIGHT}px`;
+    const duration = window.APP_CONFIG?.ANIMATION_DURATION || 550;
+    blockDiv.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
+    
+    if (claw) {
+      claw.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
+      claw.style.left = `${destLeft}px`;
+      claw.style.top = `${destTop - CLAW_HEIGHT}px`;
+    }
+    
+    blockDiv.style.left = `${destLeft}px`;
+    blockDiv.style.top = `${destTop}px`;
 
-  setTimeout(() => {
-    blockDiv.classList.remove('moving');
-    blockDiv.style.transition = '';
-    claw.style.transition = '';
-    world.updatePositions();
+    setTimeout(() => {
+      try {
+        blockDiv.classList.remove('moving');
+        blockDiv.style.transition = '';
+        if (claw) {
+          claw.style.transition = '';
+        }
+        world.updatePositions();
+        callback();
+      } catch (error) {
+        handleError(error, 'simulateMove cleanup');
+        callback();
+      }
+    }, duration + 10);
+    
+  } catch (error) {
+    handleError(error, 'simulateMove');
+    blockDiv?.classList.remove('moving');
     callback();
-  }, duration + 10);
+  }
 }
 
 
@@ -287,90 +335,195 @@ goalInput.addEventListener('keyup', (e) => {
   if (e.key === 'Enter') startBtn.click();
 });
 
-const API_BASE = 'http://localhost:3000';
+// Error handling utilities
+function handleError(error, context = '') {
+  console.error(`Error in ${context}:`, error);
+  
+  let message = 'An unexpected error occurred';
+  
+  if (error.name === 'NetworkError' || !navigator.onLine) {
+    message = 'Network connection error. Please check your internet connection.';
+  } else if (error.message) {
+    message = error.message;
+  }
+  
+  showMessage(message, 'error');
+}
+
+function showMessage(text, type = 'info') {
+  const messagesElem = document.getElementById('messages');
+  if (messagesElem) {
+    messagesElem.textContent = text;
+    messagesElem.className = `messages ${type}`;
+    
+    // Clear message after 5 seconds for non-error messages
+    if (type !== 'error') {
+      setTimeout(() => {
+        if (messagesElem.textContent === text) {
+          messagesElem.textContent = '';
+          messagesElem.className = 'messages';
+        }
+      }, 5000);
+    }
+  }
+}
+
+// Use environment-based configuration
+const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
 
 function getCurrentBlocks() { return [...world.blocks]; }
 function getCurrentStacks() { return world.stacks.map(s => [...s]); }
 
 function rebuildWorldFrom(stacks) {
-  worldElem.querySelectorAll('.block').forEach(n => n.remove());
-
-  world.stacks = [];
-  world.on = {};
-  world.blocks = [];
-  world.colours = {};
-
-  const all = [...new Set(stacks.flat())];
-  all.forEach(name => world.addBlock(name));
-
-  world.stacks = stacks.map(s => [...s]);
-
-  
-  world.on = {};
-  world.stacks.forEach(stack => {
-    if (stack.length > 0) {
-      world.on[stack[0]] = 'Table';
-      for (let i = 1; i < stack.length; i++) {
-        world.on[stack[i]] = stack[i - 1];
+  try {
+    // Validate input
+    if (!Array.isArray(stacks)) {
+      throw new Error('Invalid stacks data - must be an array');
+    }
+    
+    // Validate each stack
+    for (let i = 0; i < stacks.length; i++) {
+      if (!Array.isArray(stacks[i])) {
+        throw new Error(`Invalid stack at index ${i} - must be an array`);
       }
     }
-  });
+    
+    // Store current state for potential rollback
+    const backup = {
+      stacks: [...world.stacks.map(s => [...s])],
+      on: {...world.on},
+      blocks: [...world.blocks],
+      colours: {...world.colours}
+    };
+    
+    // Clear DOM elements
+    const worldContainer = document.getElementById('world');
+    if (worldContainer) {
+      worldContainer.querySelectorAll('.block').forEach(n => n.remove());
+    }
 
-  world.updatePositions();
-  world.setMessage('World loaded.');
+    // Reset world state
+    world.stacks = [];
+    world.on = {};
+    world.blocks = [];
+    world.colours = {};
+
+    // Get all unique blocks from stacks
+    const allBlocks = [...new Set(stacks.flat())];
+    
+    // Validate block names
+    for (const block of allBlocks) {
+      if (typeof block !== 'string' || !/^[A-Z]$/.test(block)) {
+        // Rollback on invalid data
+        world.stacks = backup.stacks;
+        world.on = backup.on;
+        world.blocks = backup.blocks;
+        world.colours = backup.colours;
+        throw new Error(`Invalid block name: ${block}. Must be a single uppercase letter.`);
+      }
+    }
+    
+    // Add blocks to world
+    allBlocks.forEach(name => world.addBlock(name));
+
+    // Set stack configuration
+    world.stacks = stacks.map(s => [...s]);
+
+    // Rebuild 'on' relationships
+    world.on = {};
+    world.stacks.forEach(stack => {
+      if (stack.length > 0) {
+        world.on[stack[0]] = 'Table';
+        for (let i = 1; i < stack.length; i++) {
+          world.on[stack[i]] = stack[i - 1];
+        }
+      }
+    });
+
+    world.updatePositions();
+    showMessage('World loaded successfully!', 'success');
+    
+  } catch (error) {
+    handleError(error, 'rebuildWorldFrom');
+  }
 }
 
 
 async function saveWorld() {
   const name = prompt('World name?');
-  if (!name) return;
-  const userId = localStorage.getItem('userId');  // <--- new
-  if (!userId) {
-    alert('You must be logged in to save a world.');
+  if (!name || name.trim().length === 0) {
+    showMessage('Please enter a valid world name.', 'error');
     return;
   }
+  
+  const userId = localStorage.getItem('userId');
+  if (!userId) {
+    showMessage('You must be logged in to save a world.', 'error');
+    return;
+  }
+  
   const payload = { 
-    name, 
+    name: name.trim(), 
     blocks: getCurrentBlocks(), 
     stacks: getCurrentStacks(),
-    userId  // <--- new
+    userId
   };
+  
   try {
+    showMessage('Saving world...', 'info');
     const res = await fetch(`${API_BASE}/worlds`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify(payload)
     });
-    if (!res.ok) throw new Error('Save failed');
-    alert('Saved!');
+    
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || `Save failed with status ${res.status}`);
+    }
+    
+    showMessage('World saved successfully!', 'success');
     await refreshLoadList();
   } catch (e) {
-    alert('Save failed.');
-    console.error(e);
+    handleError(e, 'saveWorld');
   }
 }
 
 async function refreshLoadList() {
   const userId = localStorage.getItem('userId');
   const sel = document.getElementById('loadSelect');
+  
+  if (!sel) return;
+  
   sel.innerHTML = '<option value="">-- Select a saved world --</option>';
 
   if (!userId) return;
 
   try {
     const res = await fetch(`${API_BASE}/worlds?userId=${userId}`);
-    if (!res.ok) throw new Error("Failed to fetch saved worlds");
+    
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to fetch saved worlds');
+    }
+    
     const worlds = await res.json();
     
+    if (!Array.isArray(worlds)) {
+      throw new Error('Invalid response format');
+    }
+    
     for (const w of worlds) {
-      const opt = document.createElement('option');
-      opt.value = w._id;
-      const when = new Date(w.createdAt).toLocaleString();
-      opt.textContent = `${w.name} (${when})`;
-      sel.appendChild(opt);
+      if (w._id && w.name) {
+        const opt = document.createElement('option');
+        opt.value = w._id;
+        const when = w.createdAt ? new Date(w.createdAt).toLocaleString() : 'Unknown date';
+        opt.textContent = `${w.name} (${when})`;
+        sel.appendChild(opt);
+      }
     }
   } catch (e) {
-    console.warn('Could not refresh saved list:', e);
+    handleError(e, 'refreshLoadList');
   }
 }
 
@@ -379,15 +532,36 @@ async function refreshLoadList() {
 
 async function loadSelectedWorld() {
   const sel = document.getElementById('loadSelect');
-  if (!sel.value) return;
+  if (!sel || !sel.value) {
+    showMessage('Please select a world to load.', 'error');
+    return;
+  }
+  
+  const userId = localStorage.getItem('userId');
+  if (!userId) {
+    showMessage('You must be logged in to load a world.', 'error');
+    return;
+  }
+  
   try {
-    const res = await fetch(`${API_BASE}/worlds/${sel.value}`);
-    if (!res.ok) throw new Error('Load failed');
+    showMessage('Loading world...', 'info');
+    const res = await fetch(`${API_BASE}/worlds/${sel.value}?userId=${userId}`);
+    
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || `Load failed with status ${res.status}`);
+    }
+    
     const worldDoc = await res.json();
+    
+    if (!worldDoc.stacks || !Array.isArray(worldDoc.stacks)) {
+      throw new Error('Invalid world data format');
+    }
+    
     rebuildWorldFrom(worldDoc.stacks);
+    showMessage('World loaded successfully!', 'success');
   } catch (e) {
-    alert('Load failed.');
-    console.error(e);
+    handleError(e, 'loadSelectedWorld');
   }
 }
 

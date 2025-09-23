@@ -27,15 +27,30 @@
     </p>
   </div>
 
+  <script src="config.js"></script>
   <script>
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
+      const errorElement = document.getElementById('error');
+
+      // Clear previous errors
+      errorElement.style.display = 'none';
+      errorElement.textContent = '';
+
+      // Basic validation
+      if (!username || !password) {
+        errorElement.textContent = 'Please enter both username and password';
+        errorElement.style.display = 'block';
+        return;
+      }
 
       try {
-        const res = await fetch("http://localhost:3000/login", {
+        const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
+        
+        const res = await fetch(`${API_BASE}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password })
@@ -43,16 +58,22 @@
 
         const data = await res.json();
 
-        if (!res.ok) throw new Error(data.message || "Login failed");
+        if (!res.ok) {
+          throw new Error(data.message || "Login failed");
+        }
 
-        // Store userId locally for world-specific requests
+        // Store user data
         localStorage.setItem("userId", data.userId);
+        localStorage.setItem("username", data.username || username);
 
+        // Show success and redirect
         alert("Login successful!");
-        window.location.href = "index.html"; // redirect to main page
+        window.location.href = "index.html";
 
       } catch (err) {
-        alert(err.message);
+        console.error('Login error:', err);
+        errorElement.textContent = err.message || 'Login failed. Please try again.';
+        errorElement.style.display = 'block';
       }
     });
   </script>

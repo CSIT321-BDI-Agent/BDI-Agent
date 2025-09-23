@@ -48,36 +48,74 @@
     </main>
   </div>
 
+  <script src="config.js"></script>
   <script>
-	document.getElementById('signupForm').addEventListener('submit', async (e) => {
-	e.preventDefault();
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
 
-  const email = document.getElementById('email').value.trim();
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const msgElement = document.getElementById('signupMsg');
 
-  try {
-    const res = await fetch("http://localhost:3000/users/signup", {  // use full URL if testing
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, username, password })
+      // Clear previous messages
+      msgElement.textContent = '';
+      msgElement.style.color = 'red';
+
+      // Basic validation
+      if (!email || !username || !password) {
+        msgElement.textContent = 'All fields are required';
+        return;
+      }
+
+      if (password.length < 6) {
+        msgElement.textContent = 'Password must be at least 6 characters long';
+        return;
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        msgElement.textContent = 'Please enter a valid email address';
+        return;
+      }
+
+      try {
+        msgElement.textContent = 'Creating account...';
+        msgElement.style.color = 'blue';
+
+        const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
+        
+        const res = await fetch(`${API_BASE}/users/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, username, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || "Signup failed");
+        }
+
+        // Automatically log the user in
+        localStorage.setItem('userId', data.userId);
+        localStorage.setItem('username', username);
+
+        msgElement.textContent = 'Account created successfully! Redirecting...';
+        msgElement.style.color = 'green';
+
+        // Redirect after short delay
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 1500);
+
+      } catch (err) {
+        console.error('Signup error:', err);
+        msgElement.textContent = err.message || 'Signup failed. Please try again.';
+        msgElement.style.color = 'red';
+      }
     });
-
-    const data = await res.json();
-
-    if (!res.ok) throw new Error(data.message || "Signup failed");
-
-    // Automatically log the user in by saving userId
-    localStorage.setItem('userId', data.userId);
-    localStorage.setItem('username', username);
-
-    alert("Signup successful! You are now logged in.");
-    window.location.href = "index.html"; // redirect to main page
-
-  } catch (err) {
-    alert(err.message);
-  }
-});
-</script>
+  </script>
 </body>
 </html>
