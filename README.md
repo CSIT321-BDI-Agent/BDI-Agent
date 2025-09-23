@@ -156,28 +156,5 @@ Currently no automated tests. Manual testing workflow:
 4. Verify planning and execution
 5. Save and reload world
 
-## 📚 Academic Context
-
-This project demonstrates key AI concepts:
-- **Planning Algorithms**: Goal-stack planning with state-space search
-- **BDI Architecture**: Belief (world state), Desire (goals), Intention (plans)
-- **Knowledge Representation**: Predicate logic for block relationships
-- **Human-Computer Interaction**: Visual programming interfaces
-
-Suitable for courses in:
-- Artificial Intelligence
-- Knowledge Representation
-- Planning and Scheduling
-- Web Development
-- Human-Computer Interaction
-
-## 🙋‍♂️ Support
-
-For issues and questions:
-- Check the troubleshooting section above
-- Review the [Copilot Instructions](.github/copilot-instructions.md) for development guidelines
-- Create an issue in the GitHub repository
-
+Stretch goal is to create CI/CD unit tests for the application.
 ---
-
-**Built with ❤️ for AI education and demonstration**
