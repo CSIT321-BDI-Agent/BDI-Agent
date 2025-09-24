@@ -5,18 +5,17 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/blocks_world';
 
 const path = require("path");
 
-// CORS configuration
+// Enhanced CORS configuration for Docker
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com'] // Replace with actual production domain
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    ? (process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://yourdomain.com'])
+    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://0.0.0.0:3000'],
   credentials: true,
   optionsSuccessStatus: 200
 };
@@ -25,9 +24,35 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => { console.error('MongoDB connection error:', err); process.exit(1); });
+// Enhanced MongoDB connection with retry logic for Docker
+const connectDB = async () => {
+  const maxRetries = 5;
+  const retryDelay = 5000;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await mongoose.connect(MONGODB_URI, {
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+      });
+      console.log(`✅ MongoDB connected successfully (attempt ${attempt})`);
+      return;
+    } catch (error) {
+      console.error(`❌ MongoDB connection attempt ${attempt} failed:`, error.message);
+      
+      if (attempt === maxRetries) {
+        console.error('💀 All MongoDB connection attempts failed. Exiting...');
+        process.exit(1);
+      }
+      
+      console.log(`⏳ Retrying MongoDB connection in ${retryDelay/1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+};
+
+// Initialize database connection
+connectDB();
 
 const WorldSchema = new mongoose.Schema({
   name:   { type: String, required: true },
@@ -239,9 +264,47 @@ app.post("/login", async (req, res) => {
   }
 });
 
+// Health check endpoint for Docker
+app.get('/health', (req, res) => {
+  const healthcheck = {
+    uptime: process.uptime(),
+    message: 'OK',
+    timestamp: Date.now(),
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  };
+  
+  try {
+    res.status(200).json(healthcheck);
+  } catch (error) {
+    healthcheck.message = error;
+    res.status(503).json(healthcheck);
+  }
+});
 
 app.use(express.static(path.join(__dirname, "public")));
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🗄️ Database: ${MONGODB_URI}`);
 });
+
+// Graceful shutdown for Docker
+const gracefulShutdown = (signal) => {
+  console.log(`\n💀 ${signal} received: closing HTTP server`);
+  server.close(async () => {
+    console.log('✅ HTTP server closed');
+    
+    try {
+      await mongoose.connection.close();
+      console.log('✅ MongoDB connection closed');
+      process.exit(0);
+    } catch (error) {
+      console.error('❌ Error during graceful shutdown:', error);
+      process.exit(1);
+    }
+  });
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
