@@ -18,6 +18,9 @@
   --shadow: 0 8px 24px rgba(0,0,0,.06);
   --radius: 14px;
   --sidebar-width: 240px;
+  /* Control sizing */
+  --control-height: 28px;
+  --control-height-lg: 32px;
 }
 
 /* Global styles */
@@ -33,6 +36,9 @@ body {
   color: #333;
   line-height: 1.4;
 }
+
+/* Prevent any accidental horizontal overflow */
+html, body { max-width: 100%; overflow-x: hidden; }
 
 .container {
   max-width: 900px;
@@ -103,6 +109,9 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Ensure adjacent buttons don't stick together */
+button + button { margin-left: 8px; }
+
 select {
   padding: 6px 8px;
   font-size: 13px;
@@ -116,19 +125,19 @@ select {
 .form-group {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-  margin-bottom: 16px;
-  width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    flex: 2 1 0; /* give more width share to inputs/selects */
+    width: 100%;
 }
-
+  .controls-grid .form-group button { flex: 0 0 auto; white-space: nowrap; min-width: 110px; }
 .form-group label {
   font-size: 14px;
-  margin-bottom: 4px;
+  .controls-grid .form-group label { min-width: 96px; }
 }
 
 .form-group input {
-  width: 100%;
+    gap: 6px;
   padding: 10px;
   font-size: 14px;
   border: 1px solid var(--border);
@@ -335,6 +344,10 @@ select {
   padding: 16px 12px 28px;
 }
 
+/* Allow grid children to shrink and not force overflow */
+.main, .sidebar { min-width: 0; }
+.card { min-width: 0; }
+
 .brand {
   font-weight: 800;
   font-size: 18px;
@@ -436,6 +449,10 @@ select {
   padding: 20px 16px;
   box-shadow: var(--shadow);
   margin-bottom: 16px;
+  /* Layout improvements */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .hero h2 {
@@ -444,18 +461,20 @@ select {
 }
 
 .user-strip {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   background: #fff;
-  margin-top: -16px;
+  margin-top: 0; /* avoid overlap with title */
   padding: 10px 12px;
   border-radius: 10px;
-  width: max-content;
+  max-width: 100%;
   box-shadow: var(--shadow);
   border: 1px solid var(--border);
   flex-wrap: wrap;
 }
+.user-strip > * { flex: 0 0 auto; }
+.user-strip .pill { white-space: nowrap; }
 
 /* Grid layouts */
 .grid {
@@ -481,7 +500,7 @@ select {
 .controls-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 6px;
 }
 
 .controls-grid .form-group {
@@ -498,18 +517,49 @@ select {
   flex-wrap: wrap;
   justify-content: center;
 }
+.inline-controls > * { flex: 0 0 auto; }
 
 .inline-controls button {
-  padding: 8px 12px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .inline-controls select {
   padding: 6px 8px;
-  font-size: 13px;
+  font-size: 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
   min-width: 120px;
+  max-width: 100%;
+}
+
+/* Tame saved-world select width within the inline-controls row */
+.inline-controls #loadSelect {
+  width: auto;
+  min-width: 180px;
+}
+
+/* Standardize control sizes inside the Control Panel */
+.controls-grid .form-group input,
+.controls-grid .form-group select,
+.controls-grid .form-group button,
+.inline-controls button,
+.inline-controls select {
+  height: var(--control-height);
+  line-height: calc(var(--control-height) - 2px);
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+/* Consistent padding for inputs/selects and buttons */
+.controls-grid .form-group input,
+.controls-grid .form-group select,
+.inline-controls select {
+  padding: 0 8px;
+}
+
+.controls-grid .form-group button,
+.inline-controls button {
+  padding: 0 10px;
 }
 
 /* Cards and content */
@@ -521,14 +571,14 @@ select {
 }
 
 .card h3 {
-  padding: 12px 16px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .card-body {
-  padding: 12px 16px;
+  padding: 8px 12px;
 }
 
 .simwrap {
@@ -734,7 +784,7 @@ select {
   }
   
   .app {
-    grid-template-columns: var(--sidebar-width) 1fr;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
     gap: 0;
     padding: 0;
   }
@@ -790,6 +840,12 @@ select {
   
   .hero {
     padding: 24px 20px;
+    /* Put title and actions in one row on tablet+ */
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap; /* allow wrapping to second line on smaller widths */
   }
   
   .hero h2 {
@@ -797,18 +853,19 @@ select {
   }
   
   .user-strip {
-    margin-top: -20px;
+    margin-top: 0;
     padding: 12px 14px;
+    flex: 0 1 auto;
   }
   
   .grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 20px;
     margin-top: 18px;
   }
   
   .row-below {
-    grid-template-columns: 1.2fr 0.8fr;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
     gap: 20px;
     margin-top: 20px;
   }
@@ -830,24 +887,39 @@ select {
   }
   
   .controls-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   }
   
   .controls-grid .form-group {
     flex-direction: row;
     align-items: center;
     gap: 8px;
+    min-width: 0; /* allow group to shrink inside its grid column */
   }
   
   .form-group input {
     width: auto;
     min-width: 150px;
   }
+  /* Override generic input sizing inside the controls grid to prevent overflow */
+  .controls-grid .form-group label { white-space: normal; }
+  .controls-grid .form-group input,
+  .controls-grid .form-group select {
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 0;
+    width: 100%;
+  }
+  .controls-grid .form-group button { flex: 0 0 auto; white-space: nowrap; min-width: 140px; }
+
+  /* Align labels to a consistent width for neat columns */
+  .controls-grid .form-group label { min-width: 120px; }
   
   .inline-controls {
     justify-content: flex-start;
     gap: 8px;
   }
+  .inline-controls #loadSelect { flex: 1 1 220px; }
 }
 
 /* Desktop styles (1024px and up) */
@@ -879,7 +951,7 @@ select {
   }
   
   .app {
-    grid-template-columns: var(--sidebar-width) 1fr;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
     gap: 22px;
     padding: 0;
   }
@@ -895,11 +967,11 @@ select {
   }
   
   .grid {
-    grid-template-columns: 1.4fr 0.8fr;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr);
   }
   
   .row-below {
-    grid-template-columns: 1.1fr 0.9fr;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   }
   
   .info-grid {
@@ -916,6 +988,20 @@ select {
   
   .controls-grid .form-group {
     justify-content: flex-start;
+  }
+  /* Keep control-panel inputs flexible at desktop and above */
+  .controls-grid .form-group input,
+  .controls-grid .form-group select {
+    min-width: 0;
+  }
+  /* Slightly taller controls on desktop for better hit targets */
+  .controls-grid .form-group input,
+  .controls-grid .form-group select,
+  .controls-grid .form-group button,
+  .inline-controls button,
+  .inline-controls select {
+    height: var(--control-height-lg);
+    line-height: calc(var(--control-height-lg) - 2px);
   }
 }
 
