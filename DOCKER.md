@@ -32,12 +32,12 @@ docker-setup.bat dev     # Windows
 
 **Production:**
 ```bash
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
 **Development (with volume mounting):**
 ```bash
-docker-compose -f docker-compose.dev.yml up --build -d
+docker compose -f docker-compose.dev.yml up --build -d
 ```
 
 ## Services
@@ -52,9 +52,9 @@ The application consists of two services:
 
 ### 2. MongoDB Service (`mongo`)
 - **Image**: mongo:7.0
-- **Port**: 27017
 - **Database**: `blocks_world`
 - **Initialization**: Runs `mongo-init.js` on first start
+- **Network**: Internal-only in production to avoid exposing port 27017
 
 ## Configuration
 
@@ -91,55 +91,55 @@ MongoDB data is persisted using Docker volumes:
 ### Container Management
 ```bash
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # Stop services
-docker-compose down
+docker compose down
 
 # Restart services
-docker-compose restart
+docker compose restart
 
 # View running containers
-docker-compose ps
+docker compose ps
 ```
 
 ### Logs and Debugging
 ```bash
 # View all logs
-docker-compose logs -f
+docker compose logs -f
 
 # View app logs only
-docker-compose logs -f app
+docker compose logs -f app
 
 # View MongoDB logs only
-docker-compose logs -f mongo
+docker compose logs -f mongo
 
 # Execute commands in app container
-docker-compose exec app sh
+docker compose exec app sh
 
 # Execute commands in MongoDB container
-docker-compose exec mongo mongosh blocks_world
+docker compose exec mongo mongosh blocks_world
 ```
 
 ### Database Operations
 ```bash
 # Connect to MongoDB shell
-docker-compose exec mongo mongosh blocks_world
+docker compose exec mongo mongosh blocks_world
 
 # Backup database
-docker-compose exec mongo mongodump --db blocks_world --out /tmp/backup
+docker compose exec mongo mongodump --db blocks_world --out /tmp/backup
 
 # Import database
-docker-compose exec mongo mongorestore --db blocks_world /tmp/backup/blocks_world
+docker compose exec mongo mongorestore --db blocks_world /tmp/backup/blocks_world
 ```
 
 ### Cleanup
 ```bash
 # Stop and remove containers
-docker-compose down
+docker compose down
 
 # Remove containers and volumes
-docker-compose down -v
+docker compose down -v
 
 # Remove all unused Docker resources
 docker system prune -a
@@ -159,19 +159,19 @@ netstat -ano | findstr :3000   # Windows (then kill PID)
 **MongoDB Connection Issues:**
 ```bash
 # Check MongoDB container status
-docker-compose logs mongo
+docker compose logs mongo
 
 # Verify network connectivity
-docker-compose exec app ping mongo
+docker compose exec app ping mongo
 ```
 
 **Application Not Starting:**
 ```bash
 # Check application logs
-docker-compose logs app
+docker compose logs app
 
 # Verify environment variables
-docker-compose exec app env
+docker compose exec app env
 ```
 
 ### Health Checks
@@ -179,7 +179,7 @@ docker-compose exec app env
 The application includes health checks:
 ```bash
 # Check container health
-docker-compose ps
+docker compose ps
 
 # Manual health check
 curl http://localhost:3000
@@ -196,6 +196,8 @@ curl http://localhost:3000
 └─────────────────┘    │   mongo:27017   │
                        └─────────────────┘
 ```
+
+In production deployments MongoDB remains inside the Docker network without a host port. The host mapping above applies only when using `docker-compose.dev.yml`.
 
 ## Security Considerations
 

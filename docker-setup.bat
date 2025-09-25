@@ -11,26 +11,26 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM Check if Docker Compose is installed
-docker-compose --version >nul 2>&1
+REM Check if docker compose plugin is available
+docker compose version >nul 2>&1
 if errorlevel 1 (
-    echo ❌ Docker Compose is not installed. Please install Docker Compose first.
+    echo ❌ docker compose plugin is not available. Please update Docker Desktop or install the Docker Compose plugin.
     pause
     exit /b 1
 )
 
 REM Stop any existing containers
 echo 🛑 Stopping existing containers...
-docker-compose down 2>nul
+docker compose down 2>nul
 
 REM Build and start services
 echo 🏗️ Building and starting services...
 if "%1"=="dev" (
     echo Starting in development mode...
-    docker-compose -f docker-compose.dev.yml up --build -d
+    docker compose -f docker-compose.dev.yml up --build -d
 ) else (
     echo Starting in production mode...
-    docker-compose up --build -d
+    docker compose up --build -d
 )
 
 REM Wait for services to be ready
@@ -38,9 +38,9 @@ echo ⏳ Waiting for services to be ready...
 timeout /t 10 /nobreak >nul
 
 REM Check if services are running
-docker-compose ps | find "Up" >nul
+docker compose ps | find "Up" >nul
 if errorlevel 1 (
-    echo ❌ Some services failed to start. Check logs with: docker-compose logs
+    echo ❌ Some services failed to start. Check logs with: docker compose logs
     pause
     exit /b 1
 ) else (
@@ -49,9 +49,9 @@ if errorlevel 1 (
     echo 🗄️ MongoDB is available at: localhost:27017
     echo.
     echo 📋 Useful commands:
-    echo   - View logs: docker-compose logs -f
-    echo   - Stop services: docker-compose down
-    echo   - View running containers: docker-compose ps
+    echo   - View logs: docker compose logs -f
+    echo   - Stop services: docker compose down
+    echo   - View running containers: docker compose ps
 )
 
 pause

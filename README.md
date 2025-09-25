@@ -2,7 +2,7 @@
 
 A classic AI environment implementing **BDI (Belief-Desire-Intention) planning** for manipulating colored blocks to achieve goal configurations. This full-stack application demonstrates goal-stack planning algorithms in an interactive web-based blocks world simulator.
 
-## 🎯 Features
+## Features
 
 - **Interactive Blocks World**: Drag-and-drop interface for creating block configurations
 - **BDI Planning Algorithm**: Goal-stack planning with belief, desire, and intention modeling
@@ -11,7 +11,7 @@ A classic AI environment implementing **BDI (Belief-Desire-Intention) planning**
 - **World Persistence**: Save and load block configurations per user
 - **Real-time Planning**: Watch the AI agent execute step-by-step plans to achieve goals
 
-## 🏗️ Architecture
+## Architecture
 
 **Backend**: Node.js + Express + MongoDB
 - RESTful API for user authentication and world persistence
@@ -23,13 +23,13 @@ A classic AI environment implementing **BDI (Belief-Desire-Intention) planning**
 - Embedded CSS and JavaScript for simplicity
 - Responsive design with modern UI components
 
-## 📋 Prerequisites
+## Prerequisites
 
 - **Node.js** (v14 or higher)
 - **MongoDB** (local installation or MongoDB Atlas)
 - **Modern web browser** (Chrome, Firefox, Safari, Edge)
 
-## 🚀 Installation
+## Installation
 
 ### 1. Clone the Repository
 ```bash
@@ -66,7 +66,23 @@ node server.js
 
 The server will start on `http://localhost:3000`
 
-## 🎮 Usage
+### Docker Quick Start
+
+The repository includes a production-ready Docker setup. To run the stack with MongoDB locally:
+
+```bash
+docker compose up --build
+```
+
+For development with live reload, use:
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+More details are available in `DOCKER.md` and `DEPLOYMENT.md`.
+
+## Usage
 
 ### Getting Started
 1. **Create an Account**: Navigate to the signup page and create a new user account
@@ -87,7 +103,7 @@ The system uses **goal-stack planning** with these operations:
 - `putOn(X, Y)` - Place block X on top of block Y (or Table)
 - Plans are executed step-by-step with visual feedback
 
-## 🛠️ Development
+## Development
 
 ### Project Structure
 ```
@@ -122,7 +138,9 @@ PORT=3000                                    # Server port (default: 3000)
 MONGODB_URI=mongodb://localhost:27017/blocks_world  # Database connection
 ```
 
-## 🔧 Troubleshooting
+When running under Docker, environment variables are provided via the compose files. Override them using an `.env` file or compose overrides as needed.
+
+## Troubleshooting
 
 ### Common Issues
 
@@ -143,11 +161,11 @@ MONGODB_URI=mongodb://localhost:27017/blocks_world  # Database connection
 - Check MongoDB users collection exists
 
 ### Known Issues
-- **Duplicate route**: `/worlds` POST endpoint defined twice in `server.js` (lines 24 & 42)
-- **Missing endpoint**: Frontend expects `GET /worlds?userId=` for listing user worlds
-- **Hardcoded URLs**: API base URL hardcoded as `http://localhost:3000`
+- The application currently lacks automated tests. Follow the manual workflow below until a test suite is added.
+- MongoDB authentication is disabled by default. Enable it and update connection strings before deploying to shared infrastructure.
+- The frontend assumes the API is reachable at the same origin or via the `API_BASE` override in `public/config.js`.
 
-## 🧪 Testing
+## Testing
 
 Currently no automated tests. Manual testing workflow:
 1. Create user account
