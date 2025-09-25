@@ -7,73 +7,88 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <h1>Sign In</h1>
-    <form id="loginForm">
-      <label for="username">Username</label>
-      <input type="text" id="username" name="username" required>
+  <main class="auth-wrapper">
+    <section class="auth-card">
+      <h1 class="auth-title">Sign In</h1>
+      <p class="auth-subtitle">Access your saved worlds and simulations.</p>
 
-      <label for="password">Password</label>
-      <input type="password" id="password" name="password" required>
+      <form id="loginForm" class="auth-form" novalidate>
+        <div class="form-field">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required autocomplete="username">
+        </div>
 
-      <button type="submit">Sign In</button>
-    </form>
+        <div class="form-field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password">
+        </div>
 
-    <p id="error" class="error-text"></p>
+        <button type="submit">Sign In</button>
+      </form>
 
-    <p>
-      Don’t have an account?
-      <a href="signup.html">Sign Up</a>
-    </p>
-  </div>
+      <div id="messages" class="messages"></div>
+
+      <div class="auth-footer">
+        Don’t have an account?
+        <a href="signup.html">Sign up</a>
+      </div>
+    </section>
+  </main>
 
   <script src="config.js"></script>
   <script>
+    const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
+    const messages = document.getElementById('messages');
+
+    function setMessage(text = '', type = 'info') {
+      if (!messages) return;
+      if (!text) {
+        messages.textContent = '';
+        messages.className = 'messages';
+        return;
+      }
+      messages.textContent = text;
+      messages.className = `messages ${type}`;
+    }
+
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
-      const errorElement = document.getElementById('error');
 
-      // Clear previous errors
-      errorElement.classList.remove('show');
-      errorElement.textContent = '';
+      setMessage();
 
-      // Basic validation
       if (!username || !password) {
-        errorElement.textContent = 'Please enter both username and password';
-        errorElement.classList.add('show');
+        setMessage('Please enter both username and password.', 'error');
         return;
       }
 
       try {
-        const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
-        
+        setMessage('Signing you in...', 'info');
+
         const res = await fetch(`${API_BASE}/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
         });
 
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.message || "Login failed");
+          throw new Error(data.message || 'Login failed');
         }
 
-        // Store user data
-        localStorage.setItem("userId", data.userId);
-        localStorage.setItem("username", data.username || username);
+        localStorage.setItem('userId', data.userId);
+        localStorage.setItem('username', data.username || username);
 
-        // Show success and redirect
-        alert("Login successful!");
-        window.location.href = "index.html";
-
+        setMessage('Login successful. Redirecting...', 'success');
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 1000);
       } catch (err) {
         console.error('Login error:', err);
-        errorElement.textContent = err.message || 'Login failed. Please try again.';
-        errorElement.classList.add('show');
+        setMessage(err.message || 'Login failed. Please try again.', 'error');
       }
     });
   </script>

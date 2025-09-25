@@ -125,29 +125,24 @@ select {
 .form-group {
   display: flex;
   flex-direction: column;
-    min-width: 0;
-    max-width: 100%;
-    flex: 2 1 0; /* give more width share to inputs/selects */
-    width: 100%;
-}
-  .controls-grid .form-group button { flex: 0 0 auto; white-space: nowrap; min-width: 110px; }
-.form-group label {
-  font-size: 14px;
-  .controls-grid .form-group label { min-width: 96px; }
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.form-group input {
-    gap: 6px;
+.form-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2a3a;
+}
+
+.form-group input,
+.form-group select {
   padding: 10px;
   font-size: 14px;
   border: 1px solid var(--border);
   border-radius: 6px;
-}
-
-.form-group button {
-  padding: 10px 16px;
-  font-size: 14px;
-  margin-top: 4px;
 }
 
 /* Messages and notifications */
@@ -179,6 +174,78 @@ select {
   background-color: #e3f2fd;
   color: #1976d2;
   border: 1px solid #bbdefb;
+}
+
+.auth-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 32px 28px;
+}
+
+.auth-title {
+  margin: 0 0 8px;
+  text-align: center;
+  color: #2c3e50;
+}
+
+.auth-subtitle {
+  margin: 0 0 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.auth-footer {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.auth-footer a {
+  color: var(--teal-2);
+  text-decoration: none;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.form-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2a3a;
+}
+
+.form-field input {
+  padding: 10px 12px;
+  font-size: 15px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.form-field input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
 
 .error-text {
@@ -1064,6 +1131,10 @@ select {
   .messages {
     font-size: 12px;
     padding: 6px;
+  }
+  
+  .auth-card {
+    padding: 24px 20px;
   }
   
   #world-wrapper {
