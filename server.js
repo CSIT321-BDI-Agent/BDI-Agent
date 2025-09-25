@@ -267,15 +267,18 @@ app.post("/login", async (req, res) => {
 
 app.post('/plan', (req, res) => {
   try {
-    const { stacks, goalChain } = req.body || {};
+    const { stacks, goalChain, plannerOptions, options } = req.body || {};
 
-    const plan = planBlocksWorld(stacks, goalChain);
+    const mergedOptions = plannerOptions || options || {};
+    const plan = planBlocksWorld(stacks, goalChain, mergedOptions);
 
     res.json({
       moves: plan.moves,
       iterations: plan.iterations,
       goalAchieved: plan.goalAchieved,
-      relationsResolved: plan.relationsResolved
+      relationsResolved: plan.relationsResolved,
+      agentCount: plan.agentCount,
+      intentionLog: plan.intentionLog || []
     });
   } catch (error) {
     const status = error instanceof PlanningError ? error.status : 500;

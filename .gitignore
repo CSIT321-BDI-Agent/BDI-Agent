@@ -1,5 +1,5 @@
 # AI-generated guide files
-.github/copilot-instructions.md
+.github/*.md
 
 # Node.js dependencies
 node_modules/

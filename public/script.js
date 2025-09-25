@@ -125,6 +125,12 @@ async function requestBDIPlan(goalChain) {
     goalChain
   };
 
+  const plannerConfig = window.APP_CONFIG?.PLANNER || {};
+  payload.plannerOptions = {
+    agentCount: typeof plannerConfig.AGENT_COUNT === 'number' ? plannerConfig.AGENT_COUNT : 2,
+    negotiation: plannerConfig.NEGOTIATION || 'prefer-stack'
+  };
+
   const response = await fetch(`${API_BASE}/plan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -144,6 +150,7 @@ async function requestBDIPlan(goalChain) {
     throw err;
   }
 
+  data.plannerOptionsUsed = payload.plannerOptions;
   return data;
 }
 
@@ -159,8 +166,12 @@ function runSimulation() {
   simulating = true;
   planIndex = 0;
   const meta = currentPlanMeta;
+  const agentLabel = meta?.agentCount ? ` with ${meta.agentCount} agents` : '';
+  if (meta?.intentionLog) {
+    window.latestIntentionLog = meta.intentionLog;
+  }
   const executionMsg = meta
-    ? `Executing BDI plan (${meta.moves} planned moves)...`
+    ? `Executing BDI plan${agentLabel} (${meta.moves} planned moves)...`
     : 'Executing BDI plan...';
   showMessage(executionMsg, 'info');
   setControlsDisabled(true);
@@ -168,7 +179,7 @@ function runSimulation() {
     if (planIndex >= currentPlan.length) {
       simulating = false;
       const summary = meta
-        ? `Goal achieved! ${meta.moves} moves across ${meta.iterations} BDI cycles.`
+        ? `Goal achieved! ${meta.moves} moves across ${meta.iterations} BDI cycles${agentLabel}.`
         : 'Goal achieved!';
       showMessage(summary, 'success');
       setControlsDisabled(false);
@@ -185,7 +196,8 @@ function simulateMove(move, callback) {
   const blockName = move.block;
   const dest = move.to;
 
-  window._logMove?.(`Move(${move.block} -> ${move.to})`);
+  const actorPrefix = move.actor ? `[${move.actor}] ` : '';
+  window._logMove?.(`${actorPrefix}Move(${move.block} -> ${move.to})`);
 
   const blockDiv = worldElem?.querySelector(`[data-block='${blockName}']`);
   if (!blockDiv) {
@@ -309,7 +321,10 @@ startBtn.addEventListener('click', async () => {
     currentPlanMeta = {
       iterations: planResult.iterations ?? 0,
       moves: currentPlan.length,
-      relationsResolved: planResult.relationsResolved ?? Math.max(tokens.length - 1, 0)
+      relationsResolved: planResult.relationsResolved ?? Math.max(tokens.length - 1, 0),
+      agentCount: planResult.agentCount ?? planResult.plannerOptionsUsed?.agentCount ?? 2,
+      intentionLog: Array.isArray(planResult.intentionLog) ? planResult.intentionLog : [],
+      plannerOptions: planResult.plannerOptionsUsed || null
     };
 
     if (!planResult.goalAchieved) {
