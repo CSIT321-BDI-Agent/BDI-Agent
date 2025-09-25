@@ -1,11 +1,11 @@
 # BDI-Agent: Blocks World Simulation
 
-A classic AI environment implementing **BDI (Belief-Desire-Intention) planning** for manipulating colored blocks to achieve goal configurations. This full-stack application demonstrates goal-stack planning algorithms in an interactive web-based blocks world simulator.
+A classic AI environment implementing **BDI (Belief-Desire-Intention) planning** for manipulating colored blocks to achieve goal configurations. The current release integrates the [JS-son](https://github.com/TimKam/JS-son) BDI framework to generate plans server-side and animate them through an interactive web-based blocks world simulator.
 
 ## Features
 
 - **Interactive Blocks World**: Drag-and-drop interface for creating block configurations
-- **BDI Planning Algorithm**: Goal-stack planning with belief, desire, and intention modeling
+- **JS-son BDI Planning**: Server-side plan synthesis using a JS-son agent with explicit beliefs, desires, and intentions
 - **Visual Animation System**: Smooth CSS transitions with robotic claw visualization
 - **User Authentication**: Secure user accounts with bcrypt password hashing
 - **World Persistence**: Save and load block configurations per user
@@ -13,14 +13,16 @@ A classic AI environment implementing **BDI (Belief-Desire-Intention) planning**
 
 ## Architecture
 
-**Backend**: Node.js + Express + MongoDB
-- RESTful API for user authentication and world persistence
+**Backend**: Node.js + Express + MongoDB + JS-son BDI agent
+- RESTful API for user authentication, BDI planning (`POST /plan`), and world persistence
+- `bdi/blocksWorldAgent.js` wraps a JS-son agent that interprets world state beliefs and synthesizes plans
 - Mongoose ODM for database operations
 - bcrypt for secure password hashing
 
 **Frontend**: Vanilla JavaScript + HTML5 + CSS3
 - No build process - direct file editing and browser refresh
 - Embedded CSS and JavaScript for simplicity
+- Calls the `/plan` endpoint to request JS-son generated move sequences
 - Responsive design with modern UI components
 
 ## Prerequisites
@@ -88,7 +90,7 @@ More details are available in `DOCKER.md` and `DEPLOYMENT.md`.
 1. **Create an Account**: Navigate to the signup page and create a new user account
 2. **Add Blocks**: Use the "Add Block" feature to create blocks (single letters A-Z)
 3. **Set Goals**: Enter a goal configuration like "A on B on C"
-4. **Watch Planning**: Click "Start Simulation" to see the BDI agent plan and execute moves
+4. **Watch Planning**: Click "Start Simulation" to send the request to the JS-son BDI planner and watch the returned moves animate
 5. **Save Worlds**: Save interesting configurations for later use
 
 ### Goal Syntax
@@ -98,16 +100,19 @@ Goals are specified in natural language format:
 - Case-insensitive, separated by "on" keyword
 
 ### Planning Algorithm
-The system uses **goal-stack planning** with these operations:
-- `clearBlock(X)` - Remove all blocks from on top of block X
-- `putOn(X, Y)` - Place block X on top of block Y (or Table)
-- Plans are executed step-by-step with visual feedback
+Planning is handled server-side by a JS-son BDI agent:
+- The frontend sends the current stacks and parsed goal chain to `POST /plan`.
+- The agent maintains beliefs about stack configuration, forms the desire to satisfy each relation in the goal chain, and derives intentions via JS-son preference logic.
+- Plans contain actions such as clearing blockers or stacking a block on its target; each action is returned as `{ "block": "A", "to": "B" }` move descriptors.
+- The client animates the returned sequence while displaying metadata (iterations, number of relations resolved).
 
 ## Development
 
 ### Project Structure
 ```
 BDI-Agent/
+├── bdi/                  # JS-son agent and planning utilities
+│   └── blocksWorldAgent.js
 ├── server.js              # Express server and API routes
 ├── package.json           # Dependencies and project metadata
 ├── public/                # Static frontend files
@@ -125,6 +130,7 @@ BDI-Agent/
 - `POST /login` - User authentication
 - `POST /worlds` - Save world configuration
 - `GET /worlds/:id?userId=` - Load specific world
+- `POST /plan` - Generate a JS-son BDI plan for the provided stacks/goal
 - Static files served from `/public`
 
 ### Development Workflow
@@ -171,8 +177,9 @@ Currently no automated tests. Manual testing workflow:
 1. Create user account
 2. Add blocks A, B, C
 3. Set goal "A on B on C"
-4. Verify planning and execution
+4. Verify planning and execution (optionally inspect `/plan` response via browser dev tools or `curl`)
 5. Save and reload world
+6. Hit `POST /plan` directly with JSON payload to ensure the JS-son agent responds as expected
 
 Stretch goal is to create CI/CD unit tests for the application.
 ---

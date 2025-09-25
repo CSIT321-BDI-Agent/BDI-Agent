@@ -13,7 +13,13 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f"
   },
-  "keywords": ["bdi", "ai", "planning", "blocks-world", "goal-stack"],
+  "keywords": [
+    "bdi",
+    "ai",
+    "planning",
+    "blocks-world",
+    "goal-stack"
+  ],
   "author": "CSIT321-BDI-Agent",
   "license": "MIT",
   "engines": {
@@ -24,7 +30,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
+    "js-son-agent": "^0.0.17",
     "mongoose": "^8.18.1"
   }
 }
-  

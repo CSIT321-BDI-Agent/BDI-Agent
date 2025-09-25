@@ -182,7 +182,12 @@ The application includes health checks:
 docker compose ps
 
 # Manual health check
-curl http://localhost:3000
+curl http://localhost:3000/health
+
+# Optional: verify the JS-son planner (adjust payload as needed)
+curl -X POST http://localhost:3000/plan \
+  -H "Content-Type: application/json" \
+  -d '{"stacks":[["C"],["B","A"]],"goalChain":["A","B","C"]}'
 ```
 
 ## Network Architecture

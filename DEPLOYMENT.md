@@ -101,6 +101,13 @@ docker compose logs -f app
 docker compose logs -f mongo
 ```
 
+### Planner Probe
+```bash
+curl -X POST http://localhost:3000/plan \
+   -H "Content-Type: application/json" \
+   -d '{"stacks":[["C"],["B","A"]],"goalChain":["A","B","C"]}'
+```
+
 ## Database Operations
 
 ### Access MongoDB Shell

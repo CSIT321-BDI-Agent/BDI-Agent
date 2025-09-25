@@ -124,80 +124,65 @@ class World {
 
 const world = new World(worldElem);
 
-function computePlan(chain) {
-  const cloneStacks = JSON.parse(JSON.stringify(world.stacks));
-  const cloneOn = { ...world.on };
-  const cloneBlocks = [...world.blocks];
-
-  function getAbove(b) {
-    for (const x of cloneBlocks) {
-      if (cloneOn[x] === b) return x;
-    }
-    return null;
-  }
-  function isClear(b) {
-    return !cloneBlocks.some(x => cloneOn[x] === b);
-  }
-  function moveBlockInPlan(block, dest, plan) {
-    const fromIndex = cloneStacks.findIndex(s => s.includes(block));
-    const fromStack = cloneStacks[fromIndex];
-    fromStack.pop();
-    if (fromStack.length === 0) cloneStacks.splice(fromIndex, 1);
-    if (dest === 'Table') {
-      cloneStacks.push([block]);
-      cloneOn[block] = 'Table';
-    } else {
-      const destIndex = cloneStacks.findIndex(s => s.includes(dest));
-      cloneStacks[destIndex].push(block);
-      cloneOn[block] = dest;
-    }
-    plan.push({ block: block, to: dest });
-  }
-  function clearBlock(b, plan) {
-    let top = getAbove(b);
-    while (top) {
-      clearBlock(top, plan);
-      moveBlockInPlan(top, 'Table', plan);
-      top = getAbove(b);
-    }
-  }
-  function putOn(x, y, plan) {
-    if (cloneOn[x] === y) return;
-    if (!isClear(x)) clearBlock(x, plan);
-    if (y !== 'Table' && !isClear(y)) clearBlock(y, plan);
-    moveBlockInPlan(x, y, plan);
-  }
-
-  const plan = [];
-  for (let i = chain.length - 1; i >= 1; i--) {
-    const x = chain[i - 1];
-    const y = chain[i];
-    putOn(x, y, plan);
-  }
-  return plan;
-}
-
 let currentPlan = [];
 let planIndex = 0;
 let simulating = false;
+let currentPlanMeta = null;
+
+async function requestBDIPlan(goalChain) {
+  const payload = {
+    stacks: getCurrentStacks(),
+    goalChain
+  };
+
+  const response = await fetch(`${API_BASE}/plan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  let data = {};
+  try {
+    data = await response.json();
+  } catch (error) {
+    data = {};
+  }
+
+  if (!response.ok) {
+    const err = new Error(data.message || 'Failed to compute plan.');
+    err.status = response.status;
+    throw err;
+  }
+
+  return data;
+}
+
+function setControlsDisabled(isDisabled) {
+  startBtn.disabled = isDisabled;
+  addBlockBtn.disabled = isDisabled;
+  blockNameInput.disabled = isDisabled;
+  goalInput.disabled = isDisabled;
+}
 
 function runSimulation() {
   if (simulating) return;
   simulating = true;
   planIndex = 0;
-  messagesElem.textContent = '';
-  startBtn.disabled = true;
-  addBlockBtn.disabled = true;
-  blockNameInput.disabled = true;
-  goalInput.disabled = true;
+  const meta = currentPlanMeta;
+  const executionMsg = meta
+    ? `Executing BDI plan (${meta.moves} planned moves)...`
+    : 'Executing BDI plan...';
+  showMessage(executionMsg, 'info');
+    setControlsDisabled(true);
   function next() {
     if (planIndex >= currentPlan.length) {
       simulating = false;
-      messagesElem.textContent = 'Goal achieved!';
-      startBtn.disabled = false;
-      addBlockBtn.disabled = false;
-      blockNameInput.disabled = false;
-      goalInput.disabled = false;
+      const summary = meta
+        ? `Goal achieved! ${meta.moves} moves across ${meta.iterations} BDI cycles.`
+        : 'Goal achieved!';
+      showMessage(summary, 'success');
+        setControlsDisabled(false);
+      currentPlanMeta = null;
       return;
     }
     const move = currentPlan[planIndex++];
@@ -303,7 +288,8 @@ blockNameInput.addEventListener('keyup', (e) => {
   if (e.key === 'Enter') addBlockBtn.click();
 });
 
-startBtn.addEventListener('click', () => {
+startBtn.addEventListener('click', async () => {
+  if (simulating) return;
   const goalText = goalInput.value.trim();
   if (!goalText) {
     world.setMessage('Please enter a goal stack (e.g. A on C on D).');
@@ -323,12 +309,49 @@ startBtn.addEventListener('click', () => {
       return;
     }
   }
-  currentPlan = computePlan(tokens);
-  if (currentPlan.length === 0) {
-    world.setMessage('The world already satisfies this goal.');
-    return;
+  setControlsDisabled(true);
+
+  try {
+    showMessage('BDI agent is devising a plan...', 'info');
+    const planResult = await requestBDIPlan(tokens);
+
+    currentPlan = Array.isArray(planResult.moves) ? planResult.moves : [];
+    currentPlanMeta = {
+      iterations: planResult.iterations ?? 0,
+      moves: currentPlan.length,
+      relationsResolved: planResult.relationsResolved ?? Math.max(tokens.length - 1, 0)
+    };
+
+    if (!planResult.goalAchieved) {
+      const errorMessage = currentPlan.length > 0
+        ? 'BDI agent produced moves but did not confirm the goal.'
+        : 'BDI agent could not achieve the requested goal.';
+      showMessage(errorMessage, 'error');
+      currentPlan = [];
+      currentPlanMeta = null;
+      setControlsDisabled(false);
+      return;
+    }
+
+    if (currentPlan.length === 0) {
+      const meta = currentPlanMeta;
+      const satisfiedMsg = meta
+        ? 'The world already satisfies this goal (no moves required).'
+        : 'The world already satisfies this goal.';
+      showMessage(satisfiedMsg, 'success');
+      setControlsDisabled(false);
+      currentPlan = [];
+      currentPlanMeta = null;
+      return;
+    }
+
+    runSimulation();
+  } catch (error) {
+    handleError(error, 'planGoal');
+    currentPlan = [];
+    currentPlanMeta = null;
+    setControlsDisabled(false);
   }
-  runSimulation();
 });
 
 goalInput.addEventListener('keyup', (e) => {

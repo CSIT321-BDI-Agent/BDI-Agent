@@ -4,6 +4,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
+const { planBlocksWorld, PlanningError } = require('./bdi/blocksWorldAgent');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -261,6 +262,27 @@ app.post("/login", async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ message: "Server error during login" });
+  }
+});
+
+app.post('/plan', (req, res) => {
+  try {
+    const { stacks, goalChain } = req.body || {};
+
+    const plan = planBlocksWorld(stacks, goalChain);
+
+    res.json({
+      moves: plan.moves,
+      iterations: plan.iterations,
+      goalAchieved: plan.goalAchieved,
+      relationsResolved: plan.relationsResolved
+    });
+  } catch (error) {
+    const status = error instanceof PlanningError ? error.status : 500;
+    console.error('Plan computation error:', error);
+    res.status(status).json({
+      message: error.message || 'Failed to compute plan'
+    });
   }
 });
 
