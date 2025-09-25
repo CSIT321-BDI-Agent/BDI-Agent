@@ -86,17 +86,6 @@ class World {
     }
   }
 
-  getAbove(block) {
-    for (const b of this.blocks) {
-      if (this.on[b] === block) return b;
-    }
-    return null;
-  }
-
-  isClear(block) {
-    return !this.blocks.some(b => this.on[b] === block);
-  }
-
   updatePositions(skipBlock) {
     const width = this.stacks.length * (BLOCK_WIDTH + STACK_MARGIN);
     this.container.style.width = `${width}px`;
@@ -123,6 +112,7 @@ class World {
 }
 
 const world = new World(worldElem);
+window.world = world;
 
 let currentPlan = [];
 let planIndex = 0;
@@ -173,7 +163,7 @@ function runSimulation() {
     ? `Executing BDI plan (${meta.moves} planned moves)...`
     : 'Executing BDI plan...';
   showMessage(executionMsg, 'info');
-    setControlsDisabled(true);
+  setControlsDisabled(true);
   function next() {
     if (planIndex >= currentPlan.length) {
       simulating = false;
@@ -181,7 +171,7 @@ function runSimulation() {
         ? `Goal achieved! ${meta.moves} moves across ${meta.iterations} BDI cycles.`
         : 'Goal achieved!';
       showMessage(summary, 'success');
-        setControlsDisabled(false);
+      setControlsDisabled(false);
       currentPlanMeta = null;
       return;
     }

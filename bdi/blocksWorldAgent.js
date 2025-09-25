@@ -14,7 +14,7 @@ class PlanningError extends Error {
   }
 }
 
-const MAX_DEFAULT_ITERATIONS = 500;
+const MAX_DEFAULT_ITERATIONS = 500; // Limit to prevent infinite loops that could hang the system
 
 function deepCloneStacks(stacks) {
   return stacks.map(stack => [...stack]);
