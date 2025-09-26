@@ -364,10 +364,13 @@ async function requestBDIPlan(goalChain) {
   };
 
   const plannerConfig = window.APP_CONFIG?.PLANNER || {};
-  payload.plannerOptions = {
-    agentCount: typeof plannerConfig.AGENT_COUNT === 'number' ? plannerConfig.AGENT_COUNT : 2,
-    negotiation: plannerConfig.NEGOTIATION || 'prefer-stack'
-  };
+  const maxIterations = Number.isFinite(plannerConfig.MAX_ITERATIONS)
+    ? Math.max(1, Math.floor(plannerConfig.MAX_ITERATIONS))
+    : undefined;
+
+  if (maxIterations) {
+    payload.plannerOptions = { maxIterations };
+  }
 
   const response = await fetch(`${API_BASE}/plan`, {
     method: 'POST',
@@ -388,7 +391,9 @@ async function requestBDIPlan(goalChain) {
     throw err;
   }
 
-  data.plannerOptionsUsed = payload.plannerOptions;
+  if (!data.plannerOptionsUsed) {
+    data.plannerOptionsUsed = maxIterations ? { maxIterations } : null;
+  }
   return data;
 }
 
@@ -404,7 +409,9 @@ function runSimulation() {
   simulating = true;
   planIndex = 0;
   const meta = currentPlanMeta;
-  const agentLabel = meta?.agentCount ? ` with ${meta.agentCount} agents` : '';
+  const agentLabel = meta?.agentCount
+    ? (meta.agentCount === 1 ? ' with 1 agent' : ` with ${meta.agentCount} agents`)
+    : '';
   const firstActionIndex = intentionTimelineState?.cycles
     ? intentionTimelineState.cycles.findIndex(c => c.totalMoves > 0 && c.processedMoves < c.totalMoves)
     : -1;
@@ -573,7 +580,7 @@ startBtn.addEventListener('click', async () => {
       iterations: planResult.iterations ?? 0,
       moves: currentPlan.length,
       relationsResolved: planResult.relationsResolved ?? Math.max(tokens.length - 1, 0),
-      agentCount: planResult.agentCount ?? planResult.plannerOptionsUsed?.agentCount ?? 2,
+      agentCount: planResult.agentCount ?? 1,
       intentionLog: Array.isArray(planResult.intentionLog) ? planResult.intentionLog : [],
       plannerOptions: planResult.plannerOptionsUsed || null
     };

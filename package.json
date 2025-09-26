@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+  "test:planner": "node planner-debug.js",
     "docker:build": "docker build -t bdi-agent .",
     "docker:run": "docker run -p 3000:3000 bdi-agent",
     "docker:up": "docker compose up --build",

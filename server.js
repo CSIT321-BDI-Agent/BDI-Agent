@@ -261,7 +261,8 @@ app.post('/plan', (req, res) => {
       goalAchieved: plan.goalAchieved,
       relationsResolved: plan.relationsResolved,
       agentCount: plan.agentCount,
-      intentionLog: plan.intentionLog || []
+      intentionLog: plan.intentionLog || [],
+      plannerOptionsUsed: plan.plannerOptionsUsed || null
     });
   } catch (error) {
     const status = error instanceof PlanningError ? error.status : 500;

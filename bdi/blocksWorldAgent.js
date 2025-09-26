@@ -16,109 +16,57 @@ class PlanningError extends Error {
   }
 }
 
-const MAX_DEFAULT_ITERATIONS = 500;
+const {
+  deepCloneStacks,
+  normalizeStacks,
+  sanitizeGoalChain,
+  blockExists,
+  topMostAbove,
+  isBlockClear,
+  isOn,
+  selectNextRelation,
+  goalAchieved,
+  applyMove,
+  ensureGoalFeasible
+} = createBlocksHelpers(PlanningError);
 
-function deepCloneStacks(stacks) {
-  return stacks.map(stack => [...stack]);
+const MOVE_REASONS = {
+  CLEAR_BLOCK: 'clear-block',
+  CLEAR_TARGET: 'clear-target',
+  STACK: 'stack'
+};
+
+const AGENT_ID = 'builder-agent';
+const MAX_ITERATIONS_CAP = 5000;
+const DEFAULT_MAX_ITERATIONS = 2500;
+
+function resolvePlannerOptions(options = {}) {
+  const maxIterations = Number.isFinite(options.maxIterations)
+    ? Math.max(1, Math.min(Math.floor(options.maxIterations), MAX_ITERATIONS_CAP))
+    : DEFAULT_MAX_ITERATIONS;
+
+  return { maxIterations };
 }
 
-function normalizeStacks(rawStacks) {
-  if (!Array.isArray(rawStacks)) {
-    throw new PlanningError('Stacks payload must be an array of stacks.');
-  }
-
-  const seen = new Set();
-  const stacks = rawStacks.map((stack, stackIndex) => {
-    if (!Array.isArray(stack)) {
-      throw new PlanningError(`Stack at index ${stackIndex} must be an array.`);
-    }
-
-    return stack.map((block, blockIndex) => {
-      if (typeof block !== 'string') {
-        throw new PlanningError(`Block at stack ${stackIndex}, position ${blockIndex} must be a string.`);
-      }
-
-      const value = block.trim().toUpperCase();
-      if (!/^[A-Z]$/.test(value)) {
-        throw new PlanningError(`Block "${block}" is invalid. Use single letters A-Z.`);
-      }
-
-      if (seen.has(value)) {
-        throw new PlanningError(`Duplicate block detected: "${value}".`);
-      }
-
-      seen.add(value);
-      return value;
-    });
-  });
-
-  return { stacks, blocks: Array.from(seen) };
-}
-
-function sanitizeGoalChain(rawGoalChain, availableBlocks) {
-  if (!Array.isArray(rawGoalChain) || rawGoalChain.length < 2) {
-    throw new PlanningError('Goal chain must include at least two identifiers (e.g., "A on B").');
-  }
-
-  const chain = rawGoalChain.map((token, index) => {
-    if (typeof token !== 'string') {
-      throw new PlanningError(`Goal token at position ${index} must be a string.`);
-    }
-    const normalized = token.trim().toUpperCase();
-    if (normalized === 'TABLE') {
-      return 'Table';
-    }
-    if (!/^[A-Z]$/.test(normalized)) {
-      throw new PlanningError(`Goal token "${token}" is invalid. Use block letters A-Z.`);
-    }
-    if (!availableBlocks.includes(normalized)) {
-      throw new PlanningError(`Goal references unknown block "${normalized}".`);
-    }
-  }
-
-  const maxIterations = typeof merged.maxIterations === 'number' && merged.maxIterations > 0
-    ? Math.min(Math.floor(merged.maxIterations), MAX_DEFAULT_ITERATIONS)
-    : MAX_DEFAULT_ITERATIONS;
-
-  const agentCount = typeof merged.agentCount === 'number' && merged.agentCount >= 1
-    ? Math.max(1, Math.min(Math.floor(merged.agentCount), MAX_AGENT_COUNT))
-    : DEFAULT_AGENT_COUNT;
-
-  const negotiation = typeof merged.negotiation === 'string' && merged.negotiation.trim().length > 0
-    ? merged.negotiation.trim()
-    : 'prefer-stack';
-
-  return {
-    maxIterations,
-    agentCount,
-    negotiation
+function createPlannerAgent(initialBeliefs) {
+  const plannerDesires = {
+    ...Desire('achieveGoal', beliefs => !goalAchieved(beliefs.stacks, beliefs.goalChain))
   };
-}
 
-function createAgentIds(count) {
-  const ids = [];
-  for (let i = 0; i < count; i += 1) {
-    const suffix = String.fromCharCode(97 + (i % 26));
-    const tier = Math.floor(i / 26);
-    ids.push(tier === 0 ? `agent-${suffix}` : `agent-${suffix}${tier}`);
-  }
-  return ids;
-}
-
-function createPeerAgent({ id, desires, initialBeliefs }) {
   return new Agent({
-    id,
+    id: AGENT_ID,
     beliefs: {
       ...Belief('stacks', deepCloneStacks(initialBeliefs.stacks)),
       ...Belief('goalChain', [...initialBeliefs.goalChain]),
       ...Belief('goalAchieved', initialBeliefs.goalAchieved)
     },
-    desires,
+    desires: plannerDesires,
     plans: [
       Plan(
         intentions => intentions.achieveGoal,
-        function () {
+        function planAchieveGoal() {
           const nextRelation = selectNextRelation(this.beliefs.stacks, this.beliefs.goalChain);
+
           if (!nextRelation) {
             this.beliefs.goalAchieved = true;
             return null;
@@ -127,53 +75,56 @@ function createPeerAgent({ id, desires, initialBeliefs }) {
           const { block, destination } = nextRelation;
 
           if (!blockExists(this.beliefs.stacks, block)) {
-            throw new PlanningError(`Agent beliefs missing block "${block}".`, 500);
+            throw new PlanningError(`Planner beliefs missing block "${block}".`, 500);
           }
+
           if (destination !== 'Table' && !blockExists(this.beliefs.stacks, destination)) {
-            throw new PlanningError(`Agent beliefs missing destination "${destination}".`, 500);
+            throw new PlanningError(`Planner beliefs missing destination "${destination}".`, 500);
           }
 
           if (!isBlockClear(this.beliefs.stacks, block)) {
             const blocker = topMostAbove(this.beliefs.stacks, block);
-            if (!blocker) {
-              return null;
-            }
-            return [{
-              move: {
-                block: blocker,
-                to: 'Table',
-                reason: MOVE_REASONS.CLEAR_BLOCK,
-                target: block
+            if (!blocker) return null;
+            return [
+              {
+                move: {
+                  block: blocker,
+                  to: 'Table',
+                  reason: MOVE_REASONS.CLEAR_BLOCK,
+                  target: block
+                }
               }
-            }];
+            ];
           }
 
           if (destination !== 'Table' && !isBlockClear(this.beliefs.stacks, destination)) {
             const blocker = topMostAbove(this.beliefs.stacks, destination);
-            if (!blocker) {
-              return null;
-            }
-            return [{
-              move: {
-                block: blocker,
-                to: 'Table',
-                reason: MOVE_REASONS.CLEAR_TARGET,
-                target: destination
+            if (!blocker) return null;
+            return [
+              {
+                move: {
+                  block: blocker,
+                  to: 'Table',
+                  reason: MOVE_REASONS.CLEAR_TARGET,
+                  target: destination
+                }
               }
-            }];
+            ];
           }
 
           if (isOn(this.beliefs.stacks, block, destination)) {
             return null;
           }
 
-          return [{
-            move: {
-              block,
-              to: destination,
-              reason: MOVE_REASONS.STACK
+          return [
+            {
+              move: {
+                block,
+                to: destination,
+                reason: MOVE_REASONS.STACK
+              }
             }
-          }];
+          ];
         }
       )
     ]
@@ -192,6 +143,7 @@ function extractMove(actions) {
         const destination = typeof action.move.to === 'string'
           ? action.move.to.trim().toUpperCase()
           : 'TABLE';
+
         return {
           block: action.move.block.trim().toUpperCase(),
           to: destination === 'TABLE' ? 'Table' : destination,
@@ -205,13 +157,9 @@ function extractMove(actions) {
   return null;
 }
 
-function validateMoveCandidate(move, stacks, cycleData) {
+function validateMoveCandidate(move, stacks) {
   if (!blockExists(stacks, move.block)) {
-    return { ok: false, fatal: true, code: 'BLOCK_NOT_FOUND' };
-  }
-
-  if (cycleData.movedBlocks.includes(move.block)) {
-    return { ok: false, code: 'BLOCK_ALREADY_MOVED' };
+    return { ok: false, code: 'BLOCK_NOT_FOUND', fatal: true };
   }
 
   if (!isBlockClear(stacks, move.block)) {
@@ -219,7 +167,7 @@ function validateMoveCandidate(move, stacks, cycleData) {
   }
 
   if (move.block === move.to) {
-    return { ok: false, fatal: true, code: 'BLOCK_EQUALS_DESTINATION' };
+    return { ok: false, code: 'BLOCK_EQUALS_DESTINATION', fatal: true };
   }
 
   if (move.to === 'Table') {
@@ -227,11 +175,7 @@ function validateMoveCandidate(move, stacks, cycleData) {
   }
 
   if (!blockExists(stacks, move.to)) {
-    return { ok: false, fatal: true, code: 'DESTINATION_NOT_FOUND' };
-  }
-
-  if (cycleData.targetedDestinations.includes(move.to)) {
-    return { ok: false, code: 'DESTINATION_ALREADY_TARGETED' };
+    return { ok: false, code: 'DESTINATION_NOT_FOUND', fatal: true };
   }
 
   if (!isBlockClear(stacks, move.to)) {
@@ -241,97 +185,57 @@ function validateMoveCandidate(move, stacks, cycleData) {
   return { ok: true };
 }
 
-function createEmptyCycle(iterationId) {
-  return {
-    id: iterationId,
-    processed: [],
-    movedBlocks: [],
-    targetedDestinations: [],
-    movesThisCycle: []
-  };
-}
-
 function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
-  const { maxIterations, agentCount } = resolvePlannerOptions(options);
+  const { maxIterations } = resolvePlannerOptions(options);
 
   const { stacks: normalizedStacks } = normalizeStacks(rawStacks);
-  const goalChain = sanitizeGoalChain(rawGoalChain, normalizedStacks.flat());
+  const sanitizedGoal = sanitizeGoalChain(rawGoalChain, normalizedStacks.flat());
+  const goalChain = sanitizedGoal[sanitizedGoal.length - 1] === 'Table'
+    ? sanitizedGoal
+    : [...sanitizedGoal, 'Table'];
 
   ensureGoalFeasible(goalChain, normalizedStacks);
 
-  const initialGoalAchieved = goalAchieved(normalizedStacks, goalChain);
-  if (initialGoalAchieved) {
+  const alreadySatisfied = goalAchieved(normalizedStacks, goalChain);
+  if (alreadySatisfied) {
     return {
       moves: [],
       iterations: 0,
       goalAchieved: true,
       relationsResolved: Math.max(goalChain.length - 1, 0),
-      agentCount,
-      intentionLog: []
+      agentCount: 1,
+      intentionLog: [],
+      plannerOptionsUsed: { maxIterations }
     };
   }
-
-  const agentIds = createAgentIds(agentCount);
 
   const initialState = {
     stacks: deepCloneStacks(normalizedStacks),
     goalChain: [...goalChain],
     moves: [],
+    goalAchieved: false,
     iterations: 0,
-    goalAchieved: initialGoalAchieved,
-    agentIds,
-    cycleData: createEmptyCycle(0),
     intentionLog: []
   };
 
-  const desires = {
-    ...Desire('achieveGoal', beliefs => !goalAchieved(beliefs.stacks, beliefs.goalChain))
-  };
-
-  const agents = agentIds.map(id => createPeerAgent({
-    id,
-    desires,
-    initialBeliefs: {
-      stacks: initialState.stacks,
-      goalChain: goalChain,
-      goalAchieved: initialGoalAchieved
-    }
-  }));
-
-  const stateRef = { goalAchieved: initialGoalAchieved };
+  const builderAgent = createPlannerAgent(initialState);
+  const stateRef = { goalAchieved: false };
 
   const updateState = (actions, actorId, currentState) => {
-    const totalAgents = currentState.agentIds.length;
-    const cycleBase = currentState.cycleData && currentState.cycleData.id === currentState.iterations
-      ? currentState.cycleData
-      : createEmptyCycle(currentState.iterations);
-
-    if (cycleBase.processed.includes(actorId)) {
-      throw new PlanningError(`Agent "${actorId}" attempted multiple moves in the same cycle.`, 500);
-    }
-
-    let nextStacks = deepCloneStacks(currentState.stacks);
-    let nextMoves = [...currentState.moves];
-    let nextIntentionLog = [...currentState.intentionLog];
-
-    const cycleData = {
-      ...cycleBase,
-      processed: [...cycleBase.processed]
-    };
-
+    const nextStacks = deepCloneStacks(currentState.stacks);
     const proposedMove = extractMove(actions);
+    const nextMoves = [...currentState.moves];
+    const nextIntentionLog = [...currentState.intentionLog];
+
     let appliedMove = null;
-    let validationCode = null;
+    let skippedReason = 'no-proposal';
 
     if (proposedMove) {
-      const validation = validateMoveCandidate(proposedMove, nextStacks, cycleData);
+      const validation = validateMoveCandidate(proposedMove, nextStacks);
       if (!validation.ok) {
-        validationCode = validation.code;
+        skippedReason = validation.code || 'invalid-move';
         if (validation.fatal) {
-          const message = validation.code === 'BLOCK_EQUALS_DESTINATION'
-            ? 'Agent proposed moving a block onto itself.'
-            : 'Agent produced an invalid move for the current state.';
-          throw new PlanningError(`${message} (${validation.code}).`, 422);
+          throw new PlanningError(`Planner produced an invalid move (${validation.code}).`, 422);
         }
       } else {
         applyMove(nextStacks, proposedMove.block, proposedMove.to);
@@ -341,60 +245,33 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
           reason: proposedMove.reason,
           actor: actorId
         };
-        nextMoves = [...nextMoves, appliedMove];
-
-        cycleData.movedBlocks = [...cycleData.movedBlocks, proposedMove.block];
-        if (proposedMove.to !== 'Table') {
-          cycleData.targetedDestinations = [...cycleData.targetedDestinations, proposedMove.to];
-        }
+        nextMoves.push(appliedMove);
       }
     }
 
-    cycleData.movesThisCycle = [
-      ...cycleData.movesThisCycle,
-      appliedMove
-        ? appliedMove
-        : {
-            actor: actorId,
-            skipped: true,
-            reason: validationCode || (proposedMove ? 'no-op' : 'no-proposal')
-          }
-    ];
+    const reachedGoal = goalAchieved(nextStacks, currentState.goalChain);
+    stateRef.goalAchieved = reachedGoal;
 
-    cycleData.processed.push(actorId);
+    nextIntentionLog.push({
+      cycle: currentState.iterations + 1,
+      moves: [
+        appliedMove
+          ? appliedMove
+          : { actor: actorId, skipped: true, reason: skippedReason }
+      ],
+      resultingStacks: deepCloneStacks(nextStacks)
+    });
 
-    const finalGoalAchieved = goalAchieved(nextStacks, currentState.goalChain);
-    stateRef.goalAchieved = finalGoalAchieved;
-
-    let iterations = currentState.iterations;
-    let nextCycleData = cycleData;
-
-    if (cycleData.processed.length === totalAgents) {
-      const appliedThisCycle = cycleData.movesThisCycle.filter(move => move && move.block);
-      if (!appliedThisCycle.length && !finalGoalAchieved) {
-        throw new PlanningError('No applicable moves generated by agents this cycle.', 422);
-      }
-
-      nextIntentionLog = [
-        ...nextIntentionLog,
-        {
-          cycle: iterations + 1,
-          moves: cycleData.movesThisCycle,
-          resultingStacks: deepCloneStacks(nextStacks)
-        }
-      ];
-
-      iterations += 1;
-      nextCycleData = createEmptyCycle(iterations);
+    if (!appliedMove && !reachedGoal) {
+      throw new PlanningError('Planner stalled before achieving the goal.', 422);
     }
 
     return {
       stacks: nextStacks,
+      goalChain: currentState.goalChain,
       moves: nextMoves,
-      goalAchieved: finalGoalAchieved,
-      iterations,
-      agentIds: currentState.agentIds,
-      cycleData: nextCycleData,
+      goalAchieved: reachedGoal,
+      iterations: currentState.iterations + 1,
       intentionLog: nextIntentionLog
     };
   };
@@ -414,7 +291,7 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
   };
 
   const environment = new Environment(
-    agents,
+    [builderAgent],
     initialState,
     updateState,
     () => {},
@@ -425,17 +302,19 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
   environment.run(maxIterations);
 
   const finalState = environment.state;
+
   if (!finalState.goalAchieved) {
-    throw new PlanningError(`Unable to achieve goal within ${maxIterations} reasoning cycles.`, 422);
+    throw new PlanningError(`Unable to achieve goal within ${maxIterations} iterations.`, 422);
   }
 
   return {
     moves: finalState.moves,
-    iterations: finalState.iterations || 0,
+    iterations: finalState.iterations,
     goalAchieved: finalState.goalAchieved,
     relationsResolved: Math.max(goalChain.length - 1, 0),
-    agentCount,
-    intentionLog: finalState.intentionLog
+    agentCount: 1,
+    intentionLog: finalState.intentionLog,
+    plannerOptionsUsed: { maxIterations }
   };
 }
 

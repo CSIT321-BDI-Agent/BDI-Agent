@@ -15,7 +15,6 @@ window.APP_CONFIG = {
   MAX_STACK_HEIGHT: 10,
 
   PLANNER: {
-    AGENT_COUNT: 2,
-    NEGOTIATION: 'prefer-stack'
+    MAX_ITERATIONS: 2500
   }
 };
