@@ -17,35 +17,62 @@ class PlanningError extends Error {
 }
 
 const MAX_DEFAULT_ITERATIONS = 500;
-const DEFAULT_AGENT_COUNT = 2;
-const MAX_AGENT_COUNT = 6;
 
-const {
-  deepCloneStacks,
-  normalizeStacks,
-  sanitizeGoalChain,
-  blockExists,
-  isBlockClear,
-  topMostAbove,
-  isOn,
-  selectNextRelation,
-  goalAchieved,
-  applyMove,
-  ensureGoalFeasible
-} = createBlocksHelpers(PlanningError);
+function deepCloneStacks(stacks) {
+  return stacks.map(stack => [...stack]);
+}
 
-const MOVE_REASONS = Object.freeze({
-  CLEAR_BLOCK: 'clear-block',
-  CLEAR_TARGET: 'clear-target',
-  STACK: 'stack'
-});
+function normalizeStacks(rawStacks) {
+  if (!Array.isArray(rawStacks)) {
+    throw new PlanningError('Stacks payload must be an array of stacks.');
+  }
 
-function resolvePlannerOptions(rawOptions = {}) {
-  const merged = {};
-  if (rawOptions && typeof rawOptions === 'object') {
-    Object.assign(merged, rawOptions);
-    if (rawOptions.plannerOptions && typeof rawOptions.plannerOptions === 'object') {
-      Object.assign(merged, rawOptions.plannerOptions);
+  const seen = new Set();
+  const stacks = rawStacks.map((stack, stackIndex) => {
+    if (!Array.isArray(stack)) {
+      throw new PlanningError(`Stack at index ${stackIndex} must be an array.`);
+    }
+
+    return stack.map((block, blockIndex) => {
+      if (typeof block !== 'string') {
+        throw new PlanningError(`Block at stack ${stackIndex}, position ${blockIndex} must be a string.`);
+      }
+
+      const value = block.trim().toUpperCase();
+      if (!/^[A-Z]$/.test(value)) {
+        throw new PlanningError(`Block "${block}" is invalid. Use single letters A-Z.`);
+      }
+
+      if (seen.has(value)) {
+        throw new PlanningError(`Duplicate block detected: "${value}".`);
+      }
+
+      seen.add(value);
+      return value;
+    });
+  });
+
+  return { stacks, blocks: Array.from(seen) };
+}
+
+function sanitizeGoalChain(rawGoalChain, availableBlocks) {
+  if (!Array.isArray(rawGoalChain) || rawGoalChain.length < 2) {
+    throw new PlanningError('Goal chain must include at least two identifiers (e.g., "A on B").');
+  }
+
+  const chain = rawGoalChain.map((token, index) => {
+    if (typeof token !== 'string') {
+      throw new PlanningError(`Goal token at position ${index} must be a string.`);
+    }
+    const normalized = token.trim().toUpperCase();
+    if (normalized === 'TABLE') {
+      return 'Table';
+    }
+    if (!/^[A-Z]$/.test(normalized)) {
+      throw new PlanningError(`Goal token "${token}" is invalid. Use block letters A-Z.`);
+    }
+    if (!availableBlocks.includes(normalized)) {
+      throw new PlanningError(`Goal references unknown block "${normalized}".`);
     }
   }
 

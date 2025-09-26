@@ -1,7 +1,7 @@
 {
   "name": "bdi-agent",
   "version": "1.0.0",
-  "description": "BDI Blocks World Simulation powered by JS-son BDI planning",
+  "description": "BDI Blocks World Simulation with goal-stack planning",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -18,7 +18,7 @@
     "ai",
     "planning",
     "blocks-world",
-    "js-son"
+    "goal-stack"
   ],
   "author": "CSIT321-BDI-Agent",
   "license": "MIT",
