@@ -33,10 +33,8 @@
     <div class="navsec">
       <h6>Simulation</h6>
       <nav class="nav">
-        <a href="#" onclick="resetWorld()">Reset World</a>
-        <a href="#" onclick="generateRandomWorld()">Random World</a>
-        <a href="#" onclick="document.getElementById('goalInput').focus()">Set Goal</a>
-        <a href="#" onclick="runBDI()">Run BDI</a>
+        <a href="#" onclick="document.getElementById('goalInput')?.focus(); return false;">Set Goal</a>
+        <a href="#" onclick="document.getElementById('startBtn')?.click(); return false;">Run BDI</a>
       </nav>
     </div>
 
@@ -45,14 +43,6 @@
       <nav class="nav">
         <a href="#" onclick="saveWorld()">Save World</a>
         <a href="#" onclick="document.getElementById('loadSelect').focus()">Load World</a>
-        <a href="#" onclick="clearAllWorlds()">Clear All</a>
-      </nav>
-    </div>
-
-    <div class="navsec">
-      <h6>Account</h6>
-      <nav class="nav">
-        <a href="#" onclick="logout()">Logout</a>
       </nav>
     </div>
 
@@ -72,10 +62,8 @@
       <div class="navsec">
         <h6>Simulation</h6>
         <nav class="nav">
-          <a href="#" onclick="resetWorld()">Reset World</a>
-          <a href="#" onclick="generateRandomWorld()">Random World</a>
-          <a href="#" onclick="document.getElementById('goalInput').focus()">Set Goal</a>
-          <a href="#" onclick="runBDI()">Run BDI</a>
+          <a href="#" onclick="document.getElementById('goalInput')?.focus(); return false;">Set Goal</a>
+          <a href="#" onclick="document.getElementById('startBtn')?.click(); return false;">Run BDI</a>
         </nav>
       </div>
 
@@ -84,14 +72,6 @@
         <nav class="nav">
           <a href="#" onclick="saveWorld()">Save World</a>
           <a href="#" onclick="document.getElementById('loadSelect').focus()">Load World</a>
-          <a href="#" onclick="clearAllWorlds()">Clear All</a>
-        </nav>
-      </div>
-
-      <div class="navsec">
-        <h6>Account</h6>
-        <nav class="nav">
-          <a href="#" onclick="logout()">Logout</a>
         </nav>
       </div>
 
@@ -187,6 +167,17 @@
           <h3>Action Tower</h3>
           <div class="card-body">
             <div id="actionLog" class="log"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3>Intention Timeline</h3>
+          <div class="card-body">
+            <div class="timeline-clock">
+              <span class="timeline-clock-label">Elapsed</span>
+              <span id="plannerClock" class="clock-display">--:--</span>
+            </div>
+            <div id="intentionTimeline" class="timeline"></div>
           </div>
         </section>
       </div>

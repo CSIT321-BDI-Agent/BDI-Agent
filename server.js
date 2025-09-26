@@ -69,27 +69,19 @@ app.post('/worlds', async (req, res) => {
   try {
     const { name, blocks, stacks, userId } = req.body;
     
-    console.log('=== SAVE WORLD REQUEST ===');
-    console.log('Request body:', { name, blocks: blocks?.length, stacks: stacks?.length, userId });
-    console.log('UserId type:', typeof userId, 'UserId value:', userId);
-    
     // Enhanced validation
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      console.log('❌ Invalid name');
       return res.status(400).json({ message: 'Valid world name is required' });
     }
     if (!Array.isArray(blocks) || !Array.isArray(stacks)) {
-      console.log('❌ Invalid blocks or stacks');
       return res.status(400).json({ message: 'Blocks and stacks must be arrays' });
     }
     if (!userId) {
-      console.log('❌ Missing userId');
       return res.status(400).json({ message: 'User ID is required' });
     }
 
     // Validate ObjectId format
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-      console.log('❌ Invalid ObjectId format:', userId);
       return res.status(400).json({ message: 'Invalid user ID format' });
     }
 
@@ -99,8 +91,6 @@ app.post('/worlds', async (req, res) => {
       stacks, 
       user: new mongoose.Types.ObjectId(userId)
     });
-    
-    console.log('✅ World created:', world._id);
     res.status(201).json(world);
   } catch (e) {
     console.error('❌ Error saving world:', e);
@@ -115,23 +105,16 @@ app.post('/worlds', async (req, res) => {
 app.get('/worlds', async (req, res) => {
   const { userId } = req.query;
   
-  console.log('=== GET WORLDS REQUEST ===');
-  console.log('UserId from query:', userId);
-  
   if (!userId) {
-    console.log('❌ Missing userId in query');
     return res.status(400).json({ message: 'userId is required' });
   }
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
-    console.log('❌ Invalid ObjectId format:', userId);
     return res.status(400).json({ message: 'Invalid user ID format' });
   }
 
   try {
     const worlds = await World.find({ user: new mongoose.Types.ObjectId(userId) }).sort({ createdAt: -1 });
-    console.log('✅ Found worlds:', worlds.length);
-    console.log('Worlds:', worlds.map(w => ({ id: w._id, name: w.name, user: w.user })));
     res.json(worlds);
   } catch (e) {
     console.error('❌ Error fetching worlds:', e);
