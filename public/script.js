@@ -185,6 +185,22 @@ function resetIntentionTimeline(message = 'No planner data yet.') {
   container.appendChild(empty);
 }
 
+function formatBeliefSnapshot(beliefs) {
+  if (!beliefs || typeof beliefs !== 'object') {
+    return '';
+  }
+
+  const pending = beliefs.pendingRelation
+    ? `${beliefs.pendingRelation.block} → ${beliefs.pendingRelation.destination}`
+    : 'none';
+
+  const clear = Array.isArray(beliefs.clearBlocks) && beliefs.clearBlocks.length > 0
+    ? beliefs.clearBlocks.join(', ')
+    : 'none';
+
+  return `Pending relation: ${pending} • Clear blocks: ${clear}`;
+}
+
 function renderIntentionTimeline(intentionLog = [], agentCount = 0, options = {}) {
   const container = intentionTimelineElem();
   intentionTimelineState = null;
@@ -389,6 +405,14 @@ async function requestBDIPlan(goalChain) {
     const err = new Error(data.message || 'Failed to compute plan.');
     err.status = response.status;
     throw err;
+
+      const beliefText = formatBeliefSnapshot(cycle?.beliefs);
+      if (beliefText) {
+        const beliefsElem = document.createElement('div');
+        beliefsElem.className = 'timeline-beliefs';
+        beliefsElem.textContent = beliefText;
+        entry.appendChild(beliefsElem);
+      }
   }
 
   if (!data.plannerOptionsUsed) {
@@ -433,9 +457,12 @@ function runSimulation() {
       simulating = false;
       finalizeTimeline();
       stopPlannerClock(true);
-      const summary = meta
+      const summaryBase = meta
         ? `Goal achieved! ${meta.moves} moves across ${meta.iterations} BDI cycles${agentLabel}.`
         : 'Goal achieved!';
+      const summary = meta?.beliefSummary
+        ? `${summaryBase} Final beliefs: ${meta.beliefSummary}.`
+        : summaryBase;
       showMessage(summary, 'success');
         setControlsDisabled(false);
       currentPlanMeta = null;
@@ -582,7 +609,9 @@ startBtn.addEventListener('click', async () => {
       relationsResolved: planResult.relationsResolved ?? Math.max(tokens.length - 1, 0),
       agentCount: planResult.agentCount ?? 1,
       intentionLog: Array.isArray(planResult.intentionLog) ? planResult.intentionLog : [],
-      plannerOptions: planResult.plannerOptionsUsed || null
+      plannerOptions: planResult.plannerOptionsUsed || null,
+      beliefs: planResult.beliefs || null,
+      beliefSummary: formatBeliefSnapshot(planResult.beliefs)
     };
 
     renderIntentionTimeline(
@@ -608,7 +637,10 @@ startBtn.addEventListener('click', async () => {
       const satisfiedMsg = meta
         ? 'The world already satisfies this goal (no moves required).'
         : 'The world already satisfies this goal.';
-      showMessage(satisfiedMsg, 'success');
+      const finalSatisfiedMsg = meta?.beliefSummary
+        ? `${satisfiedMsg} Final beliefs: ${meta.beliefSummary}.`
+        : satisfiedMsg;
+      showMessage(finalSatisfiedMsg, 'success');
       finalizeTimeline();
       stopPlannerClock(false);
       updatePlannerClockDisplay('00:00.00');

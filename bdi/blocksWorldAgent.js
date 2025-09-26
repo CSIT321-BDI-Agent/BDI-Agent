@@ -24,6 +24,7 @@ const {
   topMostAbove,
   isBlockClear,
   isOn,
+  deriveOnMap,
   selectNextRelation,
   goalAchieved,
   applyMove,
@@ -39,6 +40,31 @@ const MOVE_REASONS = {
 const AGENT_ID = 'builder-agent';
 const MAX_ITERATIONS_CAP = 5000;
 const DEFAULT_MAX_ITERATIONS = 2500;
+
+function clonePendingRelation(relation) {
+  if (!relation) {
+    return null;
+  }
+
+  return {
+    block: relation.block,
+    destination: relation.destination
+  };
+}
+
+function computeStateFacts(stacks, goalChain) {
+  const onMap = deriveOnMap(stacks);
+  const clearBlocks = Object.keys(onMap)
+    .filter(block => isBlockClear(stacks, block))
+    .sort();
+  const pendingRelation = selectNextRelation(stacks, goalChain);
+
+  return {
+    onMap,
+    clearBlocks,
+    pendingRelation: clonePendingRelation(pendingRelation)
+  };
+}
 
 function resolvePlannerOptions(options = {}) {
   const maxIterations = Number.isFinite(options.maxIterations)
@@ -58,6 +84,9 @@ function createPlannerAgent(initialBeliefs) {
     beliefs: {
       ...Belief('stacks', deepCloneStacks(initialBeliefs.stacks)),
       ...Belief('goalChain', [...initialBeliefs.goalChain]),
+      ...Belief('onMap', { ...(initialBeliefs.onMap || {}) }),
+      ...Belief('clearBlocks', [...(initialBeliefs.clearBlocks || [])]),
+      ...Belief('pendingRelation', initialBeliefs.pendingRelation ? { ...initialBeliefs.pendingRelation } : null),
       ...Belief('goalAchieved', initialBeliefs.goalAchieved)
     },
     desires: plannerDesires,
@@ -65,25 +94,36 @@ function createPlannerAgent(initialBeliefs) {
       Plan(
         intentions => intentions.achieveGoal,
         function planAchieveGoal() {
-          const nextRelation = selectNextRelation(this.beliefs.stacks, this.beliefs.goalChain);
+          const {
+            stacks,
+            clearBlocks = [],
+            onMap = {}
+          } = this.beliefs;
+
+          const nextRelation = this.beliefs.pendingRelation
+            ? { ...this.beliefs.pendingRelation }
+            : selectNextRelation(stacks, this.beliefs.goalChain);
 
           if (!nextRelation) {
             this.beliefs.goalAchieved = true;
+            this.beliefs.pendingRelation = null;
             return null;
           }
 
+          this.beliefs.pendingRelation = { ...nextRelation };
           const { block, destination } = nextRelation;
 
-          if (!blockExists(this.beliefs.stacks, block)) {
+          if (!blockExists(stacks, block)) {
             throw new PlanningError(`Planner beliefs missing block "${block}".`, 500);
           }
 
-          if (destination !== 'Table' && !blockExists(this.beliefs.stacks, destination)) {
+          if (destination !== 'Table' && !blockExists(stacks, destination)) {
             throw new PlanningError(`Planner beliefs missing destination "${destination}".`, 500);
           }
 
-          if (!isBlockClear(this.beliefs.stacks, block)) {
-            const blocker = topMostAbove(this.beliefs.stacks, block);
+          const blockIsClear = clearBlocks.includes(block) || isBlockClear(stacks, block);
+          if (!blockIsClear) {
+            const blocker = topMostAbove(stacks, block);
             if (!blocker) return null;
             return [
               {
@@ -97,8 +137,11 @@ function createPlannerAgent(initialBeliefs) {
             ];
           }
 
-          if (destination !== 'Table' && !isBlockClear(this.beliefs.stacks, destination)) {
-            const blocker = topMostAbove(this.beliefs.stacks, destination);
+          const destinationIsClear = destination === 'Table'
+            ? true
+            : clearBlocks.includes(destination) || isBlockClear(stacks, destination);
+          if (destination !== 'Table' && !destinationIsClear) {
+            const blocker = topMostAbove(stacks, destination);
             if (!blocker) return null;
             return [
               {
@@ -112,7 +155,8 @@ function createPlannerAgent(initialBeliefs) {
             ];
           }
 
-          if (isOn(this.beliefs.stacks, block, destination)) {
+          const blockAlreadyOnDestination = onMap[block] === destination || isOn(stacks, block, destination);
+          if (blockAlreadyOnDestination) {
             return null;
           }
 
@@ -196,6 +240,7 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
 
   ensureGoalFeasible(goalChain, normalizedStacks);
 
+  const baselineFacts = computeStateFacts(normalizedStacks, goalChain);
   const alreadySatisfied = goalAchieved(normalizedStacks, goalChain);
   if (alreadySatisfied) {
     return {
@@ -205,17 +250,28 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
       relationsResolved: Math.max(goalChain.length - 1, 0),
       agentCount: 1,
       intentionLog: [],
-      plannerOptionsUsed: { maxIterations }
+      plannerOptionsUsed: { maxIterations },
+      beliefs: {
+        onMap: { ...baselineFacts.onMap },
+        clearBlocks: [...baselineFacts.clearBlocks],
+        pendingRelation: null
+      }
     };
   }
 
+  const workingStacks = deepCloneStacks(normalizedStacks);
+  const initialFacts = computeStateFacts(workingStacks, goalChain);
+
   const initialState = {
-    stacks: deepCloneStacks(normalizedStacks),
+    stacks: workingStacks,
     goalChain: [...goalChain],
     moves: [],
     goalAchieved: false,
     iterations: 0,
-    intentionLog: []
+    intentionLog: [],
+    onMap: initialFacts.onMap,
+    clearBlocks: initialFacts.clearBlocks,
+    pendingRelation: initialFacts.pendingRelation
   };
 
   const builderAgent = createPlannerAgent(initialState);
@@ -249,6 +305,7 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
       }
     }
 
+    const stateFacts = computeStateFacts(nextStacks, currentState.goalChain);
     const reachedGoal = goalAchieved(nextStacks, currentState.goalChain);
     stateRef.goalAchieved = reachedGoal;
 
@@ -259,7 +316,14 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
           ? appliedMove
           : { actor: actorId, skipped: true, reason: skippedReason }
       ],
-      resultingStacks: deepCloneStacks(nextStacks)
+      resultingStacks: deepCloneStacks(nextStacks),
+      beliefs: {
+        pendingRelation: stateFacts.pendingRelation
+          ? { ...stateFacts.pendingRelation }
+          : null,
+        clearBlocks: [...stateFacts.clearBlocks],
+        onMap: { ...stateFacts.onMap }
+      }
     });
 
     if (!appliedMove && !reachedGoal) {
@@ -272,15 +336,27 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
       moves: nextMoves,
       goalAchieved: reachedGoal,
       iterations: currentState.iterations + 1,
-      intentionLog: nextIntentionLog
+      intentionLog: nextIntentionLog,
+      onMap: stateFacts.onMap,
+      clearBlocks: stateFacts.clearBlocks,
+      pendingRelation: stateFacts.pendingRelation
     };
   };
 
-  const stateFilter = state => ({
-    stacks: deepCloneStacks(state.stacks),
-    goalChain: [...state.goalChain],
-    goalAchieved: state.goalAchieved
-  });
+  const stateFilter = state => {
+    const facts = computeStateFacts(state.stacks, state.goalChain);
+
+    return {
+      stacks: deepCloneStacks(state.stacks),
+      goalChain: [...state.goalChain],
+      goalAchieved: state.goalAchieved,
+      onMap: { ...facts.onMap },
+      clearBlocks: [...facts.clearBlocks],
+      pendingRelation: facts.pendingRelation
+        ? { ...facts.pendingRelation }
+        : null
+    };
+  };
 
   const runner = step => iterations => {
     let count = 0;
@@ -314,7 +390,14 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
     relationsResolved: Math.max(goalChain.length - 1, 0),
     agentCount: 1,
     intentionLog: finalState.intentionLog,
-    plannerOptionsUsed: { maxIterations }
+    plannerOptionsUsed: { maxIterations },
+    beliefs: {
+      onMap: { ...(finalState.onMap || {}) },
+      clearBlocks: [...(finalState.clearBlocks || [])],
+      pendingRelation: finalState.pendingRelation
+        ? { ...finalState.pendingRelation }
+        : null
+    }
   };
 }
 

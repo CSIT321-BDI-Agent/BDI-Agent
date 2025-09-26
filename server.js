@@ -262,6 +262,7 @@ app.post('/plan', (req, res) => {
       relationsResolved: plan.relationsResolved,
       agentCount: plan.agentCount,
       intentionLog: plan.intentionLog || [],
+      beliefs: plan.beliefs || null,
       plannerOptionsUsed: plan.plannerOptionsUsed || null
     });
   } catch (error) {

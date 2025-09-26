@@ -160,11 +160,18 @@ function createBlocksHelpers(PlanningError) {
   }
 
   function ensureGoalFeasible(goalChain, stacks) {
+    const seen = new Set();
+
     goalChain
       .filter(token => token !== 'Table')
       .forEach(block => {
+        if (seen.has(block)) {
+          throw new PlanningError(`Goal chain repeats block "${block}", which would create a loop. Use each block at most once.`, 400);
+        }
+        seen.add(block);
+
         if (!blockExists(stacks, block)) {
-          throw new PlanningError(`Goal references block "${block}", which is absent from the world.`);
+          throw new PlanningError(`Goal references block "${block}", which is absent from the world.`, 400);
         }
       });
   }
