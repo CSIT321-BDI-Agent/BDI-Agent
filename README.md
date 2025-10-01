@@ -170,6 +170,7 @@ BDI-Agent/
 ├── docker-compose.yml        # Production Docker setup
 ├── docker-compose.dev.yml    # Development Docker setup
 ```
+
 ### Code Organization
 
 The codebase follows a modular architecture with clear separation of concerns:
