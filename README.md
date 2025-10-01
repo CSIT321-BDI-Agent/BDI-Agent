@@ -27,11 +27,57 @@ A classic AI environment implementing **BDI (Belief-Desire-Intention) planning**
 
 ## Prerequisites
 
+### For Docker Deployment (Recommended)
+- **Docker Desktop** ([Download](https://docs.docker.com/get-docker/))
+- **Modern web browser** (Chrome, Firefox, Safari, Edge)
+
+**Note**: MongoDB is **NOT** required on your machine. Docker includes a MongoDB container automatically.
+
+### For Manual Deployment (Development Only)
 - **Node.js** (v14 or higher)
 - **MongoDB** (local installation or MongoDB Atlas)
 - **Modern web browser** (Chrome, Firefox, Safari, Edge)
 
-## Installation
+## Quick Start (Docker - Recommended)
+
+Docker is the **recommended** way to run this application. It automatically sets up both the Node.js application and MongoDB with zero configuration.
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/CSIT321-BDI-Agent/BDI-Agent.git
+cd BDI-Agent
+```
+
+### 2. Start with Docker
+
+**Windows:**
+```cmd
+docker-setup.bat
+```
+
+**macOS/Linux:**
+```bash
+chmod +x docker-setup.sh
+./docker-setup.sh
+```
+
+**Or manually:**
+```bash
+docker compose up --build -d
+```
+
+### 3. Access the Application
+- Open your browser to: `http://localhost:3000`
+- Create an account and start planning!
+
+**That's it!** No MongoDB installation, no dependency management, no configuration needed.
+
+## Manual Installation (Alternative)
+
+<details>
+<summary>Click to expand manual installation instructions</summary>
+
+Use this method only if you prefer not to use Docker or need to develop without containers.
 
 ### 1. Clone the Repository
 ```bash
@@ -68,21 +114,7 @@ node server.js
 
 The server will start on `http://localhost:3000`
 
-### Docker Quick Start
-
-The repository includes a production-ready Docker setup. To run the stack with MongoDB locally:
-
-```bash
-docker compose up --build
-```
-
-For development with live reload, use:
-
-```bash
-docker compose -f docker-compose.dev.yml up --build
-```
-
-See the **Docker Deployment** section below for complete details.
+</details>
 
 ## Usage
 
@@ -223,6 +255,13 @@ When running under Docker, environment variables are provided via the compose fi
 
 ### Common Issues
 
+**Using Docker (Recommended):**
+- See [Docker Troubleshooting](#docker-troubleshooting) section below
+- Use `docker compose logs -f` to view real-time logs
+- Use `curl http://localhost:3000/health` to check application health
+
+**Manual Deployment:**
+
 **Server won't start**
 - Check if MongoDB is running: `mongod --version`
 - Verify port 3000 is available: `netstat -an | findstr 3000`
@@ -239,11 +278,6 @@ When running under Docker, environment variables are provided via the compose fi
 - Clear browser localStorage: `localStorage.clear()`
 - Check MongoDB users collection exists
 
-### Known Issues
-- The application currently lacks automated tests. Follow the manual workflow below until a test suite is added.
-- MongoDB authentication is disabled by default. Enable it and update connection strings before deploying to shared infrastructure.
-- The frontend assumes the API is reachable at the same origin or via the `API_BASE` override in `public/config.js`.
-
 ## Testing
 
 ### Planner Regression Tests
@@ -253,12 +287,17 @@ Run the automated planner test suite:
 npm run test:planner
 ```
 
-This executes 5 test scenarios covering:
+This executes 11 test scenarios covering:
 - Stack reversal
 - Tower building
 - Interleaved restacking
 - Table anchoring
 - Invalid goal detection
+- Duplicate block detection
+- Unknown block references
+- Empty/invalid goal chains
+- Type validation
+- Table position validation
 
 ### Manual Testing Workflow
 
@@ -276,9 +315,17 @@ curl -X POST http://localhost:3000/plan \
 
 ## Docker Deployment
 
+### Why Docker?
+
+✅ **No MongoDB installation required** - MongoDB runs in a container  
+✅ **No dependency conflicts** - Isolated environment  
+✅ **One-command setup** - Everything configured automatically  
+✅ **Consistent behavior** - Same environment on all machines  
+✅ **Easy cleanup** - Remove everything with one command  
+
 ### Quick Start
 
-The application includes production-ready Docker support with MongoDB.
+The application includes production-ready Docker support with MongoDB included.
 
 **Using Setup Scripts:**
 
