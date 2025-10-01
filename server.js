@@ -4,13 +4,20 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
+const path = require('path');
+
+// Import utilities and models
 const { planBlocksWorld, PlanningError } = require('./bdi/blocksWorldAgent');
+const HttpError = require('./utils/httpError');
+const withRoute = require('./utils/routeHandler');
+const { ensureNonEmptyString, ensureArray, ensureObjectId } = require('./utils/validators');
+const { connectDB } = require('./utils/database');
+const User = require('./models/User');
+const World = require('./models/World');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/blocks_world';
-
-const path = require("path");
 
 // Enhanced CORS configuration for Docker
 const corsOptions = {
@@ -25,254 +32,145 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Enhanced MongoDB connection with retry logic for Docker
-const connectDB = async () => {
-  const maxRetries = 5;
-  const retryDelay = 5000;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      await mongoose.connect(MONGODB_URI, {
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-      });
-      console.log(`✅ MongoDB connected successfully (attempt ${attempt})`);
-      return;
-    } catch (error) {
-      console.error(`❌ MongoDB connection attempt ${attempt} failed:`, error.message);
-      
-      if (attempt === maxRetries) {
-        console.error('💀 All MongoDB connection attempts failed. Exiting...');
-        process.exit(1);
-      }
-      
-      console.log(`⏳ Retrying MongoDB connection in ${retryDelay/1000} seconds...`);
-      await new Promise(resolve => setTimeout(resolve, retryDelay));
-    }
-  }
-};
-
 // Initialize database connection
-connectDB();
+connectDB(MONGODB_URI);
 
-const WorldSchema = new mongoose.Schema({
-  name:   { type: String, required: true },
-  blocks: { type: [String], required: true },
-  stacks: { type: [[String]], required: true },
-  user:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
-}, { timestamps: true });
+app.post('/worlds', withRoute(async (req, res) => {
+  const { name, blocks, stacks, userId } = req.body || {};
 
+  const normalizedName = ensureNonEmptyString(name, 'Valid world name');
+  ensureArray(blocks, 'Blocks');
+  ensureArray(stacks, 'Stacks');
+  const userObjectId = ensureObjectId(userId, 'User ID');
 
-const World = mongoose.model('World', WorldSchema);
-
-app.post('/worlds', async (req, res) => {
   try {
-    const { name, blocks, stacks, userId } = req.body;
-    
-    // Enhanced validation
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({ message: 'Valid world name is required' });
-    }
-    if (!Array.isArray(blocks) || !Array.isArray(stacks)) {
-      return res.status(400).json({ message: 'Blocks and stacks must be arrays' });
-    }
-    if (!userId) {
-      return res.status(400).json({ message: 'User ID is required' });
-    }
-
-    // Validate ObjectId format
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: 'Invalid user ID format' });
-    }
-
-    const world = await World.create({ 
-      name: name.trim(), 
-      blocks, 
-      stacks, 
-      user: new mongoose.Types.ObjectId(userId)
+    const world = await World.create({
+      name: normalizedName,
+      blocks,
+      stacks,
+      user: userObjectId
     });
+
     res.status(201).json(world);
-  } catch (e) {
-    console.error('❌ Error saving world:', e);
-    if (e.name === 'ValidationError') {
-      res.status(400).json({ message: 'Invalid world data provided' });
-    } else {
-      res.status(500).json({ message: 'Failed to save world' });
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      throw new HttpError(400, 'Invalid world data provided');
     }
+    throw error;
   }
-});
+}, { logPrefix: '❌ Error saving world', defaultMessage: 'Failed to save world' }));
 
-app.get('/worlds', async (req, res) => {
-  const { userId } = req.query;
-  
-  if (!userId) {
-    return res.status(400).json({ message: 'userId is required' });
-  }
+app.get('/worlds', withRoute(async (req, res) => {
+  const userObjectId = ensureObjectId(req.query.userId, 'User ID');
+  const worlds = await World.find({ user: userObjectId }).sort({ createdAt: -1 });
+  res.json(worlds);
+}, { logPrefix: '❌ Error fetching worlds', defaultMessage: 'Failed to fetch worlds' }));
 
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return res.status(400).json({ message: 'Invalid user ID format' });
-  }
+app.get('/worlds/:id', withRoute(async (req, res) => {
+  const userObjectId = ensureObjectId(req.query.userId, 'User ID');
+  const worldId = ensureObjectId(req.params.id, 'World ID');
 
-  try {
-    const worlds = await World.find({ user: new mongoose.Types.ObjectId(userId) }).sort({ createdAt: -1 });
-    res.json(worlds);
-  } catch (e) {
-    console.error('❌ Error fetching worlds:', e);
-    res.status(500).json({ message: 'Failed to fetch worlds' });
-  }
-});
+  const doc = await World.findOne({
+    _id: worldId,
+    user: userObjectId
+  });
 
-app.get('/worlds/:id', async (req, res) => {
-  const { userId } = req.query;
-  if (!userId) return res.status(400).json({ message: "userId required" });
-
-  if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(req.params.id)) {
-    return res.status(400).json({ message: 'Invalid ID format' });
+  if (!doc) {
+    throw new HttpError(404, 'World not found or access denied');
   }
 
-  try {
-    const doc = await World.findOne({ 
-      _id: new mongoose.Types.ObjectId(req.params.id), 
-      user: new mongoose.Types.ObjectId(userId) 
-    });
-    if (!doc) return res.status(404).json({ message: 'World not found or access denied' });
-    res.json(doc);
-  } catch (e) {
-    console.error('Error fetching world:', e);
-    if (e.name === 'CastError') {
-      res.status(400).json({ message: 'Invalid world ID format' });
-    } else {
-      res.status(500).json({ message: 'Failed to fetch world' });
-    }
-  }
-});
-
-const UserSchema = new mongoose.Schema({
-  email:    { type: String, required: true, unique: true },
-  username: { type: String, required: true, unique: true },
-  password: { type: String, required: true } 
-}, { timestamps: true });
-
-const User = mongoose.model('User', UserSchema);
+  res.json(doc);
+}, { logPrefix: '❌ Error fetching world', defaultMessage: 'Failed to fetch world' }));
 
 // Signup route
-app.post('/users/signup', async (req, res) => {
-  try {
-    const { email, username, password } = req.body;
-    
-    // Enhanced validation
-    if (!email || !username || !password) {
-      return res.status(400).json({ message: 'All fields required' });
-    }
-    
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: 'Invalid email format' });
-    }
-    
-    // Password strength validation
-    if (password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
-    }
-    
-    // Username validation
-    if (username.length < 3 || username.length > 20) {
-      return res.status(400).json({ message: 'Username must be between 3 and 20 characters' });
-    }
+app.post('/users/signup', withRoute(async (req, res) => {
+  const { email, username, password } = req.body || {};
 
-    const exists = await User.findOne({ $or: [{ email }, { username }] });
-    if (exists) {
-      const field = exists.email === email ? 'Email' : 'Username';
-      return res.status(400).json({ message: `${field} already exists` });
-    }
+  const normalizedEmail = ensureNonEmptyString(email, 'Email').toLowerCase();
+  const normalizedUsername = ensureNonEmptyString(username, 'Username');
+  const normalizedPassword = ensureNonEmptyString(password, 'Password');
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = await User.create({ 
-      email: email.toLowerCase().trim(), 
-      username: username.trim(), 
-      password: hashedPassword 
-    });
-    
-    res.status(201).json({ 
-      message: 'User created successfully', 
-      userId: newUser._id 
-    });
-
-  } catch (err) {
-    console.error('Signup error:', err);
-    if (err.code === 11000) {
-      const field = err.keyPattern.email ? 'Email' : 'Username';
-      res.status(400).json({ message: `${field} already exists` });
-    } else {
-      res.status(500).json({ message: 'Server error during registration' });
-    }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(normalizedEmail)) {
+    throw new HttpError(400, 'Invalid email format');
   }
-});
 
-app.post("/login", async (req, res) => {
+  if (normalizedPassword.length < 6) {
+    throw new HttpError(400, 'Password must be at least 6 characters long');
+  }
+
+  if (normalizedUsername.length < 3 || normalizedUsername.length > 20) {
+    throw new HttpError(400, 'Username must be between 3 and 20 characters');
+  }
+
+  const exists = await User.findOne({ $or: [{ email: normalizedEmail }, { username: normalizedUsername }] });
+  if (exists) {
+    const field = exists.email === normalizedEmail ? 'Email' : 'Username';
+    throw new HttpError(400, `${field} already exists`);
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(normalizedPassword, salt);
+
   try {
-    const { username, password } = req.body;
-    
-    // Input validation
-    if (!username || !password) {
-      return res.status(400).json({ message: "Username and password are required" });
-    }
-    
-    if (typeof username !== 'string' || typeof password !== 'string') {
-      return res.status(400).json({ message: "Invalid input format" });
-    }
-
-    const user = await User.findOne({ username: username.trim() });
-    if (!user) {
-      return res.status(400).json({ message: "Invalid username or password" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid username or password" });
-    }
-
-    // Send userId back to client
-    res.json({ 
-      message: "Login successful!", 
-      userId: user._id,
-      username: user.username 
+    const newUser = await User.create({
+      email: normalizedEmail,
+      username: normalizedUsername,
+      password: hashedPassword
     });
 
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ message: "Server error during login" });
-  }
-});
-
-app.post('/plan', (req, res) => {
-  try {
-    const { stacks, goalChain, plannerOptions, options } = req.body || {};
-
-    const mergedOptions = plannerOptions || options || {};
-    const plan = planBlocksWorld(stacks, goalChain, mergedOptions);
-
-    res.json({
-      moves: plan.moves,
-      iterations: plan.iterations,
-      goalAchieved: plan.goalAchieved,
-      relationsResolved: plan.relationsResolved,
-      agentCount: plan.agentCount,
-      intentionLog: plan.intentionLog || [],
-      beliefs: plan.beliefs || null,
-      plannerOptionsUsed: plan.plannerOptionsUsed || null
+    res.status(201).json({
+      message: 'User created successfully',
+      userId: newUser._id
     });
   } catch (error) {
-    const status = error instanceof PlanningError ? error.status : 500;
-    console.error('Plan computation error:', error);
-    res.status(status).json({
-      message: error.message || 'Failed to compute plan'
-    });
+    if (error.code === 11000) {
+      const field = error.keyPattern?.email ? 'Email' : 'Username';
+      throw new HttpError(400, `${field} already exists`);
+    }
+    throw error;
   }
-});
+}, { logPrefix: 'Signup error', defaultMessage: 'Server error during registration' }));
+
+app.post('/login', withRoute(async (req, res) => {
+  const { username, password } = req.body || {};
+
+  const normalizedUsername = ensureNonEmptyString(username, 'Username');
+  const normalizedPassword = ensureNonEmptyString(password, 'Password');
+
+  const user = await User.findOne({ username: normalizedUsername });
+  if (!user) {
+    throw new HttpError(400, 'Invalid username or password');
+  }
+
+  const isMatch = await bcrypt.compare(normalizedPassword, user.password);
+  if (!isMatch) {
+    throw new HttpError(400, 'Invalid username or password');
+  }
+
+  res.json({
+    message: 'Login successful!',
+    userId: user._id,
+    username: user.username
+  });
+}, { logPrefix: 'Login error', defaultMessage: 'Server error during login' }));
+
+app.post('/plan', withRoute((req, res) => {
+  const { stacks, goalChain, plannerOptions, options } = req.body || {};
+  const mergedOptions = plannerOptions || options || {};
+  const plan = planBlocksWorld(stacks, goalChain, mergedOptions);
+
+  res.json({
+    moves: plan.moves,
+    iterations: plan.iterations,
+    goalAchieved: plan.goalAchieved,
+    relationsResolved: plan.relationsResolved,
+    agentCount: plan.agentCount,
+    intentionLog: plan.intentionLog || [],
+    beliefs: plan.beliefs || null,
+    plannerOptionsUsed: plan.plannerOptionsUsed || null
+  });
+}, { logPrefix: 'Plan computation error', defaultMessage: 'Failed to compute plan' }));
 
 // Health check endpoint for Docker
 app.get('/health', (req, res) => {

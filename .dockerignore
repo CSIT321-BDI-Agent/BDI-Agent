@@ -16,5 +16,4 @@ coverage
 Dockerfile*
 docker-compose*
 README.md
-DEPLOYMENT.md
 .github
