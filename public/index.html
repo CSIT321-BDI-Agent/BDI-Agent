@@ -6,439 +6,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BDI Blocks World</title>
   <link rel="stylesheet" href="style.css" />
-  <style>
-    :root{
-      --teal-1:#24c1b5; --teal-2:#19b1a6; --bg:#f5f7fa; --card:#ffffff;
-      --muted:#6b7a90; --border:#e7eaf0; --shadow:0 8px 24px rgba(0,0,0,.06);
-      --radius:14px;
-      --sidebar-width: 240px;
-    }
-    body{background:var(--bg); margin:0; padding:0;}
-    
-    /* Mobile-first responsive layout */
-    .app{
-      display:grid; 
-      grid-template-columns: 1fr; 
-      min-height:100vh; 
-      gap:0;
-    }
-    
-    .sidebar{
-      background:#fff; 
-      border-bottom:1px solid var(--border); 
-      padding:12px 16px;
-      order: 2; /* Put sidebar at bottom on mobile */
-    }
-    
-    .main{
-      padding:16px 12px 28px;
-      order: 1; /* Put main content at top on mobile */
-    }
-    
-    .brand{
-      font-weight:800; 
-      font-size:18px; 
-      letter-spacing:.2px; 
-      margin:4px 0 12px;
-      text-align:center;
-    }
-    
-    .navsec{margin:8px 0;}
-    .navsec h6{
-      font-size:10px; 
-      color:var(--muted); 
-      text-transform:uppercase; 
-      letter-spacing:.08em; 
-      margin:6px 8px;
-      text-align:center;
-    }
-    
-    .nav{
-      display:flex;
-      flex-wrap:wrap;
-      justify-content:center;
-      gap:4px;
-    }
-    
-    .nav a{
-      display:flex; 
-      align-items:center; 
-      gap:6px; 
-      padding:8px 12px; 
-      margin:2px;
-      border-radius:8px; 
-      color:#1f2a3a; 
-      text-decoration:none;
-      font-size:14px;
-      white-space:nowrap;
-    }
-    
-    .nav a.active{background:#e9fbf9; color:#106d67;}
-    
-    .help{
-      margin:12px 8px; 
-      padding:10px; 
-      background:#e9fbf9; 
-      border:1px solid #c6f2ee; 
-      border-radius:10px;
-      font-size:12px;
-      text-align:center;
-    }
-    
-    .topbar{
-      display:flex; 
-      align-items:center; 
-      justify-content:space-between; 
-      padding:12px 0;
-      flex-wrap:wrap;
-      gap:12px;
-    }
-    
-    .search{
-      flex:1; 
-      min-width:200px;
-      max-width:100%;
-    }
-    
-    .search input{
-      width:100%; 
-      padding:8px 12px; 
-      border:1px solid var(--border); 
-      border-radius:8px; 
-      background:#fff;
-      font-size:14px;
-    }
-    
-    .user-mini{
-      display:flex; 
-      align-items:center; 
-      gap:8px; 
-      color:var(--muted);
-      flex-shrink:0;
-    }
-    
-    .hero{
-      border-radius:12px; 
-      background:linear-gradient(135deg, var(--teal-1), var(--teal-2));
-      color:#fff; 
-      padding:20px 16px; 
-      box-shadow:var(--shadow); 
-      margin-bottom:16px;
-    }
-    
-    .hero h2{
-      margin:0 0 8px;
-      font-size:24px;
-    }
-    
-    .user-strip{
-      display:flex; 
-      align-items:center; 
-      gap:8px; 
-      background:#fff; 
-      margin-top:-16px; 
-      padding:10px 12px;
-      border-radius:10px; 
-      width:max-content; 
-      box-shadow:var(--shadow); 
-      border:1px solid var(--border);
-      flex-wrap:wrap;
-    }
-    
-    .grid{
-      display:grid; 
-      grid-template-columns: 1fr; 
-      gap:16px; 
-      margin-top:16px;
-    }
-    
-    .card{
-      background:var(--card); 
-      border:1px solid var(--border); 
-      border-radius:var(--radius); 
-      box-shadow:var(--shadow);
-    }
-    
-    .card h3{
-      padding:12px 16px; 
-      border-bottom:1px solid var(--border); 
-      margin:0;
-      font-size:16px;
-    }
-    
-    .card-body{padding:12px 16px;}
-    .simwrap{padding:12px 16px;}
-    
-    .row-below{
-      display:grid; 
-      grid-template-columns: 1fr; 
-      gap:16px; 
-      margin-top:16px;
-    }
-    
-    .info-grid{
-      display:grid; 
-      grid-template-columns: 1fr; 
-      gap:10px;
-    }
-    
-    .info-tile{
-      border:1px solid var(--border); 
-      border-radius:10px; 
-      padding:10px; 
-      background:#fff;
-      min-height:70px;
-    }
-    
-    .log{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      font-size:12px; 
-      max-height:200px; 
-      overflow:auto; 
-      padding:8px 10px; 
-      background:#0b1220; 
-      color:#bfe9e6;
-      border-radius:8px; 
-      border:1px solid #0f2030;
-    }
-    
-    .controls-grid{
-      display:grid; 
-      grid-template-columns: 1fr; 
-      gap:12px;
-    }
-    
-    .controls-grid .form-group{
-      justify-content:flex-start;
-      flex-direction:column;
-      align-items:stretch;
-      gap:6px;
-    }
-    
-    .form-group label{
-      font-size:14px;
-      margin-bottom:4px;
-    }
-    
-    .form-group input{
-      width:100%;
-      padding:10px;
-      font-size:14px;
-      border:1px solid var(--border);
-      border-radius:6px;
-    }
-    
-    .form-group button{
-      padding:10px 16px;
-      font-size:14px;
-      margin-top:4px;
-    }
-    
-    .pill{
-      background:#e9fbf9; 
-      color:#106d67; 
-      border:1px solid #c6f2ee; 
-      padding:4px 8px; 
-      border-radius:999px; 
-      font-size:11px;
-    }
-    
-    .inline-controls{
-      display:flex; 
-      align-items:center; 
-      gap:6px; 
-      flex-wrap:wrap;
-      justify-content:center;
-    }
-    
-    .inline-controls button{
-      padding:8px 12px;
-      font-size:13px;
-    }
-    
-    .inline-controls select{
-      padding:6px 8px;
-      font-size:13px;
-      border:1px solid var(--border);
-      border-radius:6px;
-      min-width:120px;
-    }
-    
-    .messages{margin-top:8px;}
-
-    /* Tablet styles (768px and up) */
-    @media (min-width: 768px) {
-      .app{
-        gap:16px;
-        padding:16px;
-      }
-      
-      .main{
-        padding:0 16px 28px;
-      }
-      
-      .sidebar{
-        padding:16px;
-        border-bottom:none;
-        border-right:1px solid var(--border);
-      }
-      
-      .brand{
-        font-size:20px;
-        text-align:left;
-        margin:8px 0 16px;
-      }
-      
-      .navsec h6{
-        text-align:left;
-        margin:10px 0;
-      }
-      
-      .nav{
-        flex-direction:column;
-        align-items:stretch;
-      }
-      
-      .nav a{
-        margin:2px 0;
-        justify-content:flex-start;
-      }
-      
-      .help{
-        text-align:left;
-      }
-      
-      .topbar{
-        padding:16px 0;
-      }
-      
-      .hero{
-        padding:24px 20px;
-      }
-      
-      .hero h2{
-        font-size:28px;
-      }
-      
-      .user-strip{
-        margin-top:-20px;
-        padding:12px 14px;
-      }
-      
-      .grid{
-        grid-template-columns: 1fr 1fr;
-        gap:20px;
-        margin-top:18px;
-      }
-      
-      .row-below{
-        grid-template-columns: 1.2fr 0.8fr;
-        gap:20px;
-        margin-top:20px;
-      }
-      
-      .info-grid{
-        grid-template-columns: 1fr 1fr;
-        gap:12px;
-      }
-      
-      .info-tile{
-        min-height:80px;
-        padding:12px;
-      }
-      
-      .log{
-        font-size:13px;
-        max-height:220px;
-        padding:10px 12px;
-      }
-      
-      .controls-grid{
-        grid-template-columns: 1fr 1fr;
-      }
-      
-      .controls-grid .form-group{
-        flex-direction:row;
-        align-items:center;
-        gap:8px;
-      }
-      
-      .form-group input{
-        width:auto;
-        min-width:150px;
-      }
-      
-      .inline-controls{
-        justify-content:flex-start;
-        gap:8px;
-      }
-    }
-
-    /* Desktop styles (1024px and up) */
-    @media (min-width: 1024px) {
-      .app{
-        grid-template-columns: var(--sidebar-width) 1fr;
-        gap:22px;
-        padding:0;
-      }
-      
-      .sidebar{
-        order:1;
-        padding:18px 14px;
-      }
-      
-      .main{
-        order:2;
-        padding:0 22px 28px;
-      }
-      
-      .grid{
-        grid-template-columns: 1.4fr 0.8fr;
-      }
-      
-      .row-below{
-        grid-template-columns: 1.1fr 0.9fr;
-      }
-      
-      .info-grid{
-        grid-template-columns: repeat(3, 1fr);
-      }
-      
-      .info-tile{
-        min-height:92px;
-      }
-      
-      .log{
-        max-height:240px;
-      }
-      
-      .controls-grid .form-group{
-        justify-content:flex-start;
-      }
-    }
-
-    /* Large desktop styles (1200px and up) */
-    @media (min-width: 1200px) {
-      .hero{
-        padding:28px 24px;
-      }
-      
-      .search{
-        max-width:520px;
-      }
-      
-      .card-body, .simwrap{
-        padding:14px 16px;
-      }
-      
-      .card h3{
-        padding:14px 16px;
-      }
-    }
-  </style>
 </head>
 
 <body>
+  <!-- Mobile Header -->
+  <div class="mobile-header">
+    <button class="hamburger" id="mobileMenuToggle">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <div class="mobile-brand">BDI Blocks World</div>
+    <div></div> <!-- Spacer for centering brand -->
+  </div>
+
+  <!-- Mobile Overlay -->
+  <div class="mobile-overlay" id="mobileOverlay"></div>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <div class="mobile-menu-header">
+      <div class="brand">BDI Blocks World</div>
+      <button class="mobile-menu-close" id="mobileMenuClose">&times;</button>
+    </div>
+    
+    <div class="navsec">
+      <h6>Simulation</h6>
+      <nav class="nav">
+        <a href="#" onclick="document.getElementById('goalInput')?.focus(); return false;">Set Goal</a>
+        <a href="#" onclick="document.getElementById('startBtn')?.click(); return false;">Run BDI</a>
+      </nav>
+    </div>
+
+    <div class="navsec">
+      <h6>World Management</h6>
+      <nav class="nav">
+        <a href="#" onclick="saveWorld()">Save World</a>
+        <a href="#" onclick="document.getElementById('loadSelect').focus()">Load World</a>
+      </nav>
+    </div>
+
+    <div class="help">
+      <strong>Quick Help:</strong><br/>
+      • Drag blocks to move them<br/>
+      • Set goals like "on(A,B)"<br/>
+      • Run BDI to see planning in action<br/>
+      • Save/load different worlds
+    </div>
+  </div>
+
   <div class="app">
     <aside class="sidebar">
       <div class="brand">BDI Blocks World</div>
@@ -446,26 +62,25 @@
       <div class="navsec">
         <h6>Simulation</h6>
         <nav class="nav">
-          <a class="active" href="#">Simulation</a>
-          <a href="#" aria-disabled="true">History</a>
-          <a href="#" aria-disabled="true">Agent Logs</a>
-          <a href="#" aria-disabled="true">Import</a>
-          <a href="#" aria-disabled="true">Export</a>
+          <a href="#" onclick="document.getElementById('goalInput')?.focus(); return false;">Set Goal</a>
+          <a href="#" onclick="document.getElementById('startBtn')?.click(); return false;">Run BDI</a>
         </nav>
       </div>
 
       <div class="navsec">
-        <h6>Account</h6>
+        <h6>World Management</h6>
         <nav class="nav">
-          <a href="#" aria-disabled="true">Profile</a>
-          <a href="login.html" aria-disabled="false">Sign In</a>
-          <a href="signup.html" aria-disabled="false">Sign Up</a>
+          <a href="#" onclick="saveWorld()">Save World</a>
+          <a href="#" onclick="document.getElementById('loadSelect').focus()">Load World</a>
         </nav>
       </div>
 
       <div class="help">
-        <strong>Need help?</strong><br/>
-        Read the quick docs and examples.
+        <strong>Quick Help:</strong><br/>
+        • Drag blocks to move them<br/>
+        • Set goals like "on(A,B)"<br/>
+        • Run BDI to see planning in action<br/>
+        • Save/load different worlds
       </div>
     </aside>
 
@@ -476,11 +91,11 @@
       </div>
 
       <section class="hero">
-        <h2 style="margin:0 0 8px;">Simulation</h2>
+        <h2 class="hero-title">Simulation</h2>
         <div class="user-strip">
           <div>
-            <div style="font-weight:700;">User</div>
-            <div style="font-size:12px; opacity:.85;">you@example.com</div>
+            <div class="user-name">User</div>
+            <div class="user-email">you@example.com</div>
           </div>
           <span class="pill">Overview</span>
           <span class="pill">Simulations</span>
@@ -491,7 +106,7 @@
         <section class="card">
           <h3>Simulation Environment</h3>
           <div class="simwrap">
-            <div id="world-wrapper" class="card-body" style="padding:0;">
+            <div id="world-wrapper" class="card-body world-wrapper-no-padding">
               <div id="world"></div>
             </div>
             <div id="messages" class="messages"></div>
@@ -515,7 +130,7 @@
               </div>
             </div>
 
-            <hr style="border:none;border-top:1px solid var(--border); margin:12px 0;">
+            <hr class="divider">
 
             <div class="inline-controls">
               <button id="saveBtn" type="button">Save</button>
@@ -533,16 +148,16 @@
           <div class="card-body">
             <div class="info-grid">
               <div class="info-tile">
-                <div style="font-size:12px;color:var(--muted);">Goal State</div>
-                <div id="info-goal" style="margin-top:6px;">—</div>
+                <div class="info-label">Goal State</div>
+                <div id="info-goal" class="info-content">—</div>
               </div>
               <div class="info-tile">
-                <div style="font-size:12px;color:var(--muted);">Current Configuration</div>
-                <div id="info-current" style="margin-top:6px;">—</div>
+                <div class="info-label">Current Configuration</div>
+                <div id="info-current" class="info-content">—</div>
               </div>
               <div class="info-tile">
-                <div style="font-size:12px;color:var(--muted);">Stats</div>
-                <div id="info-stats" style="margin-top:6px;">Steps: 0<br/>Status: —</div>
+                <div class="info-label">Stats</div>
+                <div id="info-stats" class="info-content">Steps: 0<br/>Status: —</div>
               </div>
             </div>
           </div>
@@ -552,6 +167,17 @@
           <h3>Action Tower</h3>
           <div class="card-body">
             <div id="actionLog" class="log"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3>Intention Timeline</h3>
+          <div class="card-body">
+            <div class="timeline-clock">
+              <span class="timeline-clock-label">Elapsed</span>
+              <span id="plannerClock" class="clock-display">--:--</span>
+            </div>
+            <div id="intentionTimeline" class="timeline"></div>
           </div>
         </section>
       </div>
@@ -604,6 +230,59 @@
       startBtn?.addEventListener('click', () => {
         const g = goalInput.value.trim();
         if (g) infoGoal.textContent = '(' + g.split(/\s*on\s*/i).join(', ') + ')';
+      });
+    })();
+
+    // Mobile Menu Functionality
+    (function() {
+      const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+      const mobileMenu = document.getElementById('mobileMenu');
+      const mobileOverlay = document.getElementById('mobileOverlay');
+      const mobileMenuClose = document.getElementById('mobileMenuClose');
+
+      function openMobileMenu() {
+        mobileMenu.classList.add('active');
+        mobileOverlay.classList.add('active');
+        mobileMenuToggle.classList.add('active');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+      }
+
+      function closeMobileMenu() {
+        mobileMenu.classList.remove('active');
+        mobileOverlay.classList.remove('active');
+        mobileMenuToggle.classList.remove('active');
+        document.body.style.overflow = ''; // Restore scrolling
+      }
+
+      // Toggle menu when hamburger is clicked
+      mobileMenuToggle?.addEventListener('click', openMobileMenu);
+
+      // Close menu when close button is clicked
+      mobileMenuClose?.addEventListener('click', closeMobileMenu);
+
+      // Close menu when overlay is clicked
+      mobileOverlay?.addEventListener('click', closeMobileMenu);
+
+      // Close menu when clicking a nav link
+      const mobileNavLinks = mobileMenu?.querySelectorAll('.nav a');
+      mobileNavLinks?.forEach(link => {
+        link.addEventListener('click', () => {
+          setTimeout(closeMobileMenu, 100); // Small delay to allow action to complete
+        });
+      });
+
+      // Close menu on escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && mobileMenu.classList.contains('active')) {
+          closeMobileMenu();
+        }
+      });
+
+      // Handle window resize - close mobile menu if switching to desktop view
+      window.addEventListener('resize', () => {
+        if (window.innerWidth >= 768 && mobileMenu.classList.contains('active')) {
+          closeMobileMenu();
+        }
       });
     })();
   </script>

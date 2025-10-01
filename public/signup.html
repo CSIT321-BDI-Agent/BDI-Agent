@@ -7,34 +7,55 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>Sign Up</h1>
-    <p>Create a new account to start using the BDI Blocks World simulation.</p>
-    
-    <form id="signupForm">
-      <div class="form-group">
-        <label for="email">Email:</label>
-        <input type="email" id="email" name="email" required placeholder="you@example.com">
-      </div>
-      <div class="form-group">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required placeholder="Your username">
-      </div>
-      <div class="form-group">
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required placeholder="At least 6 characters">
-      </div>
-      <button type="submit">Sign Up</button>
-    </form>
-    
-    <div id="messages" class="messages"></div>
-    
-    <p>Already have an account? <a href="login.html">Sign in here</a></p>
-  </div>
+  <main class="auth-wrapper">
+    <section class="auth-card">
+      <h1 class="auth-title">Sign Up</h1>
+      <p class="auth-subtitle">Create an account to build, save, and share block worlds.</p>
 
+      <form id="signupForm" class="auth-form" novalidate>
+        <div class="form-field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required autocomplete="email" placeholder="you@example.com">
+        </div>
+
+        <div class="form-field">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required autocomplete="username" placeholder="Your username">
+        </div>
+
+        <div class="form-field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="new-password" placeholder="At least 6 characters">
+        </div>
+
+        <button type="submit">Sign Up</button>
+      </form>
+
+      <div id="messages" class="messages"></div>
+
+      <div class="auth-footer">
+        Already have an account?
+        <a href="login.html">Sign in</a>
+      </div>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
   <script>
-    const API_BASE = 'http://localhost:3000';
-    
+    const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
+    const messages = document.getElementById('messages');
+
+    function setMessage(text = '', type = 'info') {
+      if (!messages) return;
+      if (!text) {
+        messages.textContent = '';
+        messages.className = 'messages';
+        return;
+      }
+      messages.textContent = text;
+      messages.className = `messages ${type}`;
+    }
+
     document.getElementById('signupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -42,68 +63,55 @@
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
 
-      // Clear previous messages
-      showMessage('', 'info');
+      setMessage();
 
-      // Basic validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
       if (!email || !username || !password) {
-        showMessage('All fields are required', 'error');
+        setMessage('All fields are required.', 'error');
+        return;
+      }
+
+      if (!emailRegex.test(email)) {
+        setMessage('Please enter a valid email address.', 'error');
         return;
       }
 
       if (password.length < 6) {
-        showMessage('Password must be at least 6 characters long', 'error');
-        return;
-      }
-
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        showMessage('Please enter a valid email address', 'error');
+        setMessage('Password must be at least 6 characters long.', 'error');
         return;
       }
 
       try {
-        showMessage('Creating account...', 'info');
-        
+        setMessage('Creating account...', 'info');
+
         const res = await fetch(`${API_BASE}/users/signup`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, username, password })
         });
 
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.message || "Signup failed");
+          throw new Error(data.message || 'Signup failed');
         }
 
-        // Automatically log the user in
         localStorage.setItem('userId', data.userId);
         localStorage.setItem('username', username);
 
-        showMessage('Account created successfully! Redirecting...', 'success');
-
-        // Redirect after short delay
+        setMessage('Account created successfully. Redirecting...', 'success');
         setTimeout(() => {
-          window.location.href = "index.html";
+          window.location.href = 'index.html';
         }, 1500);
-
       } catch (err) {
         console.error('Signup error:', err);
-        showMessage(err.message || 'Signup failed. Please try again.', 'error');
+        setMessage(err.message || 'Signup failed. Please try again.', 'error');
       }
     });
-    
-    function showMessage(text, type = 'info') {
-      const messages = document.getElementById('messages');
-      messages.textContent = text;
-      messages.className = `messages ${type}`;
-    }
-    
-    // Check if already logged in
+
     if (localStorage.getItem('userId')) {
-      showMessage('You are already logged in. Redirecting...', 'info');
+      setMessage('You are already logged in. Redirecting...', 'info');
       setTimeout(() => {
         window.location.href = 'index.html';
       }, 1000);

@@ -1,7 +1,5 @@
 # AI-generated guide files
-.github/copilot-instructions.md
-README.md
-FIXES_SUMMARY.md
+.github/*.md
 
 # Node.js dependencies
 node_modules/
@@ -15,6 +13,13 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Docker environment files
+.env.docker
+
+# Docker volumes and data
+mongo_data/
+mongo_data_dev/
 
 # Logs
 logs

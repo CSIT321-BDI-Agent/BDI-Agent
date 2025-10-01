@@ -12,5 +12,9 @@ window.APP_CONFIG = {
   
   // Block constraints
   MAX_BLOCKS: 26, // A-Z
-  MAX_STACK_HEIGHT: 10
+  MAX_STACK_HEIGHT: 10,
+
+  PLANNER: {
+    MAX_ITERATIONS: 2500
+  }
 };
