@@ -1,159 +1,176 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Debug Test - BDI Agent</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="pageTitle">BDI Blocks World - Debug</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <h1>BDI Agent Debug Test</h1>
-    <div id="output"></div>
-    <button onclick="testUserSignup()">Test User Signup</button>
-    <button onclick="testUserLogin()">Test User Login</button>
-    <button onclick="testWorldSave()">Test World Save</button>
-    <button onclick="testWorldLoad()">Test World Load</button>
-    <button onclick="checkLocalStorage()">Check LocalStorage</button>
+  <main class="auth-wrapper">
+    <section class="auth-card">
+      <h1 id="debugHeader">Debug Page</h1>
+      <p>This page is for testing backend endpoints.</p>
+      
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+        <button onclick="testUserSignup()" class="btn">Test User Signup</button>
+        <button onclick="testUserLogin()" class="btn">Test User Login</button>
+        <button onclick="testWorldSave()" class="btn">Test World Save</button>
+        <button onclick="testWorldLoad()" class="btn">Test World Load</button>
+        <button onclick="checkLocalStorage()" class="btn">Check LocalStorage</button>
+      </div>
 
-    <script src="config.js"></script>
-    <script>
-        const output = document.getElementById('output');
+      <div id="output" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9; border-radius: 4px; max-height: 500px; overflow-y: auto;"></div>
+    </section>
+  </main>
+  
+  <script src="config.js"></script>
+  <script>
+    // Set page title and header from config
+    window.addEventListener('DOMContentLoaded', () => {
+      const appName = window.APP_CONFIG?.APP_NAME || 'BDI Blocks World';
+      const pageTitle = document.getElementById('pageTitle');
+      const debugHeader = document.getElementById('debugHeader');
+      if (pageTitle) pageTitle.textContent = `${appName} - Debug`;
+      if (debugHeader) debugHeader.textContent = `${appName} Debug Page`;
+    });
+
+    const output = document.getElementById('output');
+    
+    function log(message) {
+      console.log(message);
+      output.innerHTML += `<p style="margin: 5px 0;">${message}</p>`;
+    }
+    
+    function checkLocalStorage() {
+      log('=== LocalStorage Check ===');
+      log('userId: ' + localStorage.getItem('userId'));
+      log('username: ' + localStorage.getItem('username'));
+      log('API_BASE: ' + (window.APP_CONFIG?.API_BASE || 'undefined'));
+    }
+    
+    async function testUserSignup() {
+      log('=== Testing User Signup ===');
+      const testUser = {
+        email: 'test@example.com',
+        username: 'testuser123',
+        password: 'password123'
+      };
+      
+      try {
+        const res = await fetch(`${window.APP_CONFIG.API_BASE}/users/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(testUser)
+        });
         
-        function log(message) {
-            console.log(message);
-            output.innerHTML += `<p>${message}</p>`;
+        const data = await res.json();
+        log('Signup response: ' + JSON.stringify(data, null, 2));
+        
+        if (res.ok && data.userId) {
+          localStorage.setItem('userId', data.userId);
+          localStorage.setItem('username', testUser.username);
+          log('✅ Signup successful, stored in localStorage');
+        } else {
+          log('❌ Signup failed: ' + data.message);
         }
+      } catch (e) {
+        log('❌ Signup error: ' + e.message);
+      }
+    }
+    
+    async function testUserLogin() {
+      log('=== Testing User Login ===');
+      const testUser = {
+        username: 'testuser123',
+        password: 'password123'
+      };
+      
+      try {
+        const res = await fetch(`${window.APP_CONFIG.API_BASE}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(testUser)
+        });
         
-        function checkLocalStorage() {
-            log('=== LocalStorage Check ===');
-            log('userId: ' + localStorage.getItem('userId'));
-            log('username: ' + localStorage.getItem('username'));
-            log('API_BASE: ' + (window.APP_CONFIG?.API_BASE || 'undefined'));
+        const data = await res.json();
+        log('Login response: ' + JSON.stringify(data, null, 2));
+        
+        if (res.ok && data.userId) {
+          localStorage.setItem('userId', data.userId);
+          localStorage.setItem('username', data.username);
+          log('✅ Login successful, stored in localStorage');
+        } else {
+          log('❌ Login failed: ' + data.message);
         }
+      } catch (e) {
+        log('❌ Login error: ' + e.message);
+      }
+    }
+    
+    async function testWorldSave() {
+      log('=== Testing World Save ===');
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        log('❌ No userId found, please login first');
+        return;
+      }
+      
+      const testWorld = {
+        name: 'Debug Test World',
+        blocks: ['A', 'B'],
+        stacks: [['A'], ['B']],
+        userId: userId
+      };
+      
+      try {
+        const res = await fetch(`${window.APP_CONFIG.API_BASE}/worlds`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(testWorld)
+        });
         
-        async function testUserSignup() {
-            log('=== Testing User Signup ===');
-            const testUser = {
-                email: 'test@example.com',
-                username: 'testuser123',
-                password: 'password123'
-            };
-            
-            try {
-                const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
-                const res = await fetch(`${API_BASE}/users/signup`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(testUser)
-                });
-                
-                const data = await res.json();
-                log('Signup response: ' + JSON.stringify(data, null, 2));
-                
-                if (res.ok && data.userId) {
-                    localStorage.setItem('userId', data.userId);
-                    localStorage.setItem('username', testUser.username);
-                    log('✅ Signup successful, stored in localStorage');
-                } else {
-                    log('❌ Signup failed: ' + data.message);
-                }
-            } catch (e) {
-                log('❌ Signup error: ' + e.message);
-            }
+        const data = await res.json();
+        log('Save response status: ' + res.status);
+        log('Save response: ' + JSON.stringify(data, null, 2));
+        
+        if (res.ok) {
+          log('✅ World saved successfully');
+        } else {
+          log('❌ World save failed: ' + data.message);
         }
+      } catch (e) {
+        log('❌ Save error: ' + e.message);
+      }
+    }
+    
+    async function testWorldLoad() {
+      log('=== Testing World Load ===');
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        log('❌ No userId found, please login first');
+        return;
+      }
+      
+      try {
+        const res = await fetch(`${window.APP_CONFIG.API_BASE}/worlds?userId=${userId}`);
         
-        async function testUserLogin() {
-            log('=== Testing User Login ===');
-            const testUser = {
-                username: 'testuser123',
-                password: 'password123'
-            };
-            
-            try {
-                const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
-                const res = await fetch(`${API_BASE}/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(testUser)
-                });
-                
-                const data = await res.json();
-                log('Login response: ' + JSON.stringify(data, null, 2));
-                
-                if (res.ok && data.userId) {
-                    localStorage.setItem('userId', data.userId);
-                    localStorage.setItem('username', data.username);
-                    log('✅ Login successful, stored in localStorage');
-                } else {
-                    log('❌ Login failed: ' + data.message);
-                }
-            } catch (e) {
-                log('❌ Login error: ' + e.message);
-            }
+        const data = await res.json();
+        log('Load response status: ' + res.status);
+        log('Load response: ' + JSON.stringify(data, null, 2));
+        
+        if (res.ok) {
+          log('✅ Worlds loaded successfully, found: ' + data.length);
+        } else {
+          log('❌ World load failed: ' + data.message);
         }
-        
-        async function testWorldSave() {
-            log('=== Testing World Save ===');
-            const userId = localStorage.getItem('userId');
-            if (!userId) {
-                log('❌ No userId found, please login first');
-                return;
-            }
-            
-            const testWorld = {
-                name: 'Debug Test World',
-                blocks: ['A', 'B'],
-                stacks: [['A'], ['B']],
-                userId: userId
-            };
-            
-            try {
-                const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
-                const res = await fetch(`${API_BASE}/worlds`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(testWorld)
-                });
-                
-                const data = await res.json();
-                log('Save response status: ' + res.status);
-                log('Save response: ' + JSON.stringify(data, null, 2));
-                
-                if (res.ok) {
-                    log('✅ World saved successfully');
-                } else {
-                    log('❌ World save failed: ' + data.message);
-                }
-            } catch (e) {
-                log('❌ Save error: ' + e.message);
-            }
-        }
-        
-        async function testWorldLoad() {
-            log('=== Testing World Load ===');
-            const userId = localStorage.getItem('userId');
-            if (!userId) {
-                log('❌ No userId found, please login first');
-                return;
-            }
-            
-            try {
-                const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
-                const res = await fetch(`${API_BASE}/worlds?userId=${userId}`);
-                
-                const data = await res.json();
-                log('Load response status: ' + res.status);
-                log('Load response: ' + JSON.stringify(data, null, 2));
-                
-                if (res.ok) {
-                    log('✅ Worlds loaded successfully, found: ' + data.length);
-                } else {
-                    log('❌ World load failed: ' + data.message);
-                }
-            } catch (e) {
-                log('❌ Load error: ' + e.message);
-            }
-        }
-        
-        // Auto-check localStorage on load
-        checkLocalStorage();
-    </script>
+      } catch (e) {
+        log('❌ Load error: ' + e.message);
+      }
+    }
+    
+    // Auto-check localStorage on load
+    checkLocalStorage();
+  </script>
 </body>
 </html>

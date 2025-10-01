@@ -1,9 +1,10 @@
-
 const BLOCK_WIDTH = 80;
 const BLOCK_HEIGHT = 30;
 const WORLD_HEIGHT = 240;
 const STACK_MARGIN = 10;
 const CLAW_HEIGHT = 25;
+const CLAW_WIDTH = 60; // Must match --claw-width in CSS
+const CLAW_OFFSET = (BLOCK_WIDTH - CLAW_WIDTH) / 2; // Center claw over blocks (10px)
 
 const worldElem = document.getElementById('world');
 const addBlockBtn = document.getElementById('addBlockBtn');
@@ -513,7 +514,7 @@ function simulateMove(move, callback) {
     // Animate claw
     if (claw) {
       claw.style.transition = 'none';
-      claw.style.left = `${startLeft}px`;
+      claw.style.left = `${startLeft + CLAW_OFFSET}px`;
       claw.style.top = `${startTop - CLAW_HEIGHT}px`;
     }
 
@@ -527,7 +528,7 @@ function simulateMove(move, callback) {
     
     if (claw) {
       claw.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
-      claw.style.left = `${destLeft}px`;
+      claw.style.left = `${destLeft + CLAW_OFFSET}px`;
       claw.style.top = `${destTop - CLAW_HEIGHT}px`;
     }
     

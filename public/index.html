@@ -11,12 +11,12 @@
 <body>
   <!-- Mobile Header -->
   <div class="mobile-header">
-    <button class="hamburger" id="mobileMenuToggle">
-      <span></span>
-      <span></span>
-      <span></span>
+    <button class="hamburger" id="mobileMenuToggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobileMenu">
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
     </button>
-    <div class="mobile-brand">BDI Blocks World</div>
+    <div class="mobile-brand" id="mobileBrand">BDI Blocks World</div>
     <div></div> <!-- Spacer for centering brand -->
   </div>
 
@@ -26,8 +26,8 @@
   <!-- Mobile Menu -->
   <div class="mobile-menu" id="mobileMenu">
     <div class="mobile-menu-header">
-      <div class="brand">BDI Blocks World</div>
-      <button class="mobile-menu-close" id="mobileMenuClose">&times;</button>
+      <div class="brand" id="mobileMenuBrand">BDI Blocks World</div>
+      <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">&times;</button>
     </div>
     
     <div class="navsec">
@@ -46,6 +46,13 @@
       </nav>
     </div>
 
+    <div class="navsec">
+      <h6>Account</h6>
+      <nav class="nav">
+        <a href="#" onclick="logout(); return false;">Logout</a>
+      </nav>
+    </div>
+
     <div class="help">
       <strong>Quick Help:</strong><br/>
       • Drag blocks to move them<br/>
@@ -57,7 +64,7 @@
 
   <div class="app">
     <aside class="sidebar">
-      <div class="brand">BDI Blocks World</div>
+      <div class="brand" id="sidebarBrand">BDI Blocks World</div>
 
       <div class="navsec">
         <h6>Simulation</h6>
@@ -72,6 +79,13 @@
         <nav class="nav">
           <a href="#" onclick="saveWorld()">Save World</a>
           <a href="#" onclick="document.getElementById('loadSelect').focus()">Load World</a>
+        </nav>
+      </div>
+
+      <div class="navsec">
+        <h6>Account</h6>
+        <nav class="nav">
+          <a href="#" onclick="logout(); return false;">Logout</a>
         </nav>
       </div>
 
@@ -187,6 +201,24 @@
   <script src="config.js"></script>
   <script src="script.js" defer></script>
   <script>
+    // Authentication guard - redirect to login if not authenticated
+    (function checkAuth() {
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        window.location.href = window.APP_CONFIG?.AUTH?.LOGIN_PAGE || 'login.html';
+        return;
+      }
+    })();
+
+    // Logout function
+    function logout() {
+      if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('userId');
+        localStorage.removeItem('username');
+        window.location.href = window.APP_CONFIG?.AUTH?.LOGIN_PAGE || 'login.html';
+      }
+    }
+
     (function(){
       const log = document.getElementById('actionLog');
       const infoGoal = document.getElementById('info-goal');
@@ -198,6 +230,15 @@
       const worldElem = document.getElementById('world');
 
       window.addEventListener('load', () => {
+        // Set brand names from config
+        const appName = window.APP_CONFIG?.APP_NAME || 'BDI Blocks World';
+        const mobileBrand = document.getElementById('mobileBrand');
+        const mobileMenuBrand = document.getElementById('mobileMenuBrand');
+        const sidebarBrand = document.getElementById('sidebarBrand');
+        if (mobileBrand) mobileBrand.textContent = appName;
+        if (mobileMenuBrand) mobileMenuBrand.textContent = appName;
+        if (sidebarBrand) sidebarBrand.textContent = appName;
+
 		const username = localStorage.getItem('username');
 		const userMini = document.querySelector('.user-mini .pill');
 		if (username && userMini) {
