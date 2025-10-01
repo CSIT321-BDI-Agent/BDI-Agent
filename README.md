@@ -169,8 +169,6 @@ BDI-Agent/
 ├── Dockerfile                # Container definition
 ├── docker-compose.yml        # Production Docker setup
 ├── docker-compose.dev.yml    # Development Docker setup
-└── .github/
-    └── copilot-instructions.md  # AI coding guidelines
 ```
 
 ### Code Organization
@@ -312,16 +310,6 @@ curl -X POST http://localhost:3000/plan \
   -H "Content-Type: application/json" \
   -d '{"stacks":[["C"],["B","A"]],"goalChain":["A","B","C"]}'
 ```
-
-## Docker Deployment
-
-### Why Docker?
-
-✅ **No MongoDB installation required** - MongoDB runs in a container  
-✅ **No dependency conflicts** - Isolated environment  
-✅ **One-command setup** - Everything configured automatically  
-✅ **Consistent behavior** - Same environment on all machines  
-✅ **Easy cleanup** - Remove everything with one command  
 
 ### Quick Start
 
