@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign In</title>
+  <title id="pageTitle">Sign In - BDI Blocks World</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -37,7 +37,13 @@
 
   <script src="config.js"></script>
   <script>
-    const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
+    // Set page title from config
+    window.addEventListener('DOMContentLoaded', () => {
+      const appName = window.APP_CONFIG?.APP_NAME || 'BDI Blocks World';
+      const pageTitle = document.getElementById('pageTitle');
+      if (pageTitle) pageTitle.textContent = `Sign In - ${appName}`;
+    });
+
     const messages = document.getElementById('messages');
 
     function setMessage(text = '', type = 'info') {
@@ -67,7 +73,7 @@
       try {
         setMessage('Signing you in...', 'info');
 
-        const res = await fetch(`${API_BASE}/login`, {
+        const res = await fetch(`${window.APP_CONFIG.API_BASE}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
