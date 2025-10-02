@@ -9,6 +9,10 @@
 <body>
   <main class="auth-wrapper">
     <section class="auth-card">
+      <div class="auth-brand">
+        <div class="auth-brand-icon">🧱</div>
+        <h2 class="auth-brand-text" id="authBrandText">BDI Blocks World</h2>
+      </div>
       <h1 class="auth-title">Sign In</h1>
       <p class="auth-subtitle">Access your saved worlds and simulations.</p>
 
@@ -37,11 +41,13 @@
 
   <script src="config.js"></script>
   <script>
-    // Set page title from config
+    // Set page title and brand from config
     window.addEventListener('DOMContentLoaded', () => {
       const appName = window.APP_CONFIG?.APP_NAME || 'BDI Blocks World';
       const pageTitle = document.getElementById('pageTitle');
+      const authBrandText = document.getElementById('authBrandText');
       if (pageTitle) pageTitle.textContent = `Sign In - ${appName}`;
+      if (authBrandText) authBrandText.textContent = appName;
     });
 
     const messages = document.getElementById('messages');
