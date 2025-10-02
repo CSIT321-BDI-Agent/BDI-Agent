@@ -23,6 +23,11 @@ function randomColour() {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+function formatWorldState(stacks) {
+  if (!stacks || stacks.length === 0) return '()';
+  return stacks.map(s => '(' + s.join(', ') + ')').join(' ');
+}
+
 class World {
   constructor(container) {
     this.container = container;
@@ -63,6 +68,12 @@ class World {
       this.container.appendChild(div);
       this.updatePositions();
     }
+    
+    // Log the action to Action Tower
+    window._logMove?.(`User: Added block ${name} → ${formatWorldState(this.stacks)}`);
+    
+    // Trigger Current Configuration update
+    window.updateCurrentConfiguration?.();
     
     this.setMessage('');
   }
@@ -480,8 +491,7 @@ function simulateMove(move, callback) {
   const dest = move.to;
 
   const actorPrefix = move.actor ? `[${move.actor}] ` : '';
-  window._logMove?.(`${actorPrefix}Move(${move.block} -> ${move.to})`);
-
+  
   const blockDiv = worldElem?.querySelector(`[data-block='${blockName}']`);
   if (!blockDiv) {
     console.error('DOM element for block not found:', blockName);
@@ -543,6 +553,14 @@ function simulateMove(move, callback) {
           claw.style.transition = '';
         }
         world.updatePositions();
+        
+        // Log the move action with resulting world state
+        const reason = move.reason ? ` (${move.reason})` : '';
+        window._logMove?.(`${actorPrefix}Move ${move.block} \u2192 ${move.to}${reason} \u2192 ${formatWorldState(world.stacks)}`);
+        
+        // Trigger Current Configuration update
+        window.updateCurrentConfiguration?.();
+        
         markTimelineMove(move);
         callback();
       } catch (error) {
@@ -598,6 +616,9 @@ startBtn.addEventListener('click', async () => {
   resetIntentionTimeline('Planning in progress...');
   stopPlannerClock(false);
   setControlsDisabled(true);
+
+  // Log simulation start with initial state
+  window._logMove?.(`User: Started simulation with goal (${tokens.join(', ')}) from ${formatWorldState(world.stacks)}`);
 
   try {
     showMessage('BDI agent is devising a plan...', 'info');
@@ -754,8 +775,15 @@ function rebuildWorldFrom(stacks) {
       }
     }
     
+    // Temporarily disable logging during bulk add
+    const originalLogMove = window._logMove;
+    window._logMove = null;
+    
     // Add blocks to world
     allBlocks.forEach(name => world.addBlock(name));
+
+    // Re-enable logging
+    window._logMove = originalLogMove;
 
     // Set stack configuration
     world.stacks = stacks.map(s => [...s]);
@@ -772,6 +800,13 @@ function rebuildWorldFrom(stacks) {
     });
 
     world.updatePositions();
+    
+    // Log world loaded action with final state
+    window._logMove?.(`User: Loaded world \u2192 ${formatWorldState(world.stacks)}`);
+    
+    // Trigger Current Configuration update
+    window.updateCurrentConfiguration?.();
+    
     showMessage('World loaded successfully!', 'success');
     
   } catch (error) {

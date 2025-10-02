@@ -19,6 +19,24 @@ services:
     networks:
       - bdi-network
     command: ["node", "server.js"]
+    develop:
+      watch:
+        - action: sync
+          path: ./public
+          target: /app/public
+          ignore:
+            - node_modules/
+        - action: sync
+          path: ./bdi
+          target: /app/bdi
+          ignore:
+            - node_modules/
+        - action: sync+restart
+          path: ./server.js
+          target: /app/server.js
+        - action: sync+restart
+          path: ./package.json
+          target: /app/package.json
 
   mongo:
     image: mongo:7.0
