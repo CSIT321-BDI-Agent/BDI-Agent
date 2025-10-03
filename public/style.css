@@ -72,12 +72,6 @@ body {
 /* Prevent any accidental horizontal overflow */
 html, body { max-width: 100%; overflow-x: hidden; }
 
-.container {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 16px;
-}
-
 /* Typography */
 h1 {
   text-align: center;
@@ -150,24 +144,6 @@ button:disabled {
   opacity: 0.6;
 }
 
-/* Button variants */
-.btn-secondary {
-  background: var(--card);
-  color: var(--dark-grey);
-  border: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: var(--white);
-  border-color: var(--teal);
-}
-
-.btn-sm {
-  padding: 8px 12px;
-  font-size: 14px;
-}
-
 /* Ensure adjacent buttons don't stick together */
 button + button { margin-left: 8px; }
 
@@ -200,6 +176,22 @@ select {
   font-size: 14px;
   font-weight: 600;
   color: var(--dark-grey);
+}
+
+.form-group label {
+  flex: 0 0 auto;
+  width: 90px;
+}
+
+.form-group input,
+.form-group select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.form-group button {
+  flex: 0 0 auto;
+  width: 120px;
 }
 
 .form-group input,
@@ -574,14 +566,6 @@ select {
   font-weight: 800;
   color: var(--dark-grey);
   margin: 0;
-}
-
-.user-mini {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--light-grey);
-  flex-shrink: 0;
 }
 
 /* Profile Dropdown */
@@ -1060,19 +1044,6 @@ select {
 }
 
 /* Utility classes */
-.hero-title {
-  margin: 0 0 8px;
-}
-
-.user-name {
-  font-weight: 700;
-}
-
-.user-email {
-  font-size: 12px;
-  opacity: 0.85;
-}
-
 .world-wrapper-no-padding {
   padding: 0;
 }
@@ -1098,10 +1069,6 @@ select {
     padding: 20px;
   }
   
-  .container {
-    padding: 0 20px;
-  }
-  
   h1 {
     font-size: 28px;
   }
@@ -1115,6 +1082,25 @@ select {
     align-items: center;
     gap: 10px;
     margin-bottom: 20px;
+  }
+  
+  .form-group label {
+    font-size: 14px;
+    margin-bottom: 0;
+    white-space: nowrap;
+    width: 90px;
+  }
+  
+  .form-group input,
+  .form-group select {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  
+  .form-group button {
+    width: 120px;
+    padding: 10px 16px;
+    margin-top: 0;
   }
   
   label {
@@ -1348,10 +1334,6 @@ select {
 
 /* Large screens (1200px and up) */
 @media (min-width: 1200px) {
-  .container {
-    max-width: 1200px;
-  }
-  
   input[type="text"], 
   input[type="email"], 
   input[type="password"] {
@@ -1380,10 +1362,6 @@ select {
 @media (max-width: 480px) {
   body {
     padding: 8px;
-  }
-  
-  .container {
-    padding: 0 8px;
   }
   
   h1 {

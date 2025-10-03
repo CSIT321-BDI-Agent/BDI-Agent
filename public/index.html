@@ -55,10 +55,10 @@
       </nav>
 
       <div class="help">
-        <strong>Quick Help:</strong><br/>
-        • Drag blocks to move them<br/>
-        • Set goals like "on(A,B)"<br/>
-        • Run BDI to see planning in action<br/>
+        <strong>Quick Help:</strong><br />
+        • Drag blocks to move them<br />
+        • Set goals like "on(A,B)"<br />
+        • Run BDI to see planning in action<br />
         • Save/load different worlds
       </div>
     </aside>
@@ -70,7 +70,7 @@
           <button class="profile-btn" id="profileBtn" aria-label="Profile menu">
             <span id="userPill">Signed out</span>
             <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-              <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" />
             </svg>
           </button>
           <div class="profile-menu" id="profileMenu">
@@ -81,13 +81,14 @@
             <hr class="profile-menu-divider">
             <a href="#" class="profile-menu-item" data-page="profile">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
               </svg>
               Profile
             </a>
             <button class="profile-menu-item" onclick="logout(); return false;">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M3 1h8a1 1 0 011 1v3h-2V3H4v10h6v-2h2v3a1 1 0 01-1 1H3a1 1 0 01-1-1V2a1 1 0 011-1zm9 5l4 4-4 4v-3H6V9h6V6z"/>
+                <path
+                  d="M3 1h8a1 1 0 011 1v3h-2V3H4v10h6v-2h2v3a1 1 0 01-1 1H3a1 1 0 01-1-1V2a1 1 0 011-1zm9 5l4 4-4 4v-3H6V9h6V6z" />
               </svg>
               Logout
             </button>
@@ -180,12 +181,12 @@
     (function checkAuth() {
       const userId = localStorage.getItem('userId');
       const username = localStorage.getItem('username');
-      
+
       if (!userId) {
         window.location.href = window.APP_CONFIG?.AUTH?.LOGIN_PAGE || 'login.html';
         return;
       }
-      
+
       // Update user pill with username
       const userPill = document.getElementById('userPill');
       const profileMenuUsername = document.getElementById('profileMenuUsername');
@@ -198,25 +199,25 @@
     })();
 
     // Profile dropdown functionality
-    (function() {
+    (function () {
       const profileBtn = document.getElementById('profileBtn');
       const profileMenu = document.getElementById('profileMenu');
-      
+
       if (!profileBtn || !profileMenu) return;
-      
+
       // Toggle dropdown on button click
       profileBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         profileMenu.classList.toggle('active');
       });
-      
+
       // Close dropdown when clicking outside
       document.addEventListener('click', (e) => {
         if (!profileBtn.contains(e.target) && !profileMenu.contains(e.target)) {
           profileMenu.classList.remove('active');
         }
       });
-      
+
       // Close dropdown when clicking menu items
       const menuItems = profileMenu.querySelectorAll('.profile-menu-item');
       menuItems.forEach(item => {
