@@ -134,6 +134,7 @@ class World {
 }
 
 const world = new World(worldElem);
+window.world = world; // Expose world to global scope for info panel updates
 
 let currentPlan = [];
 let planIndex = 0;
