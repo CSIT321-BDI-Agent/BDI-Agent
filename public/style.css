@@ -12,26 +12,26 @@
   --world-height: 240px;
   --claw-height: 25px;
   --claw-width: 60px;
-  --claw-color: #333;
+  --claw-color: #2D3748;
   
   /* Color palette */
-  --teal-1: #24c1b5;
-  --teal-2: #19b1a6;
-  --teal-light: #e9fbf9;
-  --teal-dark: #106d67;
-  --teal-border: #c6f2ee;
+  --teal-1: #4FD1C5;
+  --teal-2: #38B2AC;
+  --teal-light: #E6FFFA;
+  --teal-dark: #2C7A7B;
+  --teal-border: #B2F5EA;
   
   /* Neutral colors */
-  --bg: #f5f7fa;
-  --card: #ffffff;
-  --text: #333;
-  --text-dark: #1f2a3a;
-  --text-heading: #2c3e50;
-  --muted: #6b7a90;
-  --border: #e7eaf0;
-  --border-input: #ccc;
-  --bg-secondary: #f8f9fa;
-  --bg-dark: #0b1220;
+  --bg: #F8F9FA;
+  --card: #F8F9FA;
+  --text: #2D3748;
+  --text-dark: #2D3748;
+  --text-heading: #2D3748;
+  --muted: #A0AEC0;
+  --border: #E2E8F0;
+  --border-input: #A0AEC0;
+  --bg-secondary: #F8F9FA;
+  --bg-dark: #1A202C;
   
   /* Status colors */
   --error-bg: #ffe6e6;
@@ -73,9 +73,9 @@ body {
   background: var(--bg);
   margin: 0;
   padding: 0;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   color: var(--text);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 /* Prevent any accidental horizontal overflow */
