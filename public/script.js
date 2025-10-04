@@ -23,11 +23,6 @@ function randomColour() {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-function formatWorldState(stacks) {
-  if (!stacks || stacks.length === 0) return '()';
-  return stacks.map(s => '(' + s.join(', ') + ')').join(' ');
-}
-
 class World {
   constructor(container) {
     this.container = container;
@@ -40,19 +35,19 @@ class World {
   addBlock(name) {
     name = name.trim().toUpperCase();
     if (!name) return;
-
+    
     // Check block limit
     const maxBlocks = window.APP_CONFIG?.MAX_BLOCKS || 26;
     if (this.blocks.length >= maxBlocks) {
       this.setMessage(`Maximum ${maxBlocks} blocks allowed.`);
       return;
     }
-
+    
     if (this.blocks.includes(name)) {
       this.setMessage(`Block "${name}" already exists.`);
       return;
     }
-
+    
     this.blocks.push(name);
     this.stacks.push([name]);
     this.on[name] = 'Table';
@@ -63,18 +58,12 @@ class World {
     div.dataset.block = name;
     div.textContent = name;
     div.style.backgroundColor = this.colours[name];
-
+    
     if (this.container) {
       this.container.appendChild(div);
       this.updatePositions();
     }
-
-    // Log the action to Action Tower
-    window._logMove?.(`User: Added block ${name} → ${formatWorldState(this.stacks)}`);
-
-    // Trigger Current Configuration update
-    window.updateCurrentConfiguration?.();
-
+    
     this.setMessage('');
   }
 
@@ -134,7 +123,6 @@ class World {
 }
 
 const world = new World(worldElem);
-window.world = world; // Expose world to global scope for info panel updates
 
 let currentPlan = [];
 let planIndex = 0;
@@ -419,13 +407,13 @@ async function requestBDIPlan(goalChain) {
     err.status = response.status;
     throw err;
 
-    const beliefText = formatBeliefSnapshot(cycle?.beliefs);
-    if (beliefText) {
-      const beliefsElem = document.createElement('div');
-      beliefsElem.className = 'timeline-beliefs';
-      beliefsElem.textContent = beliefText;
-      entry.appendChild(beliefsElem);
-    }
+      const beliefText = formatBeliefSnapshot(cycle?.beliefs);
+      if (beliefText) {
+        const beliefsElem = document.createElement('div');
+        beliefsElem.className = 'timeline-beliefs';
+        beliefsElem.textContent = beliefText;
+        entry.appendChild(beliefsElem);
+      }
   }
 
   if (!data.plannerOptionsUsed) {
@@ -464,7 +452,7 @@ function runSimulation() {
     ? `Executing BDI plan${agentLabel} (${meta.moves} planned moves)...`
     : 'Executing BDI plan...';
   showMessage(executionMsg, 'info');
-  setControlsDisabled(true);
+    setControlsDisabled(true);
   function next() {
     if (planIndex >= currentPlan.length) {
       simulating = false;
@@ -477,7 +465,7 @@ function runSimulation() {
         ? `${summaryBase} Final beliefs: ${meta.beliefSummary}.`
         : summaryBase;
       showMessage(summary, 'success');
-      setControlsDisabled(false);
+        setControlsDisabled(false);
       currentPlanMeta = null;
       return;
     }
@@ -492,6 +480,7 @@ function simulateMove(move, callback) {
   const dest = move.to;
 
   const actorPrefix = move.actor ? `[${move.actor}] ` : '';
+  window._logMove?.(`${actorPrefix}Move(${move.block} -> ${move.to})`);
 
   const blockDiv = worldElem?.querySelector(`[data-block='${blockName}']`);
   if (!blockDiv) {
@@ -517,7 +506,7 @@ function simulateMove(move, callback) {
     if (destStackIndex === -1) {
       throw new Error(`Block ${blockName} not found after move`);
     }
-
+    
     const destPosIndex = world.stacks[destStackIndex].indexOf(blockName);
     const destLeft = destStackIndex * (BLOCK_WIDTH + STACK_MARGIN);
     const destTop = WORLD_HEIGHT - (destPosIndex + 1) * BLOCK_HEIGHT;
@@ -536,13 +525,13 @@ function simulateMove(move, callback) {
 
     const duration = window.APP_CONFIG?.ANIMATION_DURATION || 550;
     blockDiv.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
-
+    
     if (claw) {
       claw.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
       claw.style.left = `${destLeft + CLAW_OFFSET}px`;
       claw.style.top = `${destTop - CLAW_HEIGHT}px`;
     }
-
+    
     blockDiv.style.left = `${destLeft}px`;
     blockDiv.style.top = `${destTop}px`;
 
@@ -554,14 +543,6 @@ function simulateMove(move, callback) {
           claw.style.transition = '';
         }
         world.updatePositions();
-
-        // Log the move action with resulting world state
-        const reason = move.reason ? ` (${move.reason})` : '';
-        window._logMove?.(`${actorPrefix}Move ${move.block} \u2192 ${move.to}${reason} \u2192 ${formatWorldState(world.stacks)}`);
-
-        // Trigger Current Configuration update
-        window.updateCurrentConfiguration?.();
-
         markTimelineMove(move);
         callback();
       } catch (error) {
@@ -569,7 +550,7 @@ function simulateMove(move, callback) {
         callback();
       }
     }, duration + 10);
-
+    
   } catch (error) {
     handleError(error, 'simulateMove');
     blockDiv?.classList.remove('moving');
@@ -617,9 +598,6 @@ startBtn.addEventListener('click', async () => {
   resetIntentionTimeline('Planning in progress...');
   stopPlannerClock(false);
   setControlsDisabled(true);
-
-  // Log simulation start with initial state
-  window._logMove?.(`User: Started simulation with goal (${tokens.join(', ')}) from ${formatWorldState(world.stacks)}`);
 
   try {
     showMessage('BDI agent is devising a plan...', 'info');
@@ -691,15 +669,15 @@ goalInput.addEventListener('keyup', (e) => {
 // Error handling utilities
 function handleError(error, context = '') {
   console.error(`Error in ${context}:`, error);
-
+  
   let message = 'An unexpected error occurred';
-
+  
   if (error.name === 'NetworkError' || !navigator.onLine) {
     message = 'Network connection error. Please check your internet connection.';
   } else if (error.message) {
     message = error.message;
   }
-
+  
   showMessage(message, 'error');
 }
 
@@ -708,7 +686,7 @@ function showMessage(text, type = 'info') {
   if (messagesElem) {
     messagesElem.textContent = text;
     messagesElem.className = `messages ${type}`;
-
+    
     // Clear message after 5 seconds for non-error messages
     if (type !== 'error') {
       setTimeout(() => {
@@ -733,22 +711,22 @@ function rebuildWorldFrom(stacks) {
     if (!Array.isArray(stacks)) {
       throw new Error('Invalid stacks data - must be an array');
     }
-
+    
     // Validate each stack
     for (let i = 0; i < stacks.length; i++) {
       if (!Array.isArray(stacks[i])) {
         throw new Error(`Invalid stack at index ${i} - must be an array`);
       }
     }
-
+    
     // Store current state for potential rollback
     const backup = {
       stacks: [...world.stacks.map(s => [...s])],
-      on: { ...world.on },
+      on: {...world.on},
       blocks: [...world.blocks],
-      colours: { ...world.colours }
+      colours: {...world.colours}
     };
-
+    
     // Clear DOM elements
     const worldContainer = document.getElementById('world');
     if (worldContainer) {
@@ -763,7 +741,7 @@ function rebuildWorldFrom(stacks) {
 
     // Get all unique blocks from stacks
     const allBlocks = [...new Set(stacks.flat())];
-
+    
     // Validate block names
     for (const block of allBlocks) {
       if (typeof block !== 'string' || !/^[A-Z]$/.test(block)) {
@@ -775,16 +753,9 @@ function rebuildWorldFrom(stacks) {
         throw new Error(`Invalid block name: ${block}. Must be a single uppercase letter.`);
       }
     }
-
-    // Temporarily disable logging during bulk add
-    const originalLogMove = window._logMove;
-    window._logMove = null;
-
+    
     // Add blocks to world
     allBlocks.forEach(name => world.addBlock(name));
-
-    // Re-enable logging
-    window._logMove = originalLogMove;
 
     // Set stack configuration
     world.stacks = stacks.map(s => [...s]);
@@ -801,15 +772,8 @@ function rebuildWorldFrom(stacks) {
     });
 
     world.updatePositions();
-
-    // Log world loaded action with final state
-    window._logMove?.(`User: Loaded world \u2192 ${formatWorldState(world.stacks)}`);
-
-    // Trigger Current Configuration update
-    window.updateCurrentConfiguration?.();
-
     showMessage('World loaded successfully!', 'success');
-
+    
   } catch (error) {
     handleError(error, 'rebuildWorldFrom');
   }
@@ -822,36 +786,36 @@ async function saveWorld() {
     showMessage('Please enter a valid world name.', 'error');
     return;
   }
-
+  
   const userId = localStorage.getItem('userId');
-
+  
   if (!userId) {
     showMessage('You must be logged in to save a world.', 'error');
     return;
   }
-
-  const payload = {
-    name: name.trim(),
-    blocks: getCurrentBlocks(),
+  
+  const payload = { 
+    name: name.trim(), 
+    blocks: getCurrentBlocks(), 
     stacks: getCurrentStacks(),
     userId
   };
-
+  
   try {
     showMessage('Saving world...', 'info');
     const res = await fetch(`${API_BASE}/worlds`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {'Content-Type':'application/json'},
       body: JSON.stringify(payload)
     });
-
+    
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.message || `Save failed with status ${res.status}`);
     }
-
+    
     const savedWorld = await res.json();
-
+    
     showMessage('World saved successfully!', 'success');
     await refreshLoadList();
   } catch (e) {
@@ -862,9 +826,9 @@ async function saveWorld() {
 async function refreshLoadList() {
   const userId = localStorage.getItem('userId');
   const sel = document.getElementById('loadSelect');
-
+  
   if (!sel) return;
-
+  
   sel.innerHTML = '<option value="">-- Select a saved world --</option>';
 
   if (!userId) {
@@ -874,18 +838,18 @@ async function refreshLoadList() {
   try {
     const url = `${API_BASE}/worlds?userId=${userId}`;
     const res = await fetch(url);
-
+    
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.message || 'Failed to fetch saved worlds');
     }
-
+    
     const worlds = await res.json();
-
+    
     if (!Array.isArray(worlds)) {
       throw new Error('Invalid response format');
     }
-
+    
     for (const w of worlds) {
       if (w._id && w.name) {
         const opt = document.createElement('option');
@@ -909,28 +873,28 @@ async function loadSelectedWorld() {
     showMessage('Please select a world to load.', 'error');
     return;
   }
-
+  
   const userId = localStorage.getItem('userId');
   if (!userId) {
     showMessage('You must be logged in to load a world.', 'error');
     return;
   }
-
+  
   try {
     showMessage('Loading world...', 'info');
     const res = await fetch(`${API_BASE}/worlds/${sel.value}?userId=${userId}`);
-
+    
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.message || `Load failed with status ${res.status}`);
     }
-
+    
     const worldDoc = await res.json();
-
+    
     if (!worldDoc.stacks || !Array.isArray(worldDoc.stacks)) {
       throw new Error('Invalid world data format');
     }
-
+    
     rebuildWorldFrom(worldDoc.stacks);
     showMessage('World loaded successfully!', 'success');
   } catch (e) {

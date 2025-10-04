@@ -1,23 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title id="pageTitle">Sign In - BDI Blocks World</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
   <main class="auth-wrapper">
     <section class="auth-card">
-      <div class="auth-brand">
-        <div class="auth-brand-icon">🧱</div>
-        <h2 class="auth-brand-text" id="authBrandText">BDI Blocks World</h2>
-      </div>
       <h1 class="auth-title">Sign In</h1>
       <p class="auth-subtitle">Access your saved worlds and simulations.</p>
 
@@ -46,13 +37,10 @@
 
   <script src="config.js"></script>
   <script>
-    // Set page title and brand from config
     window.addEventListener('DOMContentLoaded', () => {
       const appName = window.APP_CONFIG?.APP_NAME || 'BDI Blocks World';
       const pageTitle = document.getElementById('pageTitle');
-      const authBrandText = document.getElementById('authBrandText');
       if (pageTitle) pageTitle.textContent = `Sign In - ${appName}`;
-      if (authBrandText) authBrandText.textContent = appName;
     });
 
     const messages = document.getElementById('messages');
@@ -98,11 +86,18 @@
 
         localStorage.setItem('userId', data.userId);
         localStorage.setItem('username', data.username || username);
+        localStorage.setItem('token', data.token);   // Save JWT
+        localStorage.setItem('role', data.role);     // Save role
 
         setMessage('Login successful. Redirecting...', 'success');
+
         setTimeout(() => {
-          window.location.href = 'index.html';
-        }, 1000);
+          if (data.role === 'admin') {
+            window.location.href = 'admin.html';  
+          } else {
+            window.location.href = 'index.html';  
+          }
+        }, 800);
       } catch (err) {
         console.error('Login error:', err);
         setMessage(err.message || 'Login failed. Please try again.', 'error');
@@ -110,5 +105,4 @@
     });
   </script>
 </body>
-
 </html>
