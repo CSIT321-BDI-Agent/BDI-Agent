@@ -19,6 +19,42 @@ services:
     networks:
       - bdi-network
     command: ["node", "server.js"]
+    develop:
+      watch:
+        # Sync public files (HTML, CSS, JS) - no restart needed (live reload in browser)
+        - action: sync
+          path: ./public
+          target: /app/public
+          ignore:
+            - node_modules/
+            - '*.md'
+        
+        # Sync BDI planner files - no restart needed
+        - action: sync
+          path: ./bdi
+          target: /app/bdi
+          ignore:
+            - node_modules/
+        
+        # Sync utility files - restart required
+        - action: sync+restart
+          path: ./utils
+          target: /app/utils
+        
+        # Sync model files - restart required
+        - action: sync+restart
+          path: ./models
+          target: /app/models
+        
+        # Sync server.js - restart required
+        - action: sync+restart
+          path: ./server.js
+          target: /app/server.js
+        
+        # Sync package.json - restart and rebuild required
+        - action: sync+restart
+          path: ./package.json
+          target: /app/package.json
 
   mongo:
     image: mongo:7.0

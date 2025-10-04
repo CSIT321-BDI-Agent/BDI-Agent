@@ -1,17 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BDI Blocks World</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
   <!-- Mobile Header -->
   <div class="mobile-header">
-    <button class="hamburger" id="mobileMenuToggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobileMenu">
+    <button class="hamburger" id="mobileMenuToggle" aria-label="Toggle navigation menu" aria-expanded="false"
+      aria-controls="mobileMenu">
       <span aria-hidden="true"></span>
       <span aria-hidden="true"></span>
       <span aria-hidden="true"></span>
@@ -29,101 +34,67 @@
       <div class="brand" id="mobileMenuBrand">BDI Blocks World</div>
       <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">&times;</button>
     </div>
-    
-    <div class="navsec">
-      <h6>Simulation</h6>
-      <nav class="nav">
-        <a href="#" onclick="document.getElementById('goalInput')?.focus(); return false;">Set Goal</a>
-        <a href="#" onclick="document.getElementById('startBtn')?.click(); return false;">Run BDI</a>
-      </nav>
-    </div>
 
-    <div class="navsec">
-      <h6>World Management</h6>
-      <nav class="nav">
-        <a href="#" onclick="saveWorld()">Save World</a>
-        <a href="#" onclick="document.getElementById('loadSelect').focus()">Load World</a>
-      </nav>
-    </div>
-
-    <div class="navsec">
-      <h6>Account</h6>
-      <nav class="nav">
-        <!-- Admin-only link gets toggled by JS -->
-        <a id="adminLinkMobile" href="admin.html" style="display:none;">Admin Dashboard</a>
-        <a href="#" onclick="logout(); return false;">Logout</a>
-      </nav>
-    </div>
-
-    <div class="help">
-      <strong>Quick Help:</strong><br/>
-      • Drag blocks to move them<br/>
-      • Set goals like "on(A,B)"<br/>
-      • Run BDI to see planning in action<br/>
-      • Save/load different worlds
-    </div>
+    <nav class="page-nav">
+      <a href="#" class="page-nav-item active" data-page="simulation">Simulation</a>
+      <a href="#" class="page-nav-item" data-page="agent-logs">Agent Logs</a>
+      <a href="#" class="page-nav-item" data-page="import-export">Import/Export</a>
+      <a href="#" class="page-nav-item" data-page="profile">Profile</a>
+    </nav>
   </div>
 
   <div class="app">
     <aside class="sidebar">
       <div class="brand" id="sidebarBrand">BDI Blocks World</div>
 
-      <div class="navsec">
-        <h6>Simulation</h6>
-        <nav class="nav">
-          <a href="#" onclick="document.getElementById('goalInput')?.focus(); return false;">Set Goal</a>
-          <a href="#" onclick="document.getElementById('startBtn')?.click(); return false;">Run BDI</a>
-        </nav>
-      </div>
-
-      <div class="navsec">
-        <h6>World Management</h6>
-        <nav class="nav">
-          <a href="#" onclick="saveWorld()">Save World</a>
-          <a href="#" onclick="document.getElementById('loadSelect').focus()">Load World</a>
-        </nav>
-      </div>
-
-      <div class="navsec">
-        <h6>Account</h6>
-        <nav class="nav">
-          <!-- Admin-only link gets toggled by JS -->
-          <a id="adminLinkDesktop" href="admin.html" style="display:none;">Admin Dashboard</a>
-          <a href="#" onclick="logout(); return false;">Logout</a>
-        </nav>
-      </div>
+      <nav class="page-nav">
+        <a href="#" class="page-nav-item active" data-page="simulation">Simulation</a>
+        <a href="#" class="page-nav-item" data-page="agent-logs">Agent Logs</a>
+        <a href="#" class="page-nav-item" data-page="import-export">Import/Export</a>
+        <a href="#" class="page-nav-item" data-page="profile">Profile</a>
+      </nav>
 
       <div class="help">
-        <strong>Quick Help:</strong><br/>
-        • Drag blocks to move them<br/>
-        • Set goals like "on(A,B)"<br/>
-        • Run BDI to see planning in action<br/>
+        <strong>Quick Help:</strong><br />
+        • Drag blocks to move them<br />
+        • Set goals like "on(A,B)"<br />
+        • Run BDI to see planning in action<br />
         • Save/load different worlds
       </div>
     </aside>
 
     <main class="main">
       <div class="topbar">
-        <div class="search"><input type="text" placeholder="Type to search…"></div>
-        <div class="user-mini"><span class="pill">Signed out</span></div>
-      </div>
-
-      <!-- Admin toolbar (admin-only, toggled by JS) -->
-      <div id="adminNav" style="display:none; margin: 10px 0 0 0;">
-        <button onclick="window.location.href='admin.html'">⚙️ Admin Dashboard</button>
-      </div>
-
-      <section class="hero">
-        <h2 class="hero-title">Simulation</h2>
-        <div class="user-strip">
-          <div>
-            <div class="user-name">User</div>
-            <div class="user-email">you@example.com</div>
+        <h2 class="page-title" id="pageTitle">Simulation</h2>
+        <div class="profile-dropdown">
+          <button class="profile-btn" id="profileBtn" aria-label="Profile menu">
+            <span id="userPill">Signed out</span>
+            <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+              <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" />
+            </svg>
+          </button>
+          <div class="profile-menu" id="profileMenu">
+            <div class="profile-menu-header">
+              <div class="profile-menu-username" id="profileMenuUsername">User</div>
+              <div class="profile-menu-email" id="profileMenuEmail">user@example.com</div>
+            </div>
+            <hr class="profile-menu-divider">
+            <a href="#" class="profile-menu-item" data-page="profile">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+              </svg>
+              Profile
+            </a>
+            <button class="profile-menu-item" onclick="logout(); return false;">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path
+                  d="M3 1h8a1 1 0 011 1v3h-2V3H4v10h6v-2h2v3a1 1 0 01-1 1H3a1 1 0 01-1-1V2a1 1 0 011-1zm9 5l4 4-4 4v-3H6V9h6V6z" />
+              </svg>
+              Logout
+            </button>
           </div>
-          <span class="pill">Overview</span>
-          <span class="pill">Simulations</span>
         </div>
-      </section>
+      </div>
 
       <div class="grid">
         <section class="card">
@@ -178,17 +149,13 @@
                 <div class="info-label">Current Configuration</div>
                 <div id="info-current" class="info-content">—</div>
               </div>
-              <div class="info-tile">
-                <div class="info-label">Stats</div>
-                <div id="info-stats" class="info-content">Steps: 0<br/>Status: —</div>
-              </div>
             </div>
           </div>
         </section>
 
-        <section class="card">
+        <section class="card action-tower-card">
           <h3>Action Tower</h3>
-          <div class="card-body">
+          <div class="card-body card-body-flex">
             <div id="actionLog" class="log"></div>
           </div>
         </section>
@@ -213,29 +180,64 @@
     // Authentication guard - redirect to login if not authenticated
     (function checkAuth() {
       const userId = localStorage.getItem('userId');
-      const token  = localStorage.getItem('token');
-      if (!userId || !token) {
+      const username = localStorage.getItem('username');
+
+      if (!userId) {
         window.location.href = window.APP_CONFIG?.AUTH?.LOGIN_PAGE || 'login.html';
         return;
       }
+
+      // Update user pill with username
+      const userPill = document.getElementById('userPill');
+      const profileMenuUsername = document.getElementById('profileMenuUsername');
+      if (userPill && username) {
+        userPill.textContent = username;
+      }
+      if (profileMenuUsername && username) {
+        profileMenuUsername.textContent = username;
+      }
     })();
 
-    // Logout function (clear all)
+    // Profile dropdown functionality
+    (function () {
+      const profileBtn = document.getElementById('profileBtn');
+      const profileMenu = document.getElementById('profileMenu');
+
+      if (!profileBtn || !profileMenu) return;
+
+      // Toggle dropdown on button click
+      profileBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        profileMenu.classList.toggle('active');
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!profileBtn.contains(e.target) && !profileMenu.contains(e.target)) {
+          profileMenu.classList.remove('active');
+        }
+      });
+
+      // Close dropdown when clicking menu items
+      const menuItems = profileMenu.querySelectorAll('.profile-menu-item');
+      menuItems.forEach(item => {
+        item.addEventListener('click', () => {
+          profileMenu.classList.remove('active');
+        });
+      });
+    })();    // Logout function
     function logout() {
       if (confirm('Are you sure you want to logout?')) {
         localStorage.removeItem('userId');
         localStorage.removeItem('username');
-        localStorage.removeItem('token');   // also clear JWT
-        localStorage.removeItem('role');    // also clear role
         window.location.href = window.APP_CONFIG?.AUTH?.LOGIN_PAGE || 'login.html';
       }
     }
 
-    (function(){
+    (function () {
       const log = document.getElementById('actionLog');
       const infoGoal = document.getElementById('info-goal');
-      const infoCur  = document.getElementById('info-current');
-      const infoStats= document.getElementById('info-stats');
+      const infoCur = document.getElementById('info-current');
 
       const startBtn = document.getElementById('startBtn');
       const goalInput = document.getElementById('goalInput');
@@ -251,45 +253,41 @@
         if (mobileMenuBrand) mobileMenuBrand.textContent = appName;
         if (sidebarBrand) sidebarBrand.textContent = appName;
 
-        // Show signed-in user
         const username = localStorage.getItem('username');
         const userMini = document.querySelector('.user-mini .pill');
-        if (username && userMini) userMini.textContent = `Signed in as ${username}`;
-
-        // Toggle admin links if role=admin
-        const role = localStorage.getItem('role');
-        if (role === 'admin') {
-          const adminNav = document.getElementById('adminNav');
-          const adminLinkDesktop = document.getElementById('adminLinkDesktop');
-          const adminLinkMobile = document.getElementById('adminLinkMobile');
-          if (adminNav) adminNav.style.display = 'block';
-          if (adminLinkDesktop) adminLinkDesktop.style.display = 'block';
-          if (adminLinkMobile) adminLinkMobile.style.display = 'block';
+        if (username && userMini) {
+          userMini.textContent = `Signed in as ${username}`;
         }
 
         refreshLoadList();
       });
-
-      window._logMove = function(txt){
-        if(!log) return;
+      window._logMove = function (txt) {
+        if (!log) return;
         const p = document.createElement('div');
         p.textContent = txt;
         log.appendChild(p);
         log.scrollTop = log.scrollHeight;
       };
 
-      const msg = document.getElementById('messages');
-      const obs = new MutationObserver(() => {
-        const t = msg.textContent.trim();
-        if (t) infoStats.innerHTML = `Steps: —<br/>Status: ${t}`;
-      });
-      obs.observe(msg, { childList:true, subtree:true, characterData:true });
-
-      setInterval(() => {
+      // Update Current Configuration display
+      function updateCurrentConfiguration() {
         if (window.world && Array.isArray(window.world.stacks)) {
-          infoCur.textContent = '('+ window.world.stacks.map(s => s.join(', ')).join(' | ') +')';
+          // Use formatWorldState if available, otherwise fallback to inline format
+          if (typeof formatWorldState === 'function') {
+            infoCur.textContent = formatWorldState(window.world.stacks);
+          } else {
+            infoCur.textContent = window.world.stacks.map(s => '(' + s.join(', ') + ')').join(' ');
+          }
+        } else {
+          infoCur.textContent = '—';
         }
-      }, 500);
+      }
+
+      // Update immediately on load and periodically
+      setInterval(updateCurrentConfiguration, 200);
+
+      // Also expose for manual updates
+      window.updateCurrentConfiguration = updateCurrentConfiguration;
 
       startBtn?.addEventListener('click', () => {
         const g = goalInput.value.trim();
@@ -298,7 +296,7 @@
     })();
 
     // Mobile Menu Functionality
-    (function() {
+    (function () {
       const mobileMenuToggle = document.getElementById('mobileMenuToggle');
       const mobileMenu = document.getElementById('mobileMenu');
       const mobileOverlay = document.getElementById('mobileOverlay');
@@ -308,33 +306,85 @@
         mobileMenu.classList.add('active');
         mobileOverlay.classList.add('active');
         mobileMenuToggle.classList.add('active');
-        document.body.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
       }
 
       function closeMobileMenu() {
         mobileMenu.classList.remove('active');
         mobileOverlay.classList.remove('active');
         mobileMenuToggle.classList.remove('active');
-        document.body.style.overflow = '';
+        document.body.style.overflow = ''; // Restore scrolling
       }
 
+      // Toggle menu when hamburger is clicked
       mobileMenuToggle?.addEventListener('click', openMobileMenu);
+
+      // Close menu when close button is clicked
       mobileMenuClose?.addEventListener('click', closeMobileMenu);
+
+      // Close menu when overlay is clicked
       mobileOverlay?.addEventListener('click', closeMobileMenu);
 
+      // Close menu when clicking a nav link
       const mobileNavLinks = mobileMenu?.querySelectorAll('.nav a');
       mobileNavLinks?.forEach(link => {
-        link.addEventListener('click', () => setTimeout(closeMobileMenu, 100));
+        link.addEventListener('click', () => {
+          setTimeout(closeMobileMenu, 100); // Small delay to allow action to complete
+        });
       });
 
+      // Close menu on escape key
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && mobileMenu.classList.contains('active')) closeMobileMenu();
+        if (e.key === 'Escape' && mobileMenu.classList.contains('active')) {
+          closeMobileMenu();
+        }
       });
 
+      // Handle window resize - close mobile menu if switching to desktop view
       window.addEventListener('resize', () => {
-        if (window.innerWidth >= 768 && mobileMenu.classList.contains('active')) closeMobileMenu();
+        if (window.innerWidth >= 768 && mobileMenu.classList.contains('active')) {
+          closeMobileMenu();
+        }
+      });
+    })();
+
+    // Page Navigation
+    (function () {
+      const pageTitle = document.getElementById('pageTitle');
+      const pageNavItems = document.querySelectorAll('.page-nav-item');
+
+      pageNavItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+
+          // Update active state
+          pageNavItems.forEach(nav => nav.classList.remove('active'));
+          item.classList.add('active');
+
+          // Update page title
+          const page = item.dataset.page;
+          const titles = {
+            'simulation': 'Simulation',
+            'agent-logs': 'Agent Logs',
+            'import-export': 'Import/Export',
+            'profile': 'Profile'
+          };
+          if (pageTitle) pageTitle.textContent = titles[page] || 'Simulation';
+
+          // Close mobile menu if open
+          const mobileMenu = document.getElementById('mobileMenu');
+          if (mobileMenu && mobileMenu.classList.contains('active')) {
+            document.getElementById('mobileMenuClose')?.click();
+          }
+
+          // TODO: Handle actual page content switching when other pages are implemented
+          if (page !== 'simulation') {
+            alert(`${titles[page]} page - Coming soon!`);
+          }
+        });
       });
     })();
   </script>
 </body>
+
 </html>
