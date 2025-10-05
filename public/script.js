@@ -479,9 +479,6 @@ function simulateMove(move, callback) {
   const blockName = move.block;
   const dest = move.to;
 
-  const actorPrefix = move.actor ? `[${move.actor}] ` : '';
-  window._logMove?.(`${actorPrefix}Move(${move.block} -> ${move.to})`);
-
   const blockDiv = worldElem?.querySelector(`[data-block='${blockName}']`);
   if (!blockDiv) {
     console.error('DOM element for block not found:', blockName);

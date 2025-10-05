@@ -1,6 +1,24 @@
 # BDI-Agent: Blocks World Simulation
 
-A classic AI environment implementing **BDI (Belief-Desire-Intention) planning** for manipulating colored blocks to achieve goal configurations. The current release integrates the [JS-son](https://github.com/TimKam/JS-son) BDI framework to generate plans server-side and animate them through an interactive web-based blocks world simulator.
+A classic AI environment implementin### Manual Installation (Alternative)
+
+<details>
+<summary>Click to expand manual installation instructions</summary>
+
+Use this method only if you prefer not to use Docker or need to develop without containers.
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/CSIT321-BDI-Agent/BDI-Agent.git
+cd BDI-Agent/backend
+```
+
+### 2. Install Dependencies
+```bash
+cd backend; npm install
+```
+
+### 3. Set Up MongoDBire-Intention planning** for manipulating colored blocks to achieve goal configurations. The current release integrates the [JS-son](https://github.com/TimKam/JS-son) BDI framework to generate plans server-side and animate them through an interactive web-based blocks world simulator.
 
 ## Features
 
@@ -143,32 +161,42 @@ Planning is handled server-side by a JS-son BDI agent:
 ### Project Structure
 ```
 BDI-Agent/
-├── bdi/                      # JS-son agent and planning utilities
-│   ├── blocksWorldAgent.js   # BDI planner implementation
-│   └── utils/
-│       └── blocks.js         # Planner helper functions
-├── models/                   # MongoDB schemas
-│   ├── User.js               # User authentication schema
-│   └── World.js              # Block world persistence schema
-├── utils/                    # Reusable server utilities
-│   ├── database.js           # MongoDB connection with retry logic
-│   ├── httpError.js          # HTTP error class
-│   ├── routeHandler.js       # Route error handling wrapper
-│   └── validators.js         # Input validation helpers
-├── public/                   # Static frontend files
+├── backend/                  # Backend server directory
+│   ├── server.js             # Express server and API routes
+│   ├── package.json          # Node.js dependencies
+│   ├── bdi/                  # JS-son agent and planning utilities
+│   │   ├── blocksWorldAgent.js   # BDI planner implementation
+│   │   └── utils/
+│   │       └── blocks.js     # Planner helper functions
+│   ├── models/               # MongoDB schemas
+│   │   ├── User.js           # User authentication schema
+│   │   └── World.js          # Block world persistence schema
+│   ├── utils/                # Reusable server utilities
+│   │   ├── database.js       # MongoDB connection with retry logic
+│   │   ├── auth.js           # JWT authentication middleware
+│   │   ├── httpError.js      # HTTP error class
+│   │   ├── routeHandler.js   # Route error handling wrapper
+│   │   ├── validators.js     # Input validation helpers
+│   │   └── adminRoutes.js    # Admin panel routes
+│   ├── mongo-init.js         # MongoDB initialization script
+│   ├── planner-debug.js      # Planner regression test suite
+│   └── README.md             # Backend-specific documentation
+├── public/                   # Frontend directory (static files)
 │   ├── config.js             # Frontend configuration
 │   ├── index.html            # Main simulation interface
 │   ├── login.html            # User authentication
 │   ├── signup.html           # User registration
+│   ├── admin.html            # Admin user management panel
 │   ├── script.js             # Core simulation engine
 │   ├── style.css             # Styling and animations
-│   └── debug.html            # Debug utilities
-├── server.js                 # Express server and API routes
-├── planner-debug.js          # Planner regression test suite
-├── package.json              # Dependencies and project metadata
+│   ├── debug.html            # Debug utilities
+│   └── README.md             # Frontend-specific documentation
 ├── Dockerfile                # Container definition
 ├── docker-compose.yml        # Production Docker setup
 ├── docker-compose.dev.yml    # Development Docker setup
+├── docker-setup.sh           # Linux/macOS setup script
+├── docker-setup.bat          # Windows setup script
+└── README.md                 # This file
 ```
 
 ### Code Organization
@@ -220,19 +248,41 @@ All packages are necessary and actively used:
 | `mongoose` | ^8.18.1 | MongoDB ODM for persistence |
 
 ### Development Workflow
-1. **Backend Changes**: Edit `server.js` or files in `utils/`, `models/` and restart with `node server.js`
-2. **Frontend Changes**: Edit files in `public/` and refresh browser
+
+**Using Docker (Recommended):**
+```bash
+# Start development environment with live reload
+docker compose -f docker-compose.dev.yml up --build
+
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
+```
+
+**Manual Development:**
+1. **Backend Changes**: 
+   - Navigate to `backend/` directory
+   - Edit `server.js` or files in `utils/`, `models/`, `bdi/`
+   - Restart with `npm start` or `node server.js`
+2. **Frontend Changes**: 
+   - Edit files in `public/` directory
+   - Refresh browser (no build step needed)
 3. **Database**: MongoDB collections: `users` and `worlds`
-4. **Testing**: Run `npm run test:planner` after planner changes
+4. **Testing**: 
+   - Run `npm run test:planner` from `backend/` directory
 
 ### Recent Improvements
 
 **Code Organization** (October 2025):
+- **Frontend/Backend Separation**: Reorganized into clean `backend/` and `public/` directories
 - Reduced `server.js` from 350 to 183 lines (48% reduction)
 - Created modular `utils/` directory for reusable server utilities
 - Created `models/` directory for Mongoose schemas
 - Centralized error handling, validation, and database connection logic
 - Improved code reusability and testability
+- Added comprehensive README documentation for both frontend and backend
 
 **Enhanced Test Coverage**:
 - Expanded test suite from 5 to 11 scenarios (120% increase)
@@ -280,8 +330,9 @@ When running under Docker, environment variables are provided via the compose fi
 
 ### Planner Regression Tests
 
-Run the automated planner test suite:
+Run the automated planner test suite from the backend directory:
 ```bash
+cd backend
 npm run test:planner
 ```
 

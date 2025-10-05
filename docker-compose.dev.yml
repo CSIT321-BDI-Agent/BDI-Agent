@@ -11,8 +11,9 @@ services:
       - PORT=3000
     volumes:
       # Mount source code for development (hot reload)
-      - .:/app
-      - /app/node_modules
+      - ./backend:/app/backend
+      - ./public:/app/public
+      - /app/backend/node_modules
     depends_on:
       - mongo
     restart: unless-stopped
@@ -28,7 +29,7 @@ services:
       - MONGO_INITDB_DATABASE=blocks_world
     volumes:
       - mongo_data_dev:/data/db
-      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - ./backend/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     restart: unless-stopped
     networks:
       - bdi-network
