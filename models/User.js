@@ -21,7 +21,10 @@ async function ensureDefaultAdmin() {
 
   const email    = process.env.ADMIN_EMAIL    || 'admin@example.com';
   const username = process.env.ADMIN_USERNAME || 'admin';
-  const password = process.env.ADMIN_PASSWORD || 'admin123';
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password) {
+    throw new Error('ADMIN_PASSWORD environment variable must be set to create the default admin user.');
+  }
 
   const hash = await bcrypt.hash(password, 10);
   await User.create({ email, username, password: hash, role: 'admin' });
