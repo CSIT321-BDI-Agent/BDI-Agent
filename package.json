@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-  "test:planner": "node planner-debug.js",
+    "test:planner": "node planner-debug.js",
     "docker:build": "docker build -t bdi-agent .",
     "docker:run": "docker run -p 3000:3000 bdi-agent",
     "docker:up": "docker compose up --build",
@@ -32,6 +32,7 @@
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "js-son-agent": "^0.0.17",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.1"
   }
 }
