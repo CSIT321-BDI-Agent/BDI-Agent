@@ -1,3 +1,8 @@
+/**
+ * ⚠️ LEGACY FILE - NO LONGER USED ⚠️
+ * This file is kept as a backup reference only.
+ */
+
 const BLOCK_WIDTH = 80;
 const BLOCK_HEIGHT = 30;
 const WORLD_HEIGHT = 240;
