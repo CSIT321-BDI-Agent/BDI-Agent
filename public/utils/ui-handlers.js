@@ -53,7 +53,7 @@ export function handleAddBlock(world) {
     return;
   }
 
-  world.addBlock(name, 'Table');
+  world.addBlock(name);
   input.value = '';
   input.focus();
 }
@@ -148,9 +148,13 @@ export async function runSimulation(world) {
  * @returns {Promise<void>}
  */
 async function executeMoves(world, moves) {
-  for (const move of moves) {
+  const worldElem = DOM.worldArea();
+  const claw = document.getElementById('claw');
+  
+  for (let i = 0; i < moves.length; i++) {
+    const move = moves[i];
     await new Promise(resolve => {
-      simulateMove(world, move, resolve);
+      simulateMove(move, world, worldElem, claw, () => {}, resolve);
     });
   }
 }

@@ -24,6 +24,7 @@ export const DOM = {
   world: () => document.getElementById('world'),
   addBlockBtn: () => document.getElementById('addBlockBtn'),
   blockNameInput: () => document.getElementById('blockName'),
+  newBlockInput: () => document.getElementById('blockName'),
   startBtn: () => document.getElementById('startBtn'),
   goalInput: () => document.getElementById('goalInput'),
   saveBtn: () => document.getElementById('saveBtn'),

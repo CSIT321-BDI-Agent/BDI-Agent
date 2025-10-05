@@ -1,15 +1,7 @@
 /**
- * World Persistence Sys  try {
-    const response = await fetch(`${API_BASE}/worlds`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user.userId,
-        name: worldName.trim(),
-        stacks: world.getCurrentStacks(),
-        on: world.on
-      })
-    });* Handles saving and loading block world configurations to/from the backend
+ * World Persistence System
+ * 
+ * Handles saving and loading block world configurations to/from the backend
  */
 
 import { DOM } from './constants.js';
@@ -41,10 +33,10 @@ export async function saveWorld(world) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        userId,
-        name: worldName,
-        stacks: world.getCurrentStacks(),
-        on: world.on
+        userId: user.userId,
+        name: worldName.trim(),
+        blocks: world.getCurrentBlocks(),
+        stacks: world.getCurrentStacks()
       })
     });
 
@@ -155,11 +147,9 @@ export async function refreshLoadList() {
  * Rebuild world from saved data
  * @param {Object} world - World instance
  * @param {Array<Array<string>>} stacks - Saved stacks
- * @param {Object} on - Saved on relationships
+ * @param {Object} on - Saved on relationships (optional, will be reconstructed)
  */
 export function rebuildWorldFrom(world, stacks, on) {
-  const snapshot = { stacks: world.getCurrentStacks(), on: { ...world.on } };
-
   try {
     // Validate input
     if (!Array.isArray(stacks)) {
@@ -177,33 +167,50 @@ export function rebuildWorldFrom(world, stacks, on) {
       });
     });
 
-    if (typeof on !== 'object' || on === null) {
-      throw new Error('Invalid on data: expected object');
-    }
+    // Store backup for rollback
+    const backup = {
+      stacks: world.stacks.map(s => [...s]),
+      on: { ...world.on },
+      blocks: [...world.blocks],
+      colours: { ...world.colours }
+    };
 
-    // Clear current world
+    // Clear DOM elements
     const blockElements = Array.from(DOM.worldArea().querySelectorAll('.block'));
     blockElements.forEach(elem => elem.remove());
 
-    // Reset state
+    // Reset world state
     world.stacks = [];
     world.on = {};
+    world.blocks = [];
+    world.colours = {};
 
-    // Rebuild stacks
-    stacks.forEach((stack, stackIndex) => {
-      world.stacks.push([]);
-      stack.forEach((block, blockIndex) => {
-        const below = blockIndex === 0 ? 'Table' : stack[blockIndex - 1];
-        world.stacks[stackIndex].push(block);
-        world.on[block] = below;
-        world.addBlock(block, below);
-      });
+    // Get all unique blocks from stacks
+    const allBlocks = [...new Set(stacks.flat())];
+    
+    // Add blocks to world (creates DOM elements and assigns colors)
+    allBlocks.forEach(name => world.addBlock(name));
+
+    // Set stack configuration
+    world.stacks = stacks.map(s => [...s]);
+
+    // Rebuild 'on' relationships from stacks
+    world.on = {};
+    world.stacks.forEach(stack => {
+      if (stack.length > 0) {
+        world.on[stack[0]] = 'Table';
+        for (let i = 1; i < stack.length; i++) {
+          world.on[stack[i]] = stack[i - 1];
+        }
+      }
     });
+
+    // Update visual positions
+    world.updatePositions();
+    
   } catch (error) {
     // Rollback on error
     console.error('Failed to rebuild world:', error);
-    world.stacks = snapshot.stacks;
-    world.on = snapshot.on;
     throw error;
   }
 }

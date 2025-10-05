@@ -7,7 +7,7 @@
  * - Timeline updates after moves
  */
 
-import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, CLAW_HEIGHT, CLAW_OFFSET } from './constants.js';
+import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, CLAW_HEIGHT, CLAW_OFFSET, STACK_MARGIN } from './constants.js';
 import { handleError } from './helpers.js';
 
 /**
@@ -49,7 +49,7 @@ export function simulateMove(move, world, worldElem, claw, markTimelineMove, cal
     }
     
     const destPosIndex = world.stacks[destStackIndex].indexOf(blockName);
-    const destLeft = destStackIndex * (BLOCK_WIDTH + 10);
+    const destLeft = destStackIndex * (BLOCK_WIDTH + STACK_MARGIN);
     const destTop = WORLD_HEIGHT - (destPosIndex + 1) * BLOCK_HEIGHT;
 
     // Animate claw
@@ -84,6 +84,13 @@ export function simulateMove(move, world, worldElem, claw, markTimelineMove, cal
           claw.style.transition = '';
         }
         world.updatePositions();
+        
+        // Log move to Action Tower
+        if (typeof window._logMove === 'function') {
+          const destination = dest === 'Table' ? 'Table' : dest;
+          window._logMove(`Move ${blockName} → ${destination}`);
+        }
+        
         markTimelineMove(move);
         callback();
       } catch (error) {
