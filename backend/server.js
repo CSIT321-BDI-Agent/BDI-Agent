@@ -105,7 +105,19 @@ app.post('/users/signup', withRoute(async (req, res) => {
     password: hashedPassword
   });
 
-  res.status(201).json({ message: 'User created successfully', userId: newUser._id });
+  const token = jwt.sign(
+    { sub: newUser._id.toString(), role: newUser.role, username: newUser.username },
+    process.env.JWT_SECRET || 'dev-secret',
+    { expiresIn: '7d' }
+  );
+
+  res.status(201).json({ 
+    message: 'User created successfully', 
+    userId: newUser._id,
+    username: newUser.username,
+    role: newUser.role,
+    token
+  });
 }));
 
 app.post('/login', withRoute(async (req, res) => {
