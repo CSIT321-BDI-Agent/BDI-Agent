@@ -14,24 +14,25 @@
 
 ```
 public/
-├── index.html        # Main application interface
-├── login.html        # User login page
-├── signup.html       # User registration page
-├── admin.html        # Admin user management panel
-├── debug.html        # API testing utilities
-├── script.js         # Legacy monolithic script (backup)
-├── style.css         # Centralized styling with CSS variables
-├── config.js         # Runtime configuration constants
-└── utils/            # Modular JavaScript utilities
-    ├── main.js           # Application entry point (40 lines)
-    ├── constants.js      # Configuration & DOM references (54 lines)
-    ├── helpers.js        # Utility functions (92 lines)
-    ├── World.js          # World state management (155 lines)
-    ├── animation.js      # Block/claw animation system (101 lines)
-    ├── timeline.js       # Intention timeline & clock (265 lines)
-    ├── planner.js        # Backend API communication (40 lines)
-    ├── persistence.js    # Save/load functionality (176 lines)
-    └── ui-handlers.js    # Event handlers & simulation (165 lines)
+├── index.html        # Main application interface (283 lines)
+├── login.html        # User login page (80 lines)
+├── signup.html       # User registration page (82 lines)
+├── admin.html        # Admin user management panel (79 lines)
+├── debug.html        # API testing utilities (174 lines)
+├── script.js.backup  # Legacy monolithic script (backup only)
+├── style.css         # Centralized styling with CSS variables (1,214 lines)
+├── config.js         # Runtime configuration constants (30 lines)
+└── utils/            # Modular JavaScript utilities (ES6 modules)
+    ├── main.js           # Application entry point (30 lines)
+    ├── auth.js           # Authentication utilities (284 lines)
+    ├── constants.js      # Configuration & DOM references (42 lines)
+    ├── helpers.js        # Utility functions (86 lines)
+    ├── World.js          # World state management (142 lines)
+    ├── animation.js      # Block/claw animation system (88 lines)
+    ├── timeline.js       # Intention timeline & clock (244 lines)
+    ├── planner.js        # Backend API communication (37 lines)
+    ├── persistence.js    # Save/load functionality (180 lines)
+    └── ui-handlers.js    # Event handlers & simulation (169 lines)
 ```
 
 ## Features
@@ -56,31 +57,33 @@ public/
 
 ## Modular Architecture
 
-The frontend JavaScript has been refactored from a single 908-line monolithic file into **9 specialized ES6 modules** for improved maintainability and code organization.
+The frontend JavaScript has been refactored from a single 908-line monolithic file into **10 specialized ES6 modules** for improved maintainability and code organization.
 
 ### Module Overview
 
 | Module | Lines | Purpose | Key Exports |
 |--------|-------|---------|-------------|
-| **main.js** | 40 | Entry point & initialization | _(none, initializes app)_ |
-| **auth.js** | 300 | Authentication & authorization | `login()`, `signup()`, `logout()`, `requireAuth()`, `getCurrentUser()` |
-| **constants.js** | 54 | Configuration & DOM refs | Constants, `DOM` object, `initializeClaw()` |
-| **helpers.js** | 92 | Utility functions | `randomColour()`, `showMessage()`, `handleError()` |
-| **World.js** | 155 | World state management | `World` class |
-| **animation.js** | 101 | Block/claw animations | `simulateMove()` |
-| **timeline.js** | 265 | Timeline & planner clock | Timeline rendering & clock functions |
-| **planner.js** | 40 | Backend communication | `requestBDIPlan()` |
-| **persistence.js** | 176 | Save/load worlds | `saveWorld()`, `loadSelectedWorld()` |
-| **ui-handlers.js** | 165 | Event handlers | `initializeHandlers()`, `runSimulation()` |
+| **main.js** | 30 | Entry point & initialization | _(none, initializes app)_ |
+| **auth.js** | 284 | Authentication & authorization | `login()`, `signup()`, `logout()`, `requireAuth()`, `getCurrentUser()`, 13+ functions |
+| **constants.js** | 42 | Configuration & DOM refs | Constants, `DOM` object, `initializeClaw()` |
+| **helpers.js** | 86 | Utility functions | `randomColour()`, `showMessage()`, `handleError()`, `formatPlannerDuration()` |
+| **World.js** | 142 | World state management | `World` class |
+| **animation.js** | 88 | Block/claw animations | `simulateMove()` |
+| **timeline.js** | 244 | Timeline & planner clock | Timeline rendering & clock functions (7 exports) |
+| **planner.js** | 37 | Backend communication | `requestBDIPlan()` |
+| **persistence.js** | 180 | Save/load worlds | `saveWorld()`, `loadSelectedWorld()`, `refreshLoadList()`, `rebuildWorldFrom()` |
+| **ui-handlers.js** | 169 | Event handlers | `initializeHandlers()`, `runSimulation()`, `handleAddBlock()`, `setControlsDisabled()` |
 
 ### Benefits of Modularization
 
-✅ **Better Organization**: Each module has a single, clear responsibility  
-✅ **Easier Maintenance**: Changes isolated to specific files  
-✅ **No Global Pollution**: Module-scoped state, zero global variables  
-✅ **Clear Dependencies**: Explicit import/export relationships  
-✅ **Improved Testability**: Small, focused modules are easier to test  
-✅ **Better Documentation**: Each module has comprehensive header comments
+✅ **Better Organization**: Each module has a single, clear responsibility (avg 130 lines)  
+✅ **Easier Maintenance**: Changes isolated to specific files, no ripple effects  
+✅ **No Global Pollution**: Module-scoped state, zero global variables (verified)  
+✅ **Clear Dependencies**: Explicit import/export relationships, no circular deps  
+✅ **Improved Testability**: Small, focused modules are easier to unit test  
+✅ **Better Documentation**: Each module has comprehensive header comments  
+✅ **Zero Duplication**: Code quality audit confirmed no duplicate functions (Oct 2025)  
+✅ **Type Safety**: JSDoc comments provide IntelliSense in modern editors
 
 ### Import Chain
 

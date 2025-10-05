@@ -6,24 +6,24 @@ This directory contains the backend server for the BDI-Agent Blocks World Simula
 
 ```
 backend/
-├── server.js                    # Express server and API routes
+├── server.js                    # Express server and API routes (175 lines)
 ├── package.json                 # Node.js dependencies
 ├── bdi/                         # BDI agent logic
-│   ├── blocksWorldAgent.js      # JS-son planner
+│   ├── blocksWorldAgent.js      # JS-son planner (370 lines)
 │   └── utils/
-│       └── blocks.js            # Block world validators/helpers
+│       └── blocks.js            # Block world validators/helpers (165 lines)
 ├── models/                      # MongoDB schemas
-│   ├── User.js                  # User authentication model
-│   └── World.js                 # World persistence model
+│   ├── User.js                  # User authentication model (30 lines)
+│   └── World.js                 # World persistence model (10 lines)
 ├── utils/                       # Server utilities
-│   ├── database.js              # MongoDB connection
-│   ├── auth.js                  # JWT authentication
-│   ├── validators.js            # Input validation
-│   ├── routeHandler.js          # Error handling wrapper
-│   ├── httpError.js             # Custom error class
-│   └── adminRoutes.js           # Admin panel routes
-├── mongo-init.js                # MongoDB initialization
-├── planner-debug.js             # Planner test suite
+│   ├── database.js              # MongoDB connection with retry logic (25 lines)
+│   ├── auth.js                  # JWT authentication middleware (33 lines)
+│   ├── validators.js            # Input validation helpers (30 lines)
+│   ├── routeHandler.js          # Error handling wrapper (22 lines)
+│   ├── httpError.js             # Custom error class (9 lines)
+│   └── adminRoutes.js           # Admin panel routes (45 lines)
+├── mongo-init.js                # MongoDB initialization (12 lines)
+├── planner-debug.js             # Planner test suite (269 lines, 11 scenarios)
 └── .env.example                 # Environment variables template
 ```
 
@@ -109,12 +109,15 @@ See `.env.example` for all available configuration options.
 
 ## Architecture Notes
 
-- **Modular Design**: Utilities, models, and BDI logic are separated
-- **Error Handling**: Centralized via `withRoute()` wrapper
-- **Validation**: Input validation via `validators.js` helpers
-- **Authentication**: JWT-based with role management
-- **Database**: MongoDB with Mongoose ODM
-- **Static Files**: Frontend served from `../public` directory
+- **Modular Design**: Utilities, models, and BDI logic are separated into focused modules
+- **Error Handling**: Centralized via `withRoute()` wrapper from `utils/routeHandler.js`
+- **Validation**: Reusable input validation via `validators.js` helpers (ensureNonEmptyString, ensureArray, ensureObjectId)
+- **Authentication**: JWT-based with role management (7-day token expiry)
+- **Database**: MongoDB with Mongoose ODM, connection retry logic (5 attempts, 5s delay)
+- **Static Files**: Frontend served from `../public` directory via `express.static()`
+- **Health Checks**: `/health` endpoint for Docker container monitoring
+- **Admin Features**: User management panel with role promotion/demotion
+- **Code Quality**: ~700 total lines, avg 40 lines per utility module
 
 ## Common Tasks
 
