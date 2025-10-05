@@ -7,7 +7,7 @@
  * - Timeline updates after moves
  */
 
-import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, CLAW_HEIGHT, CLAW_OFFSET, STACK_MARGIN } from './constants.js';
+import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, CLAW_HEIGHT, CLAW_OFFSET, STACK_MARGIN, resetClawToDefault } from './constants.js';
 import { handleError } from './helpers.js';
 
 /**
@@ -80,9 +80,6 @@ export function simulateMove(move, world, worldElem, claw, markTimelineMove, cal
       try {
         blockDiv.classList.remove('moving');
         blockDiv.style.transition = '';
-        if (claw) {
-          claw.style.transition = '';
-        }
         world.updatePositions();
         
         // Log move to Action Tower
@@ -92,6 +89,8 @@ export function simulateMove(move, world, worldElem, claw, markTimelineMove, cal
         }
         
         markTimelineMove(move);
+        
+        // Don't reset claw between moves - only at beginning/end of sequence
         callback();
       } catch (error) {
         handleError(error, 'simulateMove cleanup');

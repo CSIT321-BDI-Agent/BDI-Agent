@@ -103,25 +103,41 @@
     </aside>
 
     <main class="main">
-      <div class="topbar">
-        <div class="search"><input type="text" placeholder="Type to search…"></div>
-        <div class="user-mini"><span class="pill">Signed out</span></div>
-      </div>
-
       <!-- Admin toolbar (admin-only, toggled by JS) -->
       <div id="adminNav" style="display:none; margin: 10px 0 0 0;">
         <button onclick="window.location.href='admin.html'">⚙️ Admin Dashboard</button>
       </div>
 
       <section class="hero">
-        <h2 class="hero-title">Simulation</h2>
-        <div class="user-strip">
-          <div>
-            <div class="user-name">User</div>
-            <div class="user-email">you@example.com</div>
+        <div class="hero-header">
+          <h2 class="hero-title">Simulation</h2>
+          <div class="profile-dropdown">
+            <button class="profile-btn" id="profileBtn" aria-label="Profile menu" aria-expanded="false">
+              <span class="profile-icon">👤</span>
+              <span class="profile-name" id="profileName">Guest</span>
+              <span class="profile-arrow">▼</span>
+            </button>
+            <div class="profile-menu" id="profileMenu">
+              <!-- Logged in state -->
+              <div id="profileMenuLoggedIn" style="display:none;">
+                <a href="#" class="profile-menu-item" id="viewProfile">
+                  <span class="menu-icon">👤</span> Profile
+                </a>
+                <a href="#" class="profile-menu-item" onclick="logout(); return false;">
+                  <span class="menu-icon">🚪</span> Logout
+                </a>
+              </div>
+              <!-- Logged out state -->
+              <div id="profileMenuLoggedOut">
+                <a href="login.html" class="profile-menu-item">
+                  <span class="menu-icon">🔑</span> Sign In
+                </a>
+                <a href="signup.html" class="profile-menu-item">
+                  <span class="menu-icon">✍️</span> Register
+                </a>
+              </div>
+            </div>
           </div>
-          <span class="pill">Overview</span>
-          <span class="pill">Simulations</span>
         </div>
       </section>
 
@@ -251,12 +267,33 @@
         refreshLoadList();
       });
 
-      window._logMove = function(txt){
+      // Enhanced Action Tower logging with username OR agent prefixes (not both)
+      window._logAction = function(action, type = 'agent') {
         if(!log) return;
-        const p = document.createElement('div');
-        p.textContent = txt;
-        log.appendChild(p);
+        
+        const username = localStorage.getItem('username') || 'User';
+        
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        
+        if (type === 'agent') {
+          // Agent actions: show [BDI-Agent] action
+          entry.innerHTML = `<span class="log-agent">[BDI-Agent]</span> <span class="log-action">${action}</span>`;
+        } else if (type === 'user') {
+          // User actions: show [username] action
+          entry.innerHTML = `<span class="log-user">[${username}]</span> <span class="log-action">${action}</span>`;
+        } else {
+          // System messages: show action only
+          entry.innerHTML = `<span class="log-action">${action}</span>`;
+        }
+        
+        log.appendChild(entry);
         log.scrollTop = log.scrollHeight;
+      };
+      
+      // Legacy support - redirect to new function
+      window._logMove = function(txt) {
+        window._logAction(txt, 'agent');
       };
 
       const msg = document.getElementById('messages');
@@ -315,6 +352,61 @@
       window.addEventListener('resize', () => {
         if (window.innerWidth >= 768 && mobileMenu.classList.contains('active')) closeMobileMenu();
       });
+    })();
+
+    // Profile Dropdown Functionality
+    (function() {
+      const profileBtn = document.getElementById('profileBtn');
+      const profileMenu = document.getElementById('profileMenu');
+      const profileName = document.getElementById('profileName');
+      const profileMenuLoggedIn = document.getElementById('profileMenuLoggedIn');
+      const profileMenuLoggedOut = document.getElementById('profileMenuLoggedOut');
+
+      // Update profile display based on auth state
+      function updateProfileDisplay() {
+        const username = localStorage.getItem('username');
+        const token = localStorage.getItem('token');
+        
+        if (token && username) {
+          profileName.textContent = username;
+          profileMenuLoggedIn.style.display = 'block';
+          profileMenuLoggedOut.style.display = 'none';
+        } else {
+          profileName.textContent = 'Guest';
+          profileMenuLoggedIn.style.display = 'none';
+          profileMenuLoggedOut.style.display = 'block';
+        }
+      }
+
+      // Toggle dropdown
+      profileBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = profileMenu.classList.contains('active');
+        profileMenu.classList.toggle('active');
+        profileBtn.setAttribute('aria-expanded', !isOpen);
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!profileBtn?.contains(e.target) && !profileMenu?.contains(e.target)) {
+          profileMenu?.classList.remove('active');
+          profileBtn?.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      // Close on escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && profileMenu?.classList.contains('active')) {
+          profileMenu.classList.remove('active');
+          profileBtn?.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      // Update on page load
+      updateProfileDisplay();
+
+      // Update on storage change (for multi-tab sync)
+      window.addEventListener('storage', updateProfileDisplay);
     })();
   </script>
 </body>

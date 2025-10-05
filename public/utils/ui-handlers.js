@@ -6,7 +6,7 @@
 
 import { DOM } from './constants.js';
 import { showMessage, handleError } from './helpers.js';
-import { resetIntentionTimeline, renderIntentionTimeline, startPlannerClock, stopPlannerClock, finalizeTimeline } from './timeline.js';
+import { resetIntentionTimeline, renderIntentionTimeline, startPlannerClock, stopPlannerClock, finalizeTimeline, markTimelineMove } from './timeline.js';
 import { requestBDIPlan } from './planner.js';
 import { simulateMove } from './animation.js';
 import { saveWorld, loadSelectedWorld, refreshLoadList } from './persistence.js';
@@ -56,6 +56,11 @@ export function handleAddBlock(world) {
   world.addBlock(name);
   input.value = '';
   input.focus();
+  
+  // Log user action
+  if (window._logAction) {
+    window._logAction(`Added block "${name}" to workspace`, 'user');
+  }
 }
 
 /**
@@ -91,6 +96,11 @@ export async function runSimulation(world) {
   setControlsDisabled(true);
   resetIntentionTimeline('Requesting plan from BDI agent...');
   startPlannerClock();
+  
+  // Log simulation start
+  if (window._logAction) {
+    window._logAction(`Started planning for goal: ${goalTokens.join(' on ')}`, 'user');
+  }
 
   try {
     const plannerResponse = await requestBDIPlan(
@@ -131,6 +141,12 @@ export async function runSimulation(world) {
     finalizeTimeline();
     stopPlannerClock(true);
     showMessage(`Goal achieved in ${plannerResponse.iterations || 0} iterations!`, 'success');
+    
+    // Log completion
+    if (window._logAction) {
+      window._logAction(`✓ Goal achieved with ${moves.length} moves in ${plannerResponse.iterations} iterations`, 'system');
+    }
+    
     setControlsDisabled(false);
 
   } catch (error) {
@@ -151,11 +167,30 @@ async function executeMoves(world, moves) {
   const worldElem = DOM.worldArea();
   const claw = document.getElementById('claw');
   
+  // Import resetClawToDefault for sequence start/end
+  const { resetClawToDefault } = await import('./constants.js');
+  
+  // Reset claw to default position at the START of move sequence
+  if (claw && moves.length > 0) {
+    resetClawToDefault(claw);
+    // Wait for claw to reach default position before starting moves
+    await new Promise(resolve => setTimeout(resolve, 600));
+  }
+  
+  // Execute all moves sequentially
   for (let i = 0; i < moves.length; i++) {
     const move = moves[i];
     await new Promise(resolve => {
-      simulateMove(move, world, worldElem, claw, () => {}, resolve);
+      simulateMove(move, world, worldElem, claw, markTimelineMove, resolve);
     });
+  }
+  
+  // Reset claw to default position at the END of move sequence
+  if (claw && moves.length > 0) {
+    await new Promise(resolve => setTimeout(resolve, 200));
+    resetClawToDefault(claw);
+    // Wait for claw to return to default
+    await new Promise(resolve => setTimeout(resolve, 600));
   }
 }
 

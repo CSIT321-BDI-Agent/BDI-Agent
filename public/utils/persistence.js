@@ -46,6 +46,12 @@ export async function saveWorld(world) {
     }
 
     showMessage(`World "${worldName.trim()}" saved successfully!`, 'success');
+    
+    // Log save action
+    if (window._logAction) {
+      window._logAction(`Saved world "${worldName.trim()}" (${world.getCurrentBlocks().length} blocks)`, 'user');
+    }
+    
     await refreshLoadList();
   } catch (error) {
     handleError(error, 'saving world');
@@ -87,6 +93,12 @@ export async function loadSelectedWorld(world) {
     const data = await response.json();
     rebuildWorldFrom(world, data.stacks, data.on);
     showMessage(`World "${data.name}" loaded successfully!`, 'success');
+    
+    // Log load action
+    if (window._logAction) {
+      const blockCount = world.getCurrentBlocks().length;
+      window._logAction(`Loaded world "${data.name}" (${blockCount} blocks)`, 'user');
+    }
   } catch (error) {
     handleError(error, 'loading world');
   }
