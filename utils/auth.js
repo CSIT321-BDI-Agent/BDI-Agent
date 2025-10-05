@@ -7,7 +7,11 @@ async function attachUser(req, _res, next) {
     const auth = req.headers.authorization || '';
     if (auth.startsWith('Bearer ')) {
       const token = auth.split(' ')[1];
-      const payload = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
+      if (!process.env.JWT_SECRET) {
+        // Fail securely if JWT_SECRET is not set
+        return next(new Error('JWT_SECRET environment variable is not set'));
+      }
+      const payload = jwt.verify(token, process.env.JWT_SECRET);
       if (payload?.sub) {
         const user = await User.findById(payload.sub).lean();
         if (user) req.user = user;
