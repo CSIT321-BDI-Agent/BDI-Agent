@@ -33,29 +33,28 @@
     <tbody id="users"></tbody>
   </table>
 
-  <script>
+  <script type="module">
+    import { requireAdmin, logout as authLogout, authenticatedFetch } from './utils/auth.js';
+
+    // Require admin authentication
+    requireAdmin();
+
+    // Expose logout globally for onclick handler
+    window.logout = authLogout;
+
     const statusEl = document.getElementById('status');
     const rows = document.getElementById('users');
-    const token = localStorage.getItem('token');
-    const role = localStorage.getItem('role');
-
-    if (!token || role !== 'admin') {
-      statusEl.textContent = "❌ Access denied. You must log in as admin.";
-      throw new Error("Not authorised");
-    }
-
-    function logout() {
-      localStorage.clear();
-      window.location.href = "login.html";
-    }
 
     async function api(path, opts = {}) {
-      const headers = { 'Content-Type': 'application/json' };
-      headers['Authorization'] = 'Bearer ' + token;
-      const res = await fetch(path, { ...opts, headers });
+      const res = await authenticatedFetch(path, opts);
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     }
+
+    // Make functions global for onclick handlers
+    window.promote = promote;
+    window.demote = demote;
+    window.removeUser = removeUser;
 
     async function loadUsers() {
       try {

@@ -1,6 +1,14 @@
-# BDI-Agent Frontend
-
-This directory contains the frontend files for the BDI-Agent Blocks World Simulator.
+# BDI-Agent Fron├── utils/            # Modular JavaScript utilities
+    ├── main.js           # Application entry point (40 lines)
+    ├── auth.js           # Authentication utilities (300 lines)
+    ├── constants.js      # Configuration & DOM references (54 lines)
+    ├── helpers.js        # Utility functions (92 lines)
+    ├── World.js          # World state management (155 lines)
+    ├── animation.js      # Block/claw animation system (101 lines)
+    ├── timeline.js       # Intention timeline & clock (265 lines)
+    ├── planner.js        # Backend API communication (40 lines)
+    ├── persistence.js    # Save/load functionality (176 lines)
+    └── ui-handlers.js    # Event handlers & simulation (165 lines)is directory contains the frontend files for the BDI-Agent Blocks World Simulator.
 
 ## Structure
 
@@ -55,6 +63,7 @@ The frontend JavaScript has been refactored from a single 908-line monolithic fi
 | Module | Lines | Purpose | Key Exports |
 |--------|-------|---------|-------------|
 | **main.js** | 40 | Entry point & initialization | _(none, initializes app)_ |
+| **auth.js** | 300 | Authentication & authorization | `login()`, `signup()`, `logout()`, `requireAuth()`, `getCurrentUser()` |
 | **constants.js** | 54 | Configuration & DOM refs | Constants, `DOM` object, `initializeClaw()` |
 | **helpers.js** | 92 | Utility functions | `randomColour()`, `showMessage()`, `handleError()` |
 | **World.js** | 155 | World state management | `World` class |
@@ -77,6 +86,8 @@ The frontend JavaScript has been refactored from a single 908-line monolithic fi
 
 ```
 index.html
+├── utils/auth.js (auth guard)
+│   └── constants.js (for API_BASE config)
 └── utils/main.js (entry point)
     ├── constants.js (leaf - no dependencies)
     ├── World.js
@@ -96,7 +107,16 @@ index.html
         │   └── timeline.js
         └── persistence.js
             ├── constants.js
-            └── helpers.js
+            ├── helpers.js
+            └── auth.js (for getCurrentUser)
+
+login.html / signup.html
+└── utils/auth.js
+    └── constants.js
+
+admin.html
+└── utils/auth.js
+    └── constants.js
 ```
 
 **No circular dependencies** - Clean dependency graph with `constants.js` as the only leaf module.
@@ -223,10 +243,26 @@ Centralized design tokens:
 
 ## Authentication Flow
 
-1. **Signup**: `signup.html` → `POST /users/signup` → Redirect to login
-2. **Login**: `login.html` → `POST /login` → Store `{token, userId, username}` → Redirect to app
-3. **Auth Guard**: `index.html` checks localStorage → Redirect to login if missing
-4. **Logout**: Clear localStorage → Redirect to login
+All authentication is now handled by the centralized `utils/auth.js` module:
+
+1. **Signup**: `signup.html` → `signup()` from auth.js → Auto-stores token → Redirect to app
+2. **Login**: `login.html` → `login()` from auth.js → Auto-stores token → Redirect to app (or admin panel)
+3. **Auth Guard**: Pages call `requireAuth()` or `requireAdmin()` → Redirect to login if not authenticated
+4. **Logout**: `logout()` from auth.js → Clear all data → Redirect to login
+5. **API Calls**: Use `authenticatedFetch()` or `getAuthHeaders()` for automatic token inclusion
+
+### Key Functions
+
+```javascript
+import { 
+  login, signup, logout,           // Authentication actions
+  requireAuth, requireAdmin,        // Auth guards for pages
+  getCurrentUser, isAuthenticated,  // User state checks
+  authenticatedFetch               // API helper
+} from './utils/auth.js';
+```
+
+See [AUTH_MODULE.md](AUTH_MODULE.md) for complete documentation.
 
 ## Development Workflow
 

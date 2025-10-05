@@ -1,16 +1,25 @@
 /**
- * World Persistence System
- * 
- * Handles saving and loading block world configurations to/from the backend
+ * World Persistence Sys  try {
+    const response = await fetch(`${API_BASE}/worlds`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user.userId,
+        name: worldName.trim(),
+        stacks: world.getCurrentStacks(),
+        on: world.on
+      })
+    });* Handles saving and loading block world configurations to/from the backend
  */
 
 import { DOM } from './constants.js';
 import { showMessage, handleError } from './helpers.js';
+import { getCurrentUser } from './auth.js';
 
 /**
  * Save current world to backend
  * @param {Object} world - World instance
- * @returns {Promise<void>}
+ * @returns {Promise<void>}}
  */
 export async function saveWorld(world) {
   const worldName = prompt('World name?');
@@ -19,8 +28,8 @@ export async function saveWorld(world) {
     return;
   }
 
-  const userId = localStorage.getItem('userId');
-  if (!userId) {
+  const user = getCurrentUser();
+  if (!user) {
     showMessage('You must be logged in to save worlds.', 'error');
     return;
   }
@@ -64,8 +73,8 @@ export async function loadSelectedWorld(world) {
     return;
   }
 
-  const userId = localStorage.getItem('userId');
-  if (!userId) {
+  const user = getCurrentUser();
+  if (!user) {
     showMessage('You must be logged in to load worlds.', 'error');
     return;
   }
@@ -73,7 +82,7 @@ export async function loadSelectedWorld(world) {
   const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
 
   try {
-    const response = await fetch(`${API_BASE}/worlds/${selected}?userId=${userId}`, {
+    const response = await fetch(`${API_BASE}/worlds/${selected}?userId=${user.userId}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -97,9 +106,9 @@ export async function loadSelectedWorld(world) {
  */
 export async function refreshLoadList() {
   const selector = DOM.loadSelect();
-  const userId = localStorage.getItem('userId');
+  const user = getCurrentUser();
 
-  if (!userId) {
+  if (!user) {
     selector.innerHTML = '<option value="">Log in to see saved worlds</option>';
     return;
   }
@@ -107,7 +116,7 @@ export async function refreshLoadList() {
   const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
 
   try {
-    const response = await fetch(`${API_BASE}/worlds?userId=${userId}`, {
+    const response = await fetch(`${API_BASE}/worlds?userId=${user.userId}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });

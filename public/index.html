@@ -208,28 +208,25 @@
   </div>
 
   <script src="config.js"></script>
+  <script type="module">
+    // Authentication guard
+    import { requireAuth, logout as authLogout, updateUIWithUserInfo } from './utils/auth.js';
+    requireAuth();
+    
+    // Expose logout globally for onclick handlers
+    window.logout = authLogout;
+    
+    // Update UI with user info when page loads
+    window.addEventListener('load', () => {
+      updateUIWithUserInfo({
+        username: '.user-mini .pill',
+        adminNav: '#adminNav',
+        adminLinks: '#adminLinkDesktop, #adminLinkMobile'
+      });
+    });
+  </script>
   <script type="module" src="utils/main.js"></script>
   <script>
-    // Authentication guard - redirect to login if not authenticated
-    (function checkAuth() {
-      const userId = localStorage.getItem('userId');
-      const token  = localStorage.getItem('token');
-      if (!userId || !token) {
-        window.location.href = window.APP_CONFIG?.AUTH?.LOGIN_PAGE || 'login.html';
-        return;
-      }
-    })();
-
-    // Logout function (clear all)
-    function logout() {
-      if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('userId');
-        localStorage.removeItem('username');
-        localStorage.removeItem('token');   // also clear JWT
-        localStorage.removeItem('role');    // also clear role
-        window.location.href = window.APP_CONFIG?.AUTH?.LOGIN_PAGE || 'login.html';
-      }
-    }
 
     (function(){
       const log = document.getElementById('actionLog');
@@ -250,22 +247,6 @@
         if (mobileBrand) mobileBrand.textContent = appName;
         if (mobileMenuBrand) mobileMenuBrand.textContent = appName;
         if (sidebarBrand) sidebarBrand.textContent = appName;
-
-        // Show signed-in user
-        const username = localStorage.getItem('username');
-        const userMini = document.querySelector('.user-mini .pill');
-        if (username && userMini) userMini.textContent = `Signed in as ${username}`;
-
-        // Toggle admin links if role=admin
-        const role = localStorage.getItem('role');
-        if (role === 'admin') {
-          const adminNav = document.getElementById('adminNav');
-          const adminLinkDesktop = document.getElementById('adminLinkDesktop');
-          const adminLinkMobile = document.getElementById('adminLinkMobile');
-          if (adminNav) adminNav.style.display = 'block';
-          if (adminLinkDesktop) adminLinkDesktop.style.display = 'block';
-          if (adminLinkMobile) adminLinkMobile.style.display = 'block';
-        }
 
         refreshLoadList();
       });
