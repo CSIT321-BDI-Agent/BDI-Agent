@@ -41,14 +41,11 @@
   </main>
 
   <script src="config.js"></script>
-  <script>
+  <script type="module">
+    import { signup, redirectIfAuthenticated } from './utils/auth.js';
+
     // Immediate redirect if already logged in (prevent flash)
-    (function() {
-      if (localStorage.getItem('userId')) {
-        window.location.href = window.APP_CONFIG?.AUTH?.MAIN_PAGE || 'index.html';
-        return;
-      }
-    })();
+    redirectIfAuthenticated();
 
     // Set page title from config
     window.addEventListener('DOMContentLoaded', () => {
@@ -79,44 +76,19 @@
 
       setMessage();
 
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
       if (!email || !username || !password) {
         setMessage('All fields are required.', 'error');
-        return;
-      }
-
-      if (!emailRegex.test(email)) {
-        setMessage('Please enter a valid email address.', 'error');
-        return;
-      }
-
-      if (password.length < 6) {
-        setMessage('Password must be at least 6 characters long.', 'error');
         return;
       }
 
       try {
         setMessage('Creating account...', 'info');
 
-        const res = await fetch(`${window.APP_CONFIG.API_BASE}/users/signup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, username, password })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.message || 'Signup failed');
-        }
-
-        localStorage.setItem('userId', data.userId);
-        localStorage.setItem('username', username);
+        await signup(email, username, password);
 
         setMessage('Account created successfully. Redirecting...', 'success');
         setTimeout(() => {
-          window.location.href = 'index.html';
+          window.location.href = window.APP_CONFIG?.AUTH?.MAIN_PAGE || 'index.html';
         }, 1500);
       } catch (err) {
         console.error('Signup error:', err);

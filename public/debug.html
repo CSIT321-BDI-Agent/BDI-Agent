@@ -12,15 +12,15 @@
       <h1 id="debugHeader">Debug Page</h1>
       <p>This page is for testing backend endpoints.</p>
       
-      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
-        <button onclick="testUserSignup()" class="btn">Test User Signup</button>
-        <button onclick="testUserLogin()" class="btn">Test User Login</button>
-        <button onclick="testWorldSave()" class="btn">Test World Save</button>
-        <button onclick="testWorldLoad()" class="btn">Test World Load</button>
-        <button onclick="checkLocalStorage()" class="btn">Check LocalStorage</button>
+      <div class="debug-buttons">
+        <button onclick="testUserSignup()">Test User Signup</button>
+        <button onclick="testUserLogin()">Test User Login</button>
+        <button onclick="testWorldSave()">Test World Save</button>
+        <button onclick="testWorldLoad()">Test World Load</button>
+        <button onclick="checkLocalStorage()">Check LocalStorage</button>
       </div>
 
-      <div id="output" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9; border-radius: 4px; max-height: 500px; overflow-y: auto;"></div>
+      <div id="output" class="debug-output"></div>
     </section>
   </main>
   
@@ -39,7 +39,7 @@
     
     function log(message) {
       console.log(message);
-      output.innerHTML += `<p style="margin: 5px 0;">${message}</p>`;
+      output.innerHTML += `<p>${message}</p>`;
     }
     
     function checkLocalStorage() {

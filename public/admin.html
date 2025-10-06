@@ -1,0 +1,261 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Mobile Header -->
+  <div class="mobile-header">
+    <button class="hamburger" id="mobileMenuToggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobileMenu">
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+    </button>
+    <div class="mobile-brand" id="mobileBrand">BDI Blocks World</div>
+    <div></div>
+  </div>
+
+  <!-- Mobile Overlay -->
+  <div class="mobile-overlay" id="mobileOverlay"></div>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <div class="mobile-menu-header">
+      <div class="brand" id="mobileMenuBrand">
+        <img src="img/logo.svg" alt="Logo" class="brand-logo" />
+        <span class="brand-text">BDI Blocks World</span>
+      </div>
+      <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">&times;</button>
+    </div>
+    
+    <div class="navsec">
+      <h6>Navigation</h6>
+      <nav class="nav">
+        <a href="index.html">
+          <span class="material-icons">dashboard</span>
+          <span class="nav-text">Dashboard</span>
+        </a>
+        <a href="#" onclick="alert('Agent Logs - Coming Soon'); return false;">
+          <span class="material-icons">description</span>
+          <span class="nav-text">Agent Logs</span>
+        </a>
+        <a href="#" onclick="alert('Import/Export - Coming Soon'); return false;">
+          <span class="material-icons">import_export</span>
+          <span class="nav-text">Import/Export</span>
+        </a>
+      </nav>
+    </div>
+
+    <div class="help">
+      <strong>Quick Help:</strong><br/>
+      • Manage user accounts<br/>
+      • Promote/demote administrators<br/>
+      • Delete user accounts
+    </div>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-content">
+        <div class="brand" id="sidebarBrand">
+          <img src="img/logo.svg" alt="Logo" class="brand-logo" />
+          <span class="brand-text">BDI Blocks World</span>
+        </div>
+
+        <div class="navsec">
+          <h6>Navigation</h6>
+          <nav class="nav">
+            <a href="index.html">
+              <span class="material-icons">dashboard</span>
+              <span class="nav-text">Dashboard</span>
+            </a>
+            <a href="#" onclick="alert('Agent Logs - Coming Soon'); return false;">
+              <span class="material-icons">description</span>
+              <span class="nav-text">Agent Logs</span>
+            </a>
+            <a href="#" onclick="alert('Import/Export - Coming Soon'); return false;">
+              <span class="material-icons">import_export</span>
+              <span class="nav-text">Import/Export</span>
+            </a>
+          </nav>
+        </div>
+
+        <div class="help">
+          <strong>Quick Help:</strong><br/>
+          • Manage user accounts<br/>
+          • Promote/demote administrators<br/>
+          • Delete user accounts
+        </div>
+      </div>
+      
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <span class="material-icons">chevron_left</span>
+      </button>
+    </aside>
+
+    <main class="main admin-container">
+
+      <section class="hero">
+        <div class="hero-header">
+          <h2 class="hero-title">Admin Dashboard</h2>
+        </div>
+      </section>
+
+      <p id="status" class="admin-status">Loading...</p>
+
+      <table class="admin-table">
+        <thead>
+          <tr><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="users"></tbody>
+      </table>
+    </main>
+  </div>
+
+  <script type="module">
+    import { requireAdmin, logout as authLogout, authenticatedFetch } from './utils/auth.js';
+
+    // Require admin authentication
+    requireAdmin();
+
+    // Expose logout globally for onclick handler
+    window.logout = authLogout;
+
+    const statusEl = document.getElementById('status');
+    const rows = document.getElementById('users');
+
+    async function api(path, opts = {}) {
+      const res = await authenticatedFetch(path, opts);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    // Make functions global for onclick handlers
+    window.promote = promote;
+    window.demote = demote;
+    window.removeUser = removeUser;
+
+    async function loadUsers() {
+      try {
+        statusEl.textContent = "Loading users...";
+        const list = await api('/admin/users');
+        rows.innerHTML = '';
+        list.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${u.username}</td>
+            <td>${u.email}</td>
+            <td>${u.role}</td>
+            <td>
+              ${u.role !== 'admin' ? `<button class="action" onclick="promote('${u._id}')">Promote</button>` : ''}
+              ${u.role === 'admin' ? `<button class="action" onclick="demote('${u._id}')">Demote</button>` : ''}
+              <button class="action" onclick="removeUser('${u._id}')">Delete</button>
+            </td>`;
+          rows.appendChild(tr);
+        });
+        statusEl.textContent = "✅ Users loaded.";
+      } catch (e) {
+        statusEl.textContent = "Error: " + e.message;
+      }
+    }
+
+    async function promote(id) { await api(`/admin/users/${id}/promote`, { method: "POST" }); loadUsers(); }
+    async function demote(id) { await api(`/admin/users/${id}/demote`, { method: "POST" }); loadUsers(); }
+    async function removeUser(id) { await api(`/admin/users/${id}`, { method: "DELETE" }); loadUsers(); }
+
+    loadUsers();
+  </script>
+  
+  <script>
+    // Mobile Menu Functionality
+    (function() {
+      const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+      const mobileMenu = document.getElementById('mobileMenu');
+      const mobileOverlay = document.getElementById('mobileOverlay');
+      const mobileMenuClose = document.getElementById('mobileMenuClose');
+
+      function openMobileMenu() {
+        mobileMenu.classList.add('active');
+        mobileOverlay.classList.add('active');
+        mobileMenuToggle.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeMobileMenu() {
+        mobileMenu.classList.remove('active');
+        mobileOverlay.classList.remove('active');
+        mobileMenuToggle.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+
+      mobileMenuToggle?.addEventListener('click', openMobileMenu);
+      mobileMenuClose?.addEventListener('click', closeMobileMenu);
+      mobileOverlay?.addEventListener('click', closeMobileMenu);
+
+      const mobileNavLinks = mobileMenu?.querySelectorAll('.nav a');
+      mobileNavLinks?.forEach(link => {
+        link.addEventListener('click', () => setTimeout(closeMobileMenu, 100));
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && mobileMenu.classList.contains('active')) closeMobileMenu();
+      });
+
+      window.addEventListener('resize', () => {
+        if (window.innerWidth >= 768 && mobileMenu.classList.contains('active')) closeMobileMenu();
+      });
+    })();
+
+    // Sidebar Toggle Functionality (Desktop only)
+    (function() {
+      const sidebar = document.getElementById('sidebar');
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const toggleIcon = sidebarToggle?.querySelector('.material-icons');
+      
+      // Check if we're on desktop (min-width: 768px)
+      function isDesktop() {
+        return window.innerWidth >= 768;
+      }
+      
+      // Load saved state from localStorage
+      function loadSidebarState() {
+        if (!isDesktop()) return;
+        
+        const savedState = localStorage.getItem('sidebarCollapsed');
+        if (savedState === 'true') {
+          sidebar?.classList.add('collapsed');
+          if (toggleIcon) toggleIcon.textContent = 'chevron_right';
+        }
+      }
+      
+      // Toggle sidebar
+      function toggleSidebar() {
+        if (!isDesktop()) return;
+        
+        const isCollapsed = sidebar?.classList.toggle('collapsed');
+        if (toggleIcon) {
+          toggleIcon.textContent = isCollapsed ? 'chevron_right' : 'chevron_left';
+        }
+        localStorage.setItem('sidebarCollapsed', isCollapsed ? 'true' : 'false');
+      }
+      
+      // Setup event listener
+      sidebarToggle?.addEventListener('click', toggleSidebar);
+      
+      // Load state on page load
+      loadSidebarState();
+      
+      // Reset to expanded on resize to mobile
+      window.addEventListener('resize', () => {
+        if (!isDesktop() && sidebar?.classList.contains('collapsed')) {
+          sidebar.classList.remove('collapsed');
+          if (toggleIcon) toggleIcon.textContent = 'chevron_left';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

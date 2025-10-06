@@ -7,6 +7,11 @@ services:
       - NODE_ENV=production
       - MONGODB_URI=mongodb://mongo:27017/blocks_world
       - PORT=3000
+      - JWT_SECRET=please-change-me
+      - ADMIN_EMAIL=admin@example.com
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=admin123
+
     depends_on:
       - mongo
     restart: unless-stopped
@@ -19,7 +24,7 @@ services:
       - MONGO_INITDB_DATABASE=blocks_world
     volumes:
       - mongo_data:/data/db
-      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - ./backend/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     restart: unless-stopped
     networks:
       - bdi-network
