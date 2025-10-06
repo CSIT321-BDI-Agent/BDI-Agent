@@ -533,7 +533,7 @@ select {
   min-width: 200px;
 }
 
-/* Profile Dropdown */
+/* Profile Dropdown - Enhanced with scroll unfurl animation */
 .profile-dropdown {
   position: relative;
 }
@@ -561,7 +561,8 @@ select {
 }
 
 .profile-icon {
-  font-size: 18px;
+  font-size: 20px;
+  color: var(--teal);
 }
 
 .profile-name {
@@ -570,15 +571,16 @@ select {
 }
 
 .profile-arrow {
-  font-size: 10px;
+  font-size: 18px;
   color: var(--muted);
-  transition: transform 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .profile-btn[aria-expanded="true"] .profile-arrow {
   transform: rotate(180deg);
 }
 
+/* Scroll unfurl animation for dropdown */
 .profile-menu {
   position: absolute;
   top: calc(100% + 8px);
@@ -587,32 +589,62 @@ select {
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  min-width: 200px;
+  min-width: 220px;
+  max-height: 0;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-10px);
-  transition: all 0.3s ease;
+  transform: translateY(-10px) scaleY(0);
+  transform-origin: top center;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1000;
   overflow: hidden;
 }
 
 .profile-menu.active {
+  max-height: 400px;
   opacity: 1;
   visibility: visible;
-  transform: translateY(0);
+  transform: translateY(0) scaleY(1);
 }
 
 .profile-menu-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   color: var(--text);
   text-decoration: none;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
   font-size: 14px;
   font-weight: 500;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(160, 174, 192, 0.2);
+  opacity: 0;
+  transform: translateX(-10px);
+  animation: slideIn 0.3s ease forwards;
+}
+
+/* Staggered animation for menu items */
+.profile-menu.active .profile-menu-item:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+.profile-menu.active .profile-menu-item:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.profile-menu.active .profile-menu-item:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.profile-menu.active .profile-menu-item:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+@keyframes slideIn {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .profile-menu-item:last-child {
@@ -620,11 +652,30 @@ select {
 }
 
 .profile-menu-item:hover {
-  background: var(--bg);
+  background: var(--teal-light);
+  padding-left: 22px;
 }
 
-.profile-menu-item .menu-icon {
-  font-size: 18px;
+.profile-menu-item .material-icons {
+  font-size: 20px;
+  color: var(--teal);
+}
+
+.profile-menu-item:hover .material-icons {
+  transform: scale(1.1);
+  transition: transform 0.2s ease;
+}
+
+/* Stats display styling */
+.stat-line {
+  margin: 4px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.stat-line strong {
+  color: var(--text-dark);
+  font-weight: 600;
 }
 
 /* Grid layouts */
@@ -717,7 +768,6 @@ select {
 .card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
 
@@ -738,7 +788,6 @@ select {
 
 .info-tile {
   border: 1px solid var(--border);
-  border-radius: 10px;
   padding: 10px;
   background: var(--card);
   min-height: 70px;
@@ -748,14 +797,13 @@ select {
   font-family: 'Courier New', Courier, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px;
   line-height: 1.6;
-  height: 200px;
+  height: 330px;
   width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 10px 12px;
   background: var(--bg-dark);
   color: #bfe9e6;
-  border-radius: 8px;
   border: 1px solid #0f2030;
   box-sizing: border-box;
 }
@@ -791,14 +839,12 @@ select {
   color: var(--muted);
   padding: 12px;
   border: 1px dashed var(--border);
-  border-radius: 8px;
   background: var(--bg);
   text-align: center;
 }
 
 .timeline-entry {
   border: 1px solid var(--border);
-  border-radius: 10px;
   padding: 10px 12px;
   background: var(--bg);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -851,7 +897,6 @@ select {
   margin-top: 8px;
   padding: 6px 8px;
   background: var(--teal-light);
-  border-radius: 6px;
   font-size: 11px;
   color: var(--text);
   border: 1px dashed var(--teal);
@@ -918,7 +963,6 @@ select {
   overflow-x: auto;
   background-color: var(--bg);
   padding: 8px;
-  border-radius: 6px;
   height: calc(var(--world-height) + 40px);
   border: 1px solid var(--border);
   margin: 0 auto;

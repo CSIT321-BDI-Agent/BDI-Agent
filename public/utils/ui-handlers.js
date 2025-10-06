@@ -97,6 +97,14 @@ export async function runSimulation(world) {
   resetIntentionTimeline('Requesting plan from BDI agent...');
   startPlannerClock();
   
+  // Start stats tracking
+  if (typeof window._startStatsTimer === 'function') {
+    window._startStatsTimer();
+  }
+  if (typeof window._updateStats === 'function') {
+    window._updateStats(0, 'Planning...');
+  }
+  
   // Log simulation start
   if (window._logAction) {
     window._logAction(`Started planning for goal: ${goalTokens.join(' on ')}`, 'user');
@@ -117,6 +125,16 @@ export async function runSimulation(world) {
         { emptyMessage: 'Planner did not complete successfully.' }
       );
       stopPlannerClock(true);
+      
+      // Update stats with failure status
+      if (typeof window._stopStatsTimer === 'function') {
+        window._stopStatsTimer();
+      }
+      if (typeof window._updateStats === 'function') {
+        const actualCycles = (plannerResponse.intentionLog || []).length;
+        window._updateStats(actualCycles, 'Failure');
+      }
+      
       setControlsDisabled(false);
       return;
     }
@@ -131,10 +149,24 @@ export async function runSimulation(world) {
       showMessage('Goal is already satisfied!', 'info');
       finalizeTimeline();
       stopPlannerClock(true);
+      
+      // Update stats for already satisfied goal
+      if (typeof window._stopStatsTimer === 'function') {
+        window._stopStatsTimer();
+      }
+      if (typeof window._updateStats === 'function') {
+        window._updateStats(0, 'Success');
+      }
+      
       setControlsDisabled(false);
       return;
     }
 
+    // Update status to Running
+    if (typeof window._updateStats === 'function') {
+      window._updateStats(0, 'Running...');
+    }
+    
     // Execute moves sequentially
     await executeMoves(world, moves);
     
@@ -145,6 +177,14 @@ export async function runSimulation(world) {
     const actualCycles = (plannerResponse.intentionLog || []).length;
     const moveCount = moves.length;
     showMessage(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)!`, 'success');
+    
+    // Update stats with success status
+    if (typeof window._stopStatsTimer === 'function') {
+      window._stopStatsTimer();
+    }
+    if (typeof window._updateStats === 'function') {
+      window._updateStats(actualCycles, 'Success');
+    }
     
     // Log completion
     if (window._logAction) {
@@ -157,6 +197,15 @@ export async function runSimulation(world) {
     handleError(error, 'planning');
     stopPlannerClock(false);
     resetIntentionTimeline('Planner request failed.');
+    
+    // Update stats with unexpected error
+    if (typeof window._stopStatsTimer === 'function') {
+      window._stopStatsTimer();
+    }
+    if (typeof window._updateStats === 'function') {
+      window._updateStats(0, 'Unexpected (Error)');
+    }
+    
     setControlsDisabled(false);
   }
 }

@@ -221,6 +221,11 @@ function completeTimelineCycle(cycleState) {
 export function markTimelineStep(step) {
   if (!step || !intentionTimelineState) return;
   
+  // Increment step counter in stats
+  if (typeof window._incrementStep === 'function') {
+    window._incrementStep();
+  }
+  
   // Find the next pending cycle to mark as complete
   for (const cycleState of intentionTimelineState.cycles) {
     if (cycleState.totalMoves === 0) continue;

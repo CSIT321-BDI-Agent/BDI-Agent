@@ -5,6 +5,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BDI Blocks World</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -113,27 +114,35 @@
           <h2 class="hero-title">Simulation</h2>
           <div class="profile-dropdown">
             <button class="profile-btn" id="profileBtn" aria-label="Profile menu" aria-expanded="false">
-              <span class="profile-icon">👤</span>
+              <span class="material-icons profile-icon">account_circle</span>
               <span class="profile-name" id="profileName">Guest</span>
-              <span class="profile-arrow">▼</span>
+              <span class="material-icons profile-arrow">expand_more</span>
             </button>
             <div class="profile-menu" id="profileMenu">
               <!-- Logged in state -->
               <div id="profileMenuLoggedIn" style="display:none;">
                 <a href="#" class="profile-menu-item" id="viewProfile">
-                  <span class="menu-icon">👤</span> Profile
+                  <span class="material-icons">person</span>
+                  <span>Profile</span>
+                </a>
+                <a href="admin.html" class="profile-menu-item" id="adminMenuItem" style="display:none;">
+                  <span class="material-icons">admin_panel_settings</span>
+                  <span>Admin Dashboard</span>
                 </a>
                 <a href="#" class="profile-menu-item" onclick="logout(); return false;">
-                  <span class="menu-icon">🚪</span> Logout
+                  <span class="material-icons">logout</span>
+                  <span>Logout</span>
                 </a>
               </div>
               <!-- Logged out state -->
               <div id="profileMenuLoggedOut">
                 <a href="login.html" class="profile-menu-item">
-                  <span class="menu-icon">🔑</span> Sign In
+                  <span class="material-icons">login</span>
+                  <span>Sign In</span>
                 </a>
                 <a href="signup.html" class="profile-menu-item">
-                  <span class="menu-icon">✍️</span> Register
+                  <span class="material-icons">person_add</span>
+                  <span>Register</span>
                 </a>
               </div>
             </div>
@@ -196,7 +205,11 @@
               </div>
               <div class="info-tile">
                 <div class="info-label">Stats</div>
-                <div id="info-stats" class="info-content">Steps: 0<br/>Status: —</div>
+                <div id="info-stats" class="info-content">
+                  <div class="stat-line"><strong>Total Steps:</strong> <span id="stat-steps">--</span></div>
+                  <div class="stat-line"><strong>Time Elapsed:</strong> <span id="stat-time">--</span></div>
+                  <div class="stat-line"><strong>Status:</strong> <span id="stat-status">--</span></div>
+                </div>
               </div>
             </div>
           </div>
@@ -248,11 +261,89 @@
       const log = document.getElementById('actionLog');
       const infoGoal = document.getElementById('info-goal');
       const infoCur  = document.getElementById('info-current');
-      const infoStats= document.getElementById('info-stats');
+      const infoStats = document.getElementById('info-stats');
+      const statSteps = document.getElementById('stat-steps');
+      const statTime = document.getElementById('stat-time');
+      const statStatus = document.getElementById('stat-status');
 
       const startBtn = document.getElementById('startBtn');
       const goalInput = document.getElementById('goalInput');
       const worldElem = document.getElementById('world');
+      
+      // Stats state
+      let totalSteps = 0;
+      let simulationStartTime = null;
+      let statsUpdateInterval = null;
+      
+      // Global function to update stats
+      window._updateStats = function(steps, status) {
+        if (typeof steps === 'number') {
+          totalSteps = steps;
+          statSteps.textContent = steps;
+        }
+        if (status) {
+          statStatus.textContent = status;
+          // Update status color based on type
+          statStatus.className = '';
+          if (status.toLowerCase().includes('success')) {
+            statStatus.style.color = 'var(--success-text)';
+          } else if (status.toLowerCase().includes('fail') || status.toLowerCase().includes('illegal')) {
+            statStatus.style.color = 'var(--error-text)';
+          } else {
+            statStatus.style.color = 'var(--text)';
+          }
+        }
+      };
+      
+      // Start time tracking
+      window._startStatsTimer = function() {
+        simulationStartTime = Date.now();
+        totalSteps = 0;
+        statSteps.textContent = '0';
+        statStatus.textContent = 'Running';
+        statStatus.style.color = 'var(--info-text)';
+        
+        // Clear any existing interval
+        if (statsUpdateInterval) clearInterval(statsUpdateInterval);
+        
+        // Update elapsed time every 100ms
+        statsUpdateInterval = setInterval(() => {
+          if (simulationStartTime) {
+            const elapsed = Date.now() - simulationStartTime;
+            const seconds = Math.floor(elapsed / 1000);
+            const ms = Math.floor((elapsed % 1000) / 10);
+            statTime.textContent = `${seconds}.${String(ms).padStart(2, '0')}s`;
+          }
+        }, 100);
+      };
+      
+      // Stop time tracking
+      window._stopStatsTimer = function() {
+        if (statsUpdateInterval) {
+          clearInterval(statsUpdateInterval);
+          statsUpdateInterval = null;
+        }
+      };
+      
+      // Reset stats
+      window._resetStats = function() {
+        totalSteps = 0;
+        simulationStartTime = null;
+        statSteps.textContent = '--';
+        statTime.textContent = '--';
+        statStatus.textContent = '--';
+        statStatus.style.color = 'var(--text)';
+        if (statsUpdateInterval) {
+          clearInterval(statsUpdateInterval);
+          statsUpdateInterval = null;
+        }
+      };
+
+      // Increment step counter (called from timeline.js markTimelineStep)
+      window._incrementStep = function() {
+        totalSteps++;
+        statSteps.textContent = totalSteps;
+      };
 
       window.addEventListener('load', () => {
         // Set brand names from config
@@ -296,12 +387,7 @@
         window._logAction(txt, 'agent');
       };
 
-      const msg = document.getElementById('messages');
-      const obs = new MutationObserver(() => {
-        const t = msg.textContent.trim();
-        if (t) infoStats.innerHTML = `Steps: —<br/>Status: ${t}`;
-      });
-      obs.observe(msg, { childList:true, subtree:true, characterData:true });
+      // Stats are now updated via _updateStats() function
 
       setInterval(() => {
         if (window.world && Array.isArray(window.world.stacks)) {
@@ -366,15 +452,26 @@
       function updateProfileDisplay() {
         const username = localStorage.getItem('username');
         const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role');
+        const adminMenuItem = document.getElementById('adminMenuItem');
         
         if (token && username) {
           profileName.textContent = username;
           profileMenuLoggedIn.style.display = 'block';
           profileMenuLoggedOut.style.display = 'none';
+          
+          // Show admin dashboard option if user is admin
+          if (adminMenuItem) {
+            adminMenuItem.style.display = role === 'admin' ? 'flex' : 'none';
+          }
         } else {
           profileName.textContent = 'Guest';
           profileMenuLoggedIn.style.display = 'none';
           profileMenuLoggedOut.style.display = 'block';
+          
+          if (adminMenuItem) {
+            adminMenuItem.style.display = 'none';
+          }
         }
       }
 
