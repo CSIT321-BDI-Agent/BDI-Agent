@@ -4,19 +4,14 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy backend package files
-COPY backend/package*.json ./backend/
+# Copy package files
+COPY package*.json ./
 
 # Install dependencies
-WORKDIR /app/backend
 RUN npm ci --omit=dev
 
-# Copy backend application code
-WORKDIR /app
-COPY backend ./backend
-
-# Copy public frontend files
-COPY public ./public
+# Copy application code
+COPY . .
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
@@ -34,5 +29,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3000', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # Start the application
-WORKDIR /app/backend
 CMD ["node", "server.js"]

@@ -36,12 +36,8 @@
   </main>
 
   <script src="config.js"></script>
-  <script type="module">
-    import { login, redirectIfAuthenticated } from './utils/auth.js';
-
-    // Redirect if already logged in
-    redirectIfAuthenticated();
-
+  <script>
+    // Set page title from config
     window.addEventListener('DOMContentLoaded', () => {
       const appName = window.APP_CONFIG?.APP_NAME || 'BDI Blocks World';
       const pageTitle = document.getElementById('pageTitle');
@@ -77,17 +73,25 @@
       try {
         setMessage('Signing you in...', 'info');
 
-        const data = await login(username, password);
+        const res = await fetch(`${window.APP_CONFIG.API_BASE}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Login failed');
+        }
+
+        localStorage.setItem('userId', data.userId);
+        localStorage.setItem('username', data.username || username);
 
         setMessage('Login successful. Redirecting...', 'success');
-
         setTimeout(() => {
-          if (data.role === 'admin') {
-            window.location.href = 'admin.html';  
-          } else {
-            window.location.href = 'index.html';  
-          }
-        }, 800);
+          window.location.href = 'index.html';
+        }, 1000);
       } catch (err) {
         console.error('Login error:', err);
         setMessage(err.message || 'Login failed. Please try again.', 'error');

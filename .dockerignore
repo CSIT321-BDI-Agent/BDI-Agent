@@ -1,13 +1,13 @@
 # Docker ignore file
-backend/node_modules
-backend/npm-debug.log
+node_modules
+npm-debug.log
 .git
 .gitignore
-backend/.env
-backend/.env.local
-backend/.env.development.local
-backend/.env.test.local
-backend/.env.production.local
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .DS_Store
 *.log
 coverage
@@ -17,4 +17,3 @@ Dockerfile*
 docker-compose*
 README.md
 .github
-backend/.env.example
