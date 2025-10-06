@@ -2,20 +2,6 @@
 
 A classic AI environment implementing **Belief-Desire-Intention planning** for manipulating colored blocks to achieve goal configurations. The current release integrates the [JS-son](https://github.com/TimKam/JS-son) BDI framework to generate plans server-side and animate them through an interactive web-based blocks world ### Code Quality & Metrics
 
-### Codebase Size
-- **Total Backend**: ~700 lines (highly modular)
-- **Total Frontend**: ~2,300 lines (vanilla JS, no build step)
-- **Documentation**: Comprehensive README files per directory
-- **Tests**: 11 automated scenarios (269 lines) + manual test workflows
-
-### Modularization Impact
-- **Backend**: 50% reduction in `server.js` through utilities extraction (175 lines)
-- **Frontend**: 10 focused ES6 modules (avg 130 lines each)
-- **Duplicate Code Eliminated**: Zero duplicate functions (verified Oct 2025)
-- **CSS Consolidation**: Single stylesheet with 50+ CSS variables (1,214 lines)
-- **Dependencies**: Zero frontend dependencies, 7 backend packages
-- **Unused Code**: Zero unused CSS classes after cleanup audit a **modular, maintainable architecture**.
-
 ## Features
 
 - **Interactive Blocks World**: Drag-and-drop interface for creating block configurations

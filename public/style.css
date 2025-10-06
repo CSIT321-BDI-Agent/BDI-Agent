@@ -129,7 +129,7 @@ input[type="password"]:focus,
 select:focus {
   outline: none;
   border-color: var(--btn-primary);
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  box-shadow: 0 0 0 2px var(--teal-light);
 }
 
 button {
@@ -137,13 +137,13 @@ button {
   font-size: 16px;
   border: none;
   background-color: var(--btn-primary);
-  color: white;
+  color: var(--white);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s ease;
   width: 100%;
   margin-top: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow);
   position: relative;
 }
 
@@ -155,7 +155,7 @@ button:hover:not(:disabled) {
 
 button:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow);
 }
 
 button:disabled {
@@ -212,7 +212,7 @@ select {
 .form-field input:focus {
   outline: none;
   border-color: var(--btn-primary);
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  box-shadow: 0 0 0 2px var(--teal-light);
 }
 
 /* Messages and notifications */
@@ -315,7 +315,7 @@ select {
   position: sticky;
   top: 0;
   z-index: 1000;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow);
 }
 
 .hamburger {
@@ -333,7 +333,7 @@ select {
 }
 
 .hamburger:hover {
-  background: rgba(0,0,0,0.05);
+  background: var(--teal-light);
 }
 
 .hamburger span {
@@ -373,15 +373,14 @@ select {
   left: 0;
   width: 100%;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--bg-dark);
+  opacity: 0.5;
   z-index: 1001;
-  opacity: 0;
   visibility: hidden;
   transition: all 0.3s ease;
 }
 
 .mobile-overlay.active {
-  opacity: 1;
   visibility: visible;
 }
 
@@ -395,7 +394,7 @@ select {
   z-index: 1002;
   transition: left 0.3s ease;
   overflow-y: auto;
-  box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow);
 }
 
 .mobile-menu.active {
@@ -409,13 +408,13 @@ select {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
   background: var(--teal);
-  color: white;
+  color: var(--white);
 }
 
 .mobile-menu-close {
   background: none;
   border: none;
-  color: white;
+  color: var(--white);
   font-size: 24px;
   cursor: pointer;
   padding: 0;
@@ -452,7 +451,7 @@ select {
   letter-spacing: .2px;
   margin: 4px 0 12px;
   text-align: left;
-  color: white;
+  color: var(--white);
 }
 
 .navsec {
@@ -510,8 +509,8 @@ select {
 /* Main content layout */
 .hero {
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--teal), rgba(79, 209, 197, 0.8));
-  color: #fff;
+  background: linear-gradient(135deg, var(--teal), var(--teal));
+  color: var(--white);
   padding: 20px 16px;
   box-shadow: var(--shadow);
   margin-bottom: 16px;
@@ -533,7 +532,7 @@ select {
   min-width: 200px;
 }
 
-/* Profile Dropdown - Enhanced with scroll unfurl animation */
+/* Profile Dropdown - Connected rectangle with hover/click interaction */
 .profile-dropdown {
   position: relative;
 }
@@ -542,22 +541,23 @@ select {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--white);
   color: var(--text);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 24px;
+  border: 1px solid var(--border);
+  border-radius: 0;
   padding: 8px 16px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
+  width: 130px;
+  margin: 0;
 }
 
 .profile-btn:hover {
-  background: rgba(255, 255, 255, 1);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: var(--light-grey);
+  box-shadow: var(--shadow-hover);
 }
 
 .profile-icon {
@@ -580,29 +580,46 @@ select {
   transform: rotate(180deg);
 }
 
-/* Scroll unfurl animation for dropdown */
+/* Connected rectangle dropdown - opens on hover (desktop) or click (mobile) */
 .profile-menu {
   position: absolute;
-  top: calc(100% + 8px);
+  top: 100%;
   background: var(--card);
   border: 1px solid var(--border);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  min-width: 220px;
+  box-shadow: var(--shadow);
+  width: 130px;
   max-height: 0;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-10px) scaleY(0);
-  transform-origin: top center;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 1000;
   overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 999;
 }
 
+/* Desktop: Show on hover */
+@media (min-width: 768px) {
+  .profile-dropdown:hover .profile-menu {
+    max-height: 400px;
+    opacity: 1;
+    visibility: visible;
+  }
+  
+  .profile-dropdown:hover .profile-btn {
+    border-radius: 0;
+    border-bottom-color: transparent;
+  }
+}
+
+/* Mobile: Show on click (via .active class from JS) */
 .profile-menu.active {
   max-height: 400px;
   opacity: 1;
   visibility: visible;
-  transform: translateY(0) scaleY(1);
+}
+
+.profile-btn[aria-expanded="true"] {
+  border-radius: 8px 8px 0 0;
+  border-bottom-color: transparent;
 }
 
 .profile-menu-item {
@@ -615,39 +632,10 @@ select {
   transition: all 0.2s ease;
   font-size: 14px;
   font-weight: 500;
-  border-bottom: 1px solid rgba(160, 174, 192, 0.2);
-  opacity: 0;
-  transform: translateX(-10px);
-  animation: slideIn 0.3s ease forwards;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
 }
 
-/* Staggered animation for menu items */
-.profile-menu.active .profile-menu-item:nth-child(1) {
-  animation-delay: 0.05s;
-}
-
-.profile-menu.active .profile-menu-item:nth-child(2) {
-  animation-delay: 0.1s;
-}
-
-.profile-menu.active .profile-menu-item:nth-child(3) {
-  animation-delay: 0.15s;
-}
-
-.profile-menu.active .profile-menu-item:nth-child(4) {
-  animation-delay: 0.2s;
-}
-
-@keyframes slideIn {
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.profile-menu-item:last-child {
-  border-bottom: none;
-}
 
 .profile-menu-item:hover {
   background: var(--teal-light);
@@ -801,8 +789,8 @@ select {
   overflow-x: hidden;
   padding: 10px 12px;
   background: var(--bg-dark);
-  color: #bfe9e6;
-  border: 1px solid #0f2030;
+  color: var(--teal);
+  border: 1px solid var(--dark-grey);
   box-sizing: border-box;
 }
 
@@ -850,7 +838,7 @@ select {
 
 .timeline-entry.active {
   border-color: var(--teal);
-  box-shadow: 0 0 0 2px rgba(79, 209, 197, 0.2);
+  box-shadow: 0 0 0 2px var(--teal-light);
 }
 
 .timeline-entry.completed {
@@ -949,7 +937,7 @@ select {
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--bg-dark);
-  color: #bfe9e6;
+  color: var(--teal);
   border: 1px solid var(--dark-grey);
   min-width: 64px;
   text-align: center;
@@ -984,8 +972,8 @@ select {
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  color: white;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  color: var(--white);
+  text-shadow: 0 1px 1px var(--bg-dark);
   transition: left 0.5s ease, top 0.5s ease;
   cursor: default;
   user-select: none;
@@ -993,7 +981,7 @@ select {
 }
 
 .block.moving {
-  box-shadow: 0 0 10px rgba(52, 152, 219, 0.8);
+  box-shadow: 0 0 10px var(--teal);
 }
 
 #claw {
