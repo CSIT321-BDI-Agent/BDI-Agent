@@ -22,6 +22,7 @@
   --dark-grey: #2D3748;
   --light-grey: #A0AEC0;
   --white: #F8F9FA;
+  --icon-inactive: rgba(79, 209, 197, 0.4);
   
   /* Neutral colors */
   --bg: #f5f7fa;
@@ -61,6 +62,7 @@
   --shadow-hover: 0 12px 28px rgba(0,0,0,.12);
   --radius: 14px;
   --sidebar-width: 240px;
+  --sidebar-width-collapsed: 70px;
   
   /* Control sizing */
   --control-height: 28px;
@@ -401,6 +403,20 @@ select {
   left: 0;
 }
 
+.mobile-menu .nav a {
+  padding: 12px 16px;
+  margin: 2px 0;
+}
+
+.mobile-menu .nav .material-icons {
+  font-size: 20px;
+  color: var(--icon-inactive);
+}
+
+.mobile-menu .nav a.active .material-icons {
+  color: var(--teal);
+}
+
 .mobile-menu-header {
   display: flex;
   justify-content: space-between;
@@ -409,6 +425,12 @@ select {
   border-bottom: 1px solid var(--border);
   background: var(--teal);
   color: var(--white);
+}
+
+.mobile-menu-header .brand {
+  color: var(--white);
+  margin: 0;
+  padding: 0;
 }
 
 .mobile-menu-close {
@@ -435,6 +457,23 @@ select {
 
 .sidebar {
   display: none;
+  position: relative;
+  transition: width 0.3s ease;
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: var(--sidebar-width-collapsed);
+}
+
+.sidebar.collapsed .brand-text,
+.sidebar.collapsed .nav-text,
+.sidebar.collapsed .navsec h6,
+.sidebar.collapsed .help {
+  opacity: 0;
+  visibility: hidden;
+  width: 0;
+  overflow: hidden;
 }
 
 .main {
@@ -451,7 +490,23 @@ select {
   letter-spacing: .2px;
   margin: 4px 0 12px;
   text-align: left;
-  color: var(--white);
+  color: var(--text-dark);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+  padding: 0 20px;
+}
+
+.brand-logo {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.brand-text {
+  transition: opacity 0.3s ease, width 0.3s ease;
+  overflow: hidden;
 }
 
 .navsec {
@@ -465,6 +520,7 @@ select {
   letter-spacing: .08em;
   margin: 6px 20px;
   text-align: left;
+  transition: opacity 0.3s ease;
 }
 
 .nav {
@@ -477,14 +533,15 @@ select {
 .nav a {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   padding: 12px 16px;
   margin: 2px 0;
   border-radius: 8px;
-  color: var(--text-dark);
+  color: var(--light-grey);
   text-decoration: none;
   font-size: 14px;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .nav a:hover {
@@ -493,7 +550,23 @@ select {
 
 .nav a.active {
   background: var(--teal-light);
+  color: var(--dark-grey);
+}
+
+.nav a .material-icons {
+  font-size: 20px;
+  color: var(--icon-inactive);
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.nav a.active .material-icons {
   color: var(--teal);
+}
+
+.nav-text {
+  transition: opacity 0.3s ease, width 0.3s ease;
+  overflow: hidden;
 }
 
 .help {
@@ -504,6 +577,38 @@ select {
   border-radius: 10px;
   font-size: 12px;
   text-align: left;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-toggle {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: var(--white);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow);
+  transition: all 0.3s ease;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-toggle:hover {
+  background: var(--teal);
+  transform: translateX(-50%) scale(1.1);
+  box-shadow: var(--shadow-hover);
+}
+
+.sidebar-toggle .material-icons {
+  font-size: 24px;
 }
 
 /* Main content layout */
@@ -1108,8 +1213,8 @@ select {
 
 /* Admin page styles */
 .admin-container {
-  padding: 20px;
-  max-width: 900px;
+  padding: 0 20px 20px;
+  max-width: 1200px;
   margin: auto;
 }
 
@@ -1268,11 +1373,30 @@ select {
   }
   
   .sidebar {
-    display: block;
+    display: flex;
+    flex-direction: column;
     background: var(--card);
     border-right: 1px solid var(--border);
-    padding: 16px;
+    padding: 16px 0;
     order: 1;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    width: var(--sidebar-width);
+  }
+  
+  .sidebar.collapsed {
+    width: var(--sidebar-width-collapsed);
+  }
+  
+  .sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  
+  .sidebar-toggle {
+    display: flex;
   }
   
   .main {
@@ -1281,10 +1405,10 @@ select {
   }
   
   .brand {
-    font-size: 20px;
+    font-size: 16px;
     text-align: left;
-    margin: 8px 0 16px;
-    color: var(--text);
+    margin: 8px 0 24px;
+    color: var(--text-dark);
   }
   
   .navsec {
