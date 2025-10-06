@@ -6,7 +6,7 @@
 
 import { DOM, resetClawToDefault } from './constants.js';
 import { showMessage, handleError } from './helpers.js';
-import { resetIntentionTimeline, renderIntentionTimeline, startPlannerClock, stopPlannerClock, finalizeTimeline, markTimelineMove } from './timeline.js';
+import { resetIntentionTimeline, renderIntentionTimeline, startPlannerClock, stopPlannerClock, finalizeTimeline, markTimelineStep } from './timeline.js';
 import { requestBDIPlan } from './planner.js';
 import { simulateMove } from './animation.js';
 import { saveWorld, loadSelectedWorld, refreshLoadList } from './persistence.js';
@@ -140,11 +140,15 @@ export async function runSimulation(world) {
     
     finalizeTimeline();
     stopPlannerClock(true);
-    showMessage(`Goal achieved in ${plannerResponse.iterations || 0} iterations!`, 'success');
+    
+    // Calculate actual cycle count (4 cycles per move: move to source, pick up, move to dest, drop)
+    const actualCycles = (plannerResponse.intentionLog || []).length;
+    const moveCount = moves.length;
+    showMessage(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)!`, 'success');
     
     // Log completion
     if (window._logAction) {
-      window._logAction(`✓ Goal achieved with ${moves.length} moves in ${plannerResponse.iterations} iterations`, 'system');
+      window._logAction(`✓ Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)`, 'system');
     }
     
     setControlsDisabled(false);
@@ -167,32 +171,33 @@ async function executeMoves(world, moves) {
   const worldElem = DOM.world();
   const claw = document.getElementById('claw');
   
-  // Reset claw to default position at the START of move sequence
+  // Return claw to home position at the START of move sequence
   if (claw && moves.length > 0) {
     resetClawToDefault(claw);
-    // Wait for claw to reach default position before starting moves
+    // Wait for claw to reach home position before starting moves
     await new Promise(resolve => setTimeout(resolve, 600));
   }
   
   // Execute all moves sequentially with 4-step claw animation
+  // Each claw action (move/pick/move/drop) counts as a separate cycle
   for (let i = 0; i < moves.length; i++) {
     const move = moves[i];
     
-    // simulateMove is now async and handles 4 steps internally:
-    // 1. Move claw to source
-    // 2. Pick up block
-    // 3. Move claw to destination
-    // 4. Drop block
+    // simulateMove handles 4 steps internally, marking each in timeline:
+    // 1. Move claw to source (Cycle 1)
+    // 2. Pick up block (Cycle 2)
+    // 3. Move claw to destination (Cycle 3)
+    // 4. Drop block (Cycle 4)
     await new Promise(resolve => {
-      simulateMove(move, world, worldElem, claw, markTimelineMove, resolve);
+      simulateMove(move, world, worldElem, claw, markTimelineStep, resolve);
     });
   }
   
-  // Reset claw to default position at the END of move sequence
+  // Return claw to home position at the END of move sequence
   if (claw && moves.length > 0) {
     await new Promise(resolve => setTimeout(resolve, 200));
     resetClawToDefault(claw);
-    // Wait for claw to return to default
+    // Wait for claw to return to home
     await new Promise(resolve => setTimeout(resolve, 600));
   }
 }

@@ -214,22 +214,21 @@ function completeTimelineCycle(cycleState) {
 }
 
 /**
- * Mark a move as completed in the timeline
- * @param {Object} move - Move object {block, to}
+ * Mark a claw step as completed in the timeline
+ * Each claw action (move/pick/move/drop) counts as one cycle
+ * @param {Object} step - Step object {type, block, to, stepNumber}
  */
-export function markTimelineMove(move) {
-  if (!move || !intentionTimelineState) return;
-  const moveDest = typeof move.to === 'string' ? move.to.trim().toUpperCase() : 'TABLE';
+export function markTimelineStep(step) {
+  if (!step || !intentionTimelineState) return;
+  
+  // Find the next pending cycle to mark as complete
   for (const cycleState of intentionTimelineState.cycles) {
     if (cycleState.totalMoves === 0) continue;
     if (cycleState.processedMoves >= cycleState.totalMoves) continue;
 
+    // Find any pending move state in this cycle
     const matcher = cycleState.moveStates.find(ms => 
-      ms.isAction && 
-      !ms.completed && 
-      ms.meta && 
-      ms.meta.block === move.block && 
-      (ms.meta.to || 'Table').toUpperCase() === moveDest
+      ms.isAction && !ms.completed
     );
     
     if (matcher) {

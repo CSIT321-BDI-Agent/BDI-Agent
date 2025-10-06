@@ -7,7 +7,7 @@
  * - Timeline updates after moves
  */
 
-import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, CLAW_HEIGHT, CLAW_OFFSET, STACK_MARGIN, resetClawToDefault } from './constants.js';
+import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, CLAW_HEIGHT, CLAW_OFFSET, STACK_MARGIN, resetClawToHome } from './constants.js';
 import { handleError } from './helpers.js';
 
 /**
@@ -52,14 +52,15 @@ function animateClawTo(claw, targetLeft, targetTop, duration) {
 
 /**
  * Simulate a single block move with 4-step claw animation
+ * Each step counts as a separate cycle action in the timeline
  * @param {Object} move - Move object {block, to, clawSteps}
  * @param {Object} world - World instance
  * @param {HTMLElement} worldElem - World container element
  * @param {HTMLElement} claw - Claw element
- * @param {Function} markTimelineMove - Function to mark timeline
+ * @param {Function} markTimelineStep - Function to mark timeline step completion
  * @param {Function} callback - Callback when animation completes
  */
-export async function simulateMove(move, world, worldElem, claw, markTimelineMove, callback) {
+export async function simulateMove(move, world, worldElem, claw, markTimelineStep, callback) {
   const blockName = move.block;
   const dest = move.to;
   const duration = window.APP_CONFIG?.ANIMATION_DURATION || 550;
@@ -88,9 +89,19 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineMov
     const sourceClawTop = sourcePos.top - CLAW_HEIGHT;
     await animateClawTo(claw, sourceClawLeft, sourceClawTop, duration);
     
+    // Mark step 1 complete in timeline
+    if (typeof markTimelineStep === 'function') {
+      markTimelineStep({ type: 'MOVE_CLAW', to: blockName, block: blockName, stepNumber: 1 });
+    }
+    
     // === STEP 2: Pick up block (attach to claw) ===
     blockDiv.classList.add('moving');
     await new Promise(resolve => setTimeout(resolve, 150)); // Brief pause for "grab"
+    
+    // Mark step 2 complete in timeline
+    if (typeof markTimelineStep === 'function') {
+      markTimelineStep({ type: 'PICK_UP', block: blockName, stepNumber: 2 });
+    }
 
     // === STEP 3: Apply the move in world state ===
     world.moveBlock(blockName, dest);
@@ -107,12 +118,17 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineMov
     const destClawLeft = destLeft + CLAW_OFFSET;
     const destClawTop = destTop - CLAW_HEIGHT;
 
-    // === STEP 3 continued: Move claw (with block) to destination ===
+    // === STEP 3: Move claw (with block) to destination ===
     blockDiv.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
     blockDiv.style.left = `${destLeft}px`;
     blockDiv.style.top = `${destTop}px`;
     
     await animateClawTo(claw, destClawLeft, destClawTop, duration);
+    
+    // Mark step 3 complete in timeline
+    if (typeof markTimelineStep === 'function') {
+      markTimelineStep({ type: 'MOVE_CLAW', to: dest, block: blockName, carrying: blockName, stepNumber: 3 });
+    }
 
     // === STEP 4: Drop block (detach from claw) ===
     await new Promise(resolve => setTimeout(resolve, 150)); // Brief pause for "release"
@@ -121,13 +137,17 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineMov
     blockDiv.style.transition = '';
     world.updatePositions();
     
-    // Log move to Action Tower
+    // Mark step 4 complete in timeline
+    if (typeof markTimelineStep === 'function') {
+      markTimelineStep({ type: 'DROP', block: blockName, at: dest, stepNumber: 4 });
+    }
+    
+    // Log complete move to Action Tower
     if (typeof window._logMove === 'function') {
       const destination = dest === 'Table' ? 'Table' : dest;
       window._logMove(`Move ${blockName} → ${destination}`);
     }
     
-    markTimelineMove(move);
     callback();
     
   } catch (error) {

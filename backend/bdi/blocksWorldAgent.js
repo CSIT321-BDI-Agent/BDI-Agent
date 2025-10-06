@@ -391,22 +391,46 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
     const reachedGoal = goalAchieved(nextStacks, currentState.goalChain);
     stateRef.goalAchieved = reachedGoal;
 
-    nextIntentionLog.push({
-      cycle: currentState.iterations + 1,
-      moves: [
-        appliedMove
-          ? appliedMove
-          : { actor: actorId, skipped: true, reason: skippedReason }
-      ],
-      resultingStacks: deepCloneStacks(nextStacks),
-      beliefs: {
-        pendingRelation: stateFacts.pendingRelation
-          ? { ...stateFacts.pendingRelation }
-          : null,
-        clearBlocks: [...stateFacts.clearBlocks],
-        onMap: { ...stateFacts.onMap }
-      }
-    });
+    // If move was applied, create 4 separate cycles (one for each claw step)
+    if (appliedMove && appliedMove.clawSteps) {
+      appliedMove.clawSteps.forEach((step, stepIdx) => {
+        nextIntentionLog.push({
+          cycle: nextIntentionLog.length + 1,
+          moves: [{
+            actor: actorId,
+            block: step.block || appliedMove.block,
+            to: step.to || (step.type === 'PICK_UP' ? 'claw' : appliedMove.to),
+            reason: step.type.toLowerCase().replace('_', '-'),
+            stepType: step.type,
+            stepDescription: step.description,
+            stepNumber: stepIdx + 1,
+            totalSteps: 4
+          }],
+          resultingStacks: deepCloneStacks(nextStacks),
+          beliefs: {
+            pendingRelation: stateFacts.pendingRelation
+              ? { ...stateFacts.pendingRelation }
+              : null,
+            clearBlocks: [...stateFacts.clearBlocks],
+            onMap: { ...stateFacts.onMap }
+          }
+        });
+      });
+    } else {
+      // No move applied, single skip cycle
+      nextIntentionLog.push({
+        cycle: nextIntentionLog.length + 1,
+        moves: [{ actor: actorId, skipped: true, reason: skippedReason }],
+        resultingStacks: deepCloneStacks(nextStacks),
+        beliefs: {
+          pendingRelation: stateFacts.pendingRelation
+            ? { ...stateFacts.pendingRelation }
+            : null,
+          clearBlocks: [...stateFacts.clearBlocks],
+          onMap: { ...stateFacts.onMap }
+        }
+      });
+    }
 
     if (!appliedMove && !reachedGoal) {
       throw new PlanningError('Planner stalled before achieving the goal.', 422);
