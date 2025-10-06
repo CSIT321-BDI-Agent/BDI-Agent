@@ -2,7 +2,7 @@
  * Animation System for Block Movement
  * 
  * Handles visual animations for block movements including:
- * - Robotic claw animations
+ * - 4-step robotic claw sequence (move to source, pick up, move to dest, drop)
  * - Block transitions
  * - Timeline updates after moves
  */
@@ -11,92 +11,124 @@ import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, CLAW_HEIGHT, CLAW_OFFSET, STAC
 import { handleError } from './helpers.js';
 
 /**
- * Simulate a single block move with animation
- * @param {Object} move - Move object {block, to}
+ * Calculate the position of a block in the world
+ * @param {Object} world - World instance
+ * @param {string} blockName - Block name
+ * @returns {Object} - {left, top, stackIndex, posInStack}
+ */
+function getBlockPosition(world, blockName) {
+  const stackIndex = world.stacks.findIndex(s => s.includes(blockName));
+  if (stackIndex === -1) return null;
+  
+  const posInStack = world.stacks[stackIndex].indexOf(blockName);
+  const left = stackIndex * (BLOCK_WIDTH + STACK_MARGIN);
+  const top = WORLD_HEIGHT - (posInStack + 1) * BLOCK_HEIGHT;
+  
+  return { left, top, stackIndex, posInStack };
+}
+
+/**
+ * Animate claw movement to a position
+ * @param {HTMLElement} claw - Claw element
+ * @param {number} targetLeft - Target left position
+ * @param {number} targetTop - Target top position
+ * @param {number} duration - Animation duration in ms
+ * @returns {Promise} - Resolves when animation completes
+ */
+function animateClawTo(claw, targetLeft, targetTop, duration) {
+  return new Promise(resolve => {
+    if (!claw) {
+      resolve();
+      return;
+    }
+    
+    claw.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
+    claw.style.left = `${targetLeft}px`;
+    claw.style.top = `${targetTop}px`;
+    
+    setTimeout(resolve, duration);
+  });
+}
+
+/**
+ * Simulate a single block move with 4-step claw animation
+ * @param {Object} move - Move object {block, to, clawSteps}
  * @param {Object} world - World instance
  * @param {HTMLElement} worldElem - World container element
  * @param {HTMLElement} claw - Claw element
  * @param {Function} markTimelineMove - Function to mark timeline
  * @param {Function} callback - Callback when animation completes
  */
-export function simulateMove(move, world, worldElem, claw, markTimelineMove, callback) {
+export async function simulateMove(move, world, worldElem, claw, markTimelineMove, callback) {
   const blockName = move.block;
   const dest = move.to;
+  const duration = window.APP_CONFIG?.ANIMATION_DURATION || 550;
 
   const blockDiv = worldElem?.querySelector(`[data-block='${blockName}']`);
   if (!blockDiv) {
-    console.error('DOM element for block not found:', blockName);
     handleError(new Error(`Block ${blockName} not found in DOM`), 'simulateMove');
     callback();
     return;
   }
 
   try {
-    const startLeft = parseFloat(blockDiv.style.left) || 0;
-    const startTop = parseFloat(blockDiv.style.top) || 0;
-
     // Validate move before executing
     if (!world.blocks.includes(blockName)) {
       throw new Error(`Block ${blockName} not found in world`);
     }
 
+    // Get initial block position
+    const sourcePos = getBlockPosition(world, blockName);
+    if (!sourcePos) {
+      throw new Error(`Could not determine position of block ${blockName}`);
+    }
+
+    // === STEP 1: Move claw to source block ===
+    const sourceClawLeft = sourcePos.left + CLAW_OFFSET;
+    const sourceClawTop = sourcePos.top - CLAW_HEIGHT;
+    await animateClawTo(claw, sourceClawLeft, sourceClawTop, duration);
+    
+    // === STEP 2: Pick up block (attach to claw) ===
+    blockDiv.classList.add('moving');
+    await new Promise(resolve => setTimeout(resolve, 150)); // Brief pause for "grab"
+
+    // === STEP 3: Apply the move in world state ===
     world.moveBlock(blockName, dest);
     world.updatePositions(blockName);
 
-    const destStackIndex = world.stacks.findIndex(s => s.includes(blockName));
-    if (destStackIndex === -1) {
+    // Get destination position
+    const destPos = getBlockPosition(world, blockName);
+    if (!destPos) {
       throw new Error(`Block ${blockName} not found after move`);
     }
-    
-    const destPosIndex = world.stacks[destStackIndex].indexOf(blockName);
-    const destLeft = destStackIndex * (BLOCK_WIDTH + STACK_MARGIN);
-    const destTop = WORLD_HEIGHT - (destPosIndex + 1) * BLOCK_HEIGHT;
 
-    // Animate claw
-    if (claw) {
-      claw.style.transition = 'none';
-      claw.style.left = `${startLeft + CLAW_OFFSET}px`;
-      claw.style.top = `${startTop - CLAW_HEIGHT}px`;
-    }
+    const destLeft = destPos.left;
+    const destTop = destPos.top;
+    const destClawLeft = destLeft + CLAW_OFFSET;
+    const destClawTop = destTop - CLAW_HEIGHT;
 
-    blockDiv.classList.add('moving');
-
-    // Force reflow
-    void blockDiv.offsetWidth;
-
-    const duration = window.APP_CONFIG?.ANIMATION_DURATION || 550;
+    // === STEP 3 continued: Move claw (with block) to destination ===
     blockDiv.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
-    
-    if (claw) {
-      claw.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
-      claw.style.left = `${destLeft + CLAW_OFFSET}px`;
-      claw.style.top = `${destTop - CLAW_HEIGHT}px`;
-    }
-    
     blockDiv.style.left = `${destLeft}px`;
     blockDiv.style.top = `${destTop}px`;
+    
+    await animateClawTo(claw, destClawLeft, destClawTop, duration);
 
-    setTimeout(() => {
-      try {
-        blockDiv.classList.remove('moving');
-        blockDiv.style.transition = '';
-        world.updatePositions();
-        
-        // Log move to Action Tower
-        if (typeof window._logMove === 'function') {
-          const destination = dest === 'Table' ? 'Table' : dest;
-          window._logMove(`Move ${blockName} → ${destination}`);
-        }
-        
-        markTimelineMove(move);
-        
-        // Don't reset claw between moves - only at beginning/end of sequence
-        callback();
-      } catch (error) {
-        handleError(error, 'simulateMove cleanup');
-        callback();
-      }
-    }, duration + 10);
+    // === STEP 4: Drop block (detach from claw) ===
+    await new Promise(resolve => setTimeout(resolve, 150)); // Brief pause for "release"
+    
+    blockDiv.classList.remove('moving');
+    blockDiv.style.transition = '';
+    world.updatePositions();
+    
+    // Log move to Action Tower
+    if (typeof window._logMove === 'function') {
+      const destination = dest === 'Table' ? 'Table' : dest;
+      window._logMove(`Move ${blockName} → ${destination}`);
+    }
+    
+    markTimelineMove(move);
+    callback();
     
   } catch (error) {
     handleError(error, 'simulateMove');

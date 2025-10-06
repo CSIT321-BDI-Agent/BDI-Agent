@@ -4,7 +4,7 @@
  * Manages all user interface interactions and orchestrates planner execution
  */
 
-import { DOM } from './constants.js';
+import { DOM, resetClawToDefault } from './constants.js';
 import { showMessage, handleError } from './helpers.js';
 import { resetIntentionTimeline, renderIntentionTimeline, startPlannerClock, stopPlannerClock, finalizeTimeline, markTimelineMove } from './timeline.js';
 import { requestBDIPlan } from './planner.js';
@@ -164,11 +164,8 @@ export async function runSimulation(world) {
  * @returns {Promise<void>}
  */
 async function executeMoves(world, moves) {
-  const worldElem = DOM.worldArea();
+  const worldElem = DOM.world();
   const claw = document.getElementById('claw');
-  
-  // Import resetClawToDefault for sequence start/end
-  const { resetClawToDefault } = await import('./constants.js');
   
   // Reset claw to default position at the START of move sequence
   if (claw && moves.length > 0) {
@@ -177,9 +174,15 @@ async function executeMoves(world, moves) {
     await new Promise(resolve => setTimeout(resolve, 600));
   }
   
-  // Execute all moves sequentially
+  // Execute all moves sequentially with 4-step claw animation
   for (let i = 0; i < moves.length; i++) {
     const move = moves[i];
+    
+    // simulateMove is now async and handles 4 steps internally:
+    // 1. Move claw to source
+    // 2. Pick up block
+    // 3. Move claw to destination
+    // 4. Drop block
     await new Promise(resolve => {
       simulateMove(move, world, worldElem, claw, markTimelineMove, resolve);
     });

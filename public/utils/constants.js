@@ -39,8 +39,7 @@ export const DOM = {
   loadSelect: () => document.getElementById('loadSelect'),
   messages: () => document.getElementById('messages'),
   intentionTimeline: () => document.getElementById('intentionTimeline'),
-  plannerClock: () => document.getElementById('plannerClock'),
-  worldArea: () => document.getElementById('world')
+  plannerClock: () => document.getElementById('plannerClock')
 };
 
 // Initialize claw element

@@ -150,7 +150,7 @@ export async function refreshLoadList() {
       selector.appendChild(option);
     });
   } catch (error) {
-    console.error('Failed to refresh world list:', error);
+    handleError(error, 'refreshing world list');
     selector.innerHTML = '<option value="">Error loading worlds</option>';
   }
 }
@@ -188,7 +188,7 @@ export function rebuildWorldFrom(world, stacks, on) {
     };
 
     // Clear DOM elements
-    const blockElements = Array.from(DOM.worldArea().querySelectorAll('.block'));
+    const blockElements = Array.from(DOM.world().querySelectorAll('.block'));
     blockElements.forEach(elem => elem.remove());
 
     // Reset world state
@@ -222,7 +222,7 @@ export function rebuildWorldFrom(world, stacks, on) {
     
   } catch (error) {
     // Rollback on error
-    console.error('Failed to rebuild world:', error);
+    handleError(error, 'rebuilding world');
     throw error;
   }
 }

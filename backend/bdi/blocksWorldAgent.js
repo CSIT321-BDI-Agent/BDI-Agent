@@ -270,6 +270,43 @@ function extractMove(actions) {
   return null;
 }
 
+// Convert a logical move into 4 physical claw steps
+function expandMoveToClawSteps(move, stacks) {
+  const steps = [];
+  
+  // Step 1: Move claw to source block position
+  steps.push({
+    type: 'MOVE_CLAW',
+    to: move.block,
+    description: `Move claw to ${move.block}`
+  });
+  
+  // Step 2: Pick up the block (attach to claw)
+  steps.push({
+    type: 'PICK_UP',
+    block: move.block,
+    description: `Pick up ${move.block}`
+  });
+  
+  // Step 3: Move claw (with block) to destination
+  steps.push({
+    type: 'MOVE_CLAW',
+    to: move.to,
+    carrying: move.block,
+    description: `Move ${move.block} to ${move.to}`
+  });
+  
+  // Step 4: Drop the block (detach from claw)
+  steps.push({
+    type: 'DROP',
+    block: move.block,
+    at: move.to,
+    description: `Drop ${move.block} on ${move.to}`
+  });
+  
+  return steps;
+}
+
 function validateMoveCandidate(move, stacks) {
   if (!blockExists(stacks, move.block)) {
     return { ok: false, code: 'BLOCK_NOT_FOUND', fatal: true };
@@ -335,11 +372,16 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
         }
       } else {
         applyMove(nextStacks, proposedMove.block, proposedMove.to);
+        
+        // Generate 4-step claw movement sequence
+        const clawSteps = expandMoveToClawSteps(proposedMove, currentState.stacks);
+        
         appliedMove = {
           block: proposedMove.block,
           to: proposedMove.to,
           reason: proposedMove.reason,
-          actor: actorId
+          actor: actorId,
+          clawSteps: clawSteps  // Include detailed claw steps
         };
         nextMoves.push(appliedMove);
       }

@@ -18,7 +18,7 @@ function initializeApp() {
   initializeClaw();
 
   // Create world instance with container element
-  const world = new World(DOM.worldArea());
+  const world = new World(DOM.world());
 
   // Expose world globally for inline scripts
   window.world = world;
@@ -33,8 +33,6 @@ function initializeApp() {
 
   // Set up UI event handlers
   initializeHandlers(world);
-
-  console.log('BDI Blocks World application initialized');
 }
 
 // Start app when DOM is ready
