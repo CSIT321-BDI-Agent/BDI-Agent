@@ -21,6 +21,8 @@ A classic AI environment implementing **Belief-Desire-Intention planning** for m
 - **Interactive Blocks World**: Drag-and-drop interface for creating block configurations
 - **JS-son BDI Planning**: Server-side plan synthesis using a JS-son agent with explicit beliefs, desires, and intentions
 - **Visual Animation System**: Smooth CSS transitions with robotic claw visualization
+- **Real-time Stats Tracking**: Live step counter, elapsed timer, and status monitoring during simulation
+- **Modern UI/UX**: Material Icons integration with smooth scroll unfurl animations
 - **Modular Architecture**: Clean frontend/backend separation with ES6 modules for maintainability
 - **User Authentication**: Secure JWT-based authentication with role management (admin panel)
 - **World Persistence**: Save and load block configurations per user
@@ -46,13 +48,16 @@ A classic AI environment implementing **Belief-Desire-Intention planning** for m
   - `main.js` (40 lines) - Entry point
   - `World.js` (155 lines) - World state management
   - `animation.js` (101 lines) - Block/claw animations
-  - `timeline.js` (265 lines) - Intention timeline & planner clock
+  - `timeline.js` (274 lines) - Intention timeline & planner clock with step tracking
   - `planner.js` (40 lines) - Backend API communication
   - `persistence.js` (176 lines) - Save/load functionality
-  - `ui-handlers.js` (165 lines) - Event handlers
+  - `ui-handlers.js` (285 lines) - Event handlers with stats integration
   - `constants.js` (54 lines) - Configuration & DOM refs
   - `helpers.js` (92 lines) - Utility functions
 - **No build process** - Direct file editing and browser refresh
+- **Material Icons**: Google Material Icons for consistent UI across browsers
+- **Real-time Stats**: Live step counter (4 cycles per move), elapsed timer (100ms interval), and status tracking
+- **Modern Animations**: Scroll unfurl profile dropdown with cubic-bezier easing and staggered reveals
 - Responsive design with CSS custom properties
 - Real-time planner clock and intention timeline visualization
 
@@ -194,14 +199,14 @@ BDI-Agent/
 │   ├── mongo-init.js         # MongoDB initialization script (12 lines)
 │   ├── planner-debug.js      # Planner regression test suite (269 lines, 11 scenarios)
 │   └── README.md             # Backend-specific documentation
-├── public/                   # Frontend directory (2,300+ lines)
+├── public/                   # Frontend directory (2,400+ lines)
 │   ├── config.js             # Frontend configuration (30 lines)
-│   ├── index.html            # Main simulation interface (283 lines)
+│   ├── index.html            # Main simulation interface (505 lines, includes stats tracking)
 │   ├── login.html            # User authentication (80 lines)
 │   ├── signup.html           # User registration (82 lines)
 │   ├── admin.html            # Admin user management panel (79 lines)
 │   ├── debug.html            # Debug utilities (174 lines)
-│   ├── style.css             # Styling with CSS variables (1,214 lines)
+│   ├── style.css             # Styling with CSS variables (1,580 lines, includes animations)
 │   ├── script.js.backup      # Legacy monolithic script (backup)
 │   ├── utils/                # Modular JavaScript (ES6 modules)
 │   │   ├── main.js           # Entry point (30 lines)
@@ -210,10 +215,10 @@ BDI-Agent/
 │   │   ├── helpers.js        # Utility functions (86 lines)
 │   │   ├── World.js          # World state management (142 lines)
 │   │   ├── animation.js      # Block/claw animations (88 lines)
-│   │   ├── timeline.js       # Intention timeline & clock (244 lines)
+│   │   ├── timeline.js       # Intention timeline & clock (274 lines, includes step tracking)
 │   │   ├── planner.js        # Backend API communication (37 lines)
 │   │   ├── persistence.js    # Save/load functionality (180 lines)
-│   │   └── ui-handlers.js    # Event handlers (169 lines)
+│   │   └── ui-handlers.js    # Event handlers (285 lines, includes stats integration)
 │   └── README.md             # Frontend-specific documentation
 ├── Dockerfile                # Container definition
 ├── docker-compose.yml        # Production Docker setup
@@ -314,6 +319,23 @@ docker compose down
 
 ### Recent Improvements
 
+**UI/UX Enhancements** (October 2025):
+- **Stats Panel Restructure**: Real-time tracking with Total Steps, Time Elapsed, Status display
+  - Live step counter (increments with each of 4 claw cycles per move)
+  - Elapsed timer with 100ms update interval (displays as X.XXs format)
+  - Status tracking: Planning → Running → Success/Failure/Unexpected
+  - Color-coded status (green for success, red for failure, orange for errors)
+- **Material Icons Integration**: Google Material Icons for consistent cross-browser UI
+  - Replaced emoji icons with professional Material Icons
+  - Icons: account_circle, expand_more, person, admin_panel_settings, logout, login, person_add
+- **Profile Dropdown Animation**: Smooth scroll unfurl effect
+  - cubic-bezier(0.4, 0, 0.2, 1) easing for professional feel
+  - max-height transition (0 → 400px) + scaleY transform
+  - Staggered menu item reveals with 0.05s delays
+- **Admin Dashboard Access**: Role-based menu item in profile dropdown
+  - Conditional display based on localStorage role
+  - Seamless admin panel navigation
+
 **Code Organization** (October 2025):
 - **Frontend/Backend Separation**: Reorganized into clean `backend/` and `public/` directories
 - **Backend Modularization**: Reduced `server.js` from 350 to 183 lines (48% reduction)
@@ -373,17 +395,18 @@ When running under Docker, environment variables are provided via the compose fi
 ## Code Quality & Metrics
 
 ### Codebase Size
-- **Total Backend**: ~600 lines (highly modular)
-- **Total Frontend**: ~2,600 lines (vanilla JS, no build step)
-- **Documentation**: ~3,000 lines (comprehensive guides)
+- **Total Backend**: ~700 lines (highly modular)
+- **Total Frontend**: ~2,400 lines (vanilla JS, no build step)
+- **Documentation**: ~3,500+ lines (comprehensive guides + STATS_AND_PROFILE_UPDATES.md)
 - **Tests**: 11 automated scenarios + manual test workflows
 
 ### Modularization Impact
 - **Backend**: 48% reduction in `server.js` (350 → 183 lines)
 - **Frontend**: 82% reduction in page-level auth code (169 → 31 lines)
+- **UI Enhancements**: Added 220+ lines for stats tracking and animations
 - **Duplicate Code Eliminated**: ~160 lines across authentication
-- **Module Count**: 10 ES6 modules (avg 128 lines each)
-- **Dependencies**: Zero frontend dependencies, 7 backend packages
+- **Module Count**: 10 ES6 modules (avg 140 lines each)
+- **Dependencies**: Zero frontend dependencies (CDN: Material Icons), 7 backend packages
 
 ### Code Quality Audit (October 2025)
 ✅ **Clean Codebase Verified**

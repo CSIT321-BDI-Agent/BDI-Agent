@@ -14,13 +14,13 @@
 
 ```
 public/
-├── index.html        # Main application interface (283 lines)
+├── index.html        # Main application interface (505 lines, includes stats tracking)
 ├── login.html        # User login page (80 lines)
 ├── signup.html       # User registration page (82 lines)
 ├── admin.html        # Admin user management panel (79 lines)
 ├── debug.html        # API testing utilities (174 lines)
 ├── script.js.backup  # Legacy monolithic script (backup only)
-├── style.css         # Centralized styling with CSS variables (1,214 lines)
+├── style.css         # Centralized styling with CSS variables (1,580 lines, includes animations)
 ├── config.js         # Runtime configuration constants (30 lines)
 └── utils/            # Modular JavaScript utilities (ES6 modules)
     ├── main.js           # Application entry point (30 lines)
@@ -29,10 +29,10 @@ public/
     ├── helpers.js        # Utility functions (86 lines)
     ├── World.js          # World state management (142 lines)
     ├── animation.js      # Block/claw animation system (88 lines)
-    ├── timeline.js       # Intention timeline & clock (244 lines)
+    ├── timeline.js       # Intention timeline & clock (274 lines, includes step tracking)
     ├── planner.js        # Backend API communication (37 lines)
     ├── persistence.js    # Save/load functionality (180 lines)
-    └── ui-handlers.js    # Event handlers & simulation (169 lines)
+    └── ui-handlers.js    # Event handlers & simulation (285 lines, includes stats integration)
 ```
 
 ## Features
@@ -41,6 +41,9 @@ public/
 - **Block World Simulation**: Visual drag-and-drop interface for block stacking
 - **Goal-Based Planning**: Natural language goal input ("A on B on C")
 - **BDI Agent Execution**: Real-time planner execution with telemetry
+- **Real-time Stats Tracking**: Live step counter, elapsed timer (100ms updates), and status monitoring
+- **Material Icons**: Professional Google Material Icons for consistent UI
+- **Modern Animations**: Scroll unfurl profile dropdown with cubic-bezier easing
 - **Animation System**: Smooth robotic claw animations with CSS transitions
 - **Planner Timeline**: Visual timeline showing each reasoning cycle
 - **World Persistence**: Save/load configurations with MongoDB backend
@@ -69,10 +72,10 @@ The frontend JavaScript has been refactored from a single 908-line monolithic fi
 | **helpers.js** | 86 | Utility functions | `randomColour()`, `showMessage()`, `handleError()`, `formatPlannerDuration()` |
 | **World.js** | 142 | World state management | `World` class |
 | **animation.js** | 88 | Block/claw animations | `simulateMove()` |
-| **timeline.js** | 244 | Timeline & planner clock | Timeline rendering & clock functions (7 exports) |
+| **timeline.js** | 274 | Timeline & planner clock + step tracking | Timeline rendering, clock functions, `markTimelineStep()` (8 exports) |
 | **planner.js** | 37 | Backend communication | `requestBDIPlan()` |
 | **persistence.js** | 180 | Save/load worlds | `saveWorld()`, `loadSelectedWorld()`, `refreshLoadList()`, `rebuildWorldFrom()` |
-| **ui-handlers.js** | 169 | Event handlers | `initializeHandlers()`, `runSimulation()`, `handleAddBlock()`, `setControlsDisabled()` |
+| **ui-handlers.js** | 285 | Event handlers + stats integration | `initializeHandlers()`, `runSimulation()`, `handleAddBlock()`, `setControlsDisabled()` |
 
 ### Benefits of Modularization
 
@@ -123,6 +126,129 @@ admin.html
 ```
 
 **No circular dependencies** - Clean dependency graph with `constants.js` as the only leaf module.
+
+## Stats Tracking System
+
+### Real-Time Statistics (October 2025)
+
+The application includes comprehensive real-time statistics tracking during simulation:
+
+**Stats Display Format:**
+- **Total Steps**: Live counter incrementing with each claw cycle (4 cycles per move)
+- **Time Elapsed**: Real-time timer with 100ms updates (displays as X.XXs format)
+- **Status**: Current simulation state with color coding
+
+**Status Values:**
+- `Planning...` - Requesting plan from backend (default color)
+- `Running...` - Executing moves with animation (default color)
+- `Success` - Goal achieved (green text)
+- `Failure` - Planner couldn't achieve goal within iteration limit (red text)
+- `Unexpected (Error)` - Exception occurred during execution (orange text)
+- `Unexpected (Illegal move)` - Invalid move detected (orange text)
+
+**Global Functions** (in index.html):
+```javascript
+window._updateStats(steps, status)  // Update display and color-code status
+window._startStatsTimer()           // Start elapsed time tracking
+window._stopStatsTimer()            // Stop timer
+window._resetStats()                // Reset all stats to "--"
+window._incrementStep()             // Increment step counter (auto-called)
+```
+
+**Integration Points:**
+- `ui-handlers.js` - Orchestrates stats lifecycle (start/stop timer, update status)
+- `timeline.js` - Auto-increments step counter via `markTimelineStep()`
+- `animation.js` - Each of 4 claw actions counts as one step
+
+**4-Step Cycle Model:**
+Each logical move consists of 4 distinct claw actions:
+1. Move claw to source block position
+2. Pick up block
+3. Move claw to destination position
+4. Drop block
+
+Total Steps = Moves × 4 cycles per move
+
+See [STATS_AND_PROFILE_UPDATES.md](../STATS_AND_PROFILE_UPDATES.md) for complete documentation.
+
+## Material Icons Integration
+
+### Professional Icon Library (October 2025)
+
+The application uses **Google Material Icons** for consistent, professional UI:
+
+**CDN Link** (in index.html):
+```html
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+```
+
+**Icons Used:**
+| Icon | Usage | Location |
+|------|-------|----------|
+| `account_circle` | User avatar | Profile button |
+| `expand_more` | Dropdown indicator | Profile button |
+| `person` | View Profile | Profile menu |
+| `admin_panel_settings` | Admin Dashboard | Profile menu (admin only) |
+| `logout` | Sign out | Profile menu |
+| `login` | Sign in | Profile menu |
+| `person_add` | Create account | Profile menu |
+
+**Styling** (in style.css):
+- Teal color (#14b8a6) for consistency
+- Hover scale effect (1.0 → 1.1)
+- Smooth transitions
+
+**Browser Compatibility:**
+- Icons load from CDN (requires internet)
+- Cached after first load
+- Fallback to text if CDN unavailable
+
+## Profile Dropdown Animation
+
+### Scroll Unfurl Effect (October 2025)
+
+The profile dropdown features a smooth "scroll unfurling" animation:
+
+**Animation Properties:**
+- **Easing**: `cubic-bezier(0.4, 0, 0.2, 1)` for professional feel
+- **Duration**: 0.4s transition
+- **Technique**: Combines `max-height` (0 → 400px) + `scaleY(0 → 1)` transforms
+- **Transform Origin**: `top center` for natural unfurl from top
+
+**Staggered Menu Items:**
+Menu items cascade in with sequential delays:
+- 1st item: 0.05s delay
+- 2nd item: 0.10s delay
+- 3rd item: 0.15s delay
+- 4th item: 0.20s delay
+
+**CSS Implementation** (style.css):
+```css
+.profile-menu {
+  max-height: 0;
+  transform: translateY(-10px) scaleY(0);
+  transform-origin: top center;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.profile-menu.active {
+  max-height: 400px;
+  transform: translateY(0) scaleY(1);
+}
+
+@keyframes slideIn {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+```
+
+**Admin Menu Item:**
+- Conditionally displayed based on `localStorage.getItem('role') === 'admin'`
+- Uses `admin_panel_settings` Material Icon
+- Links to `admin.html`
+- Automatically shown/hidden by `updateProfileDisplay()` function
 
 ## Configuration
 
@@ -457,10 +583,35 @@ Use `debug.html` for manual endpoint checks:
 - Check `planner.js` for correct endpoint usage
 
 **Timeline not updating:**
-- Ensure `markTimelineMove()` called in `animation.js` after each move
+- Ensure `markTimelineStep()` called in `animation.js` after each claw action
 - Check `intentionLog` in planner response
 - Verify move reasons are preserved in `planner.js`
 - Check `timeline.js` state management
+
+**Stats not updating:**
+- Check browser console for JavaScript errors
+- Verify `window._updateStats` is defined (view page source)
+- Ensure `window._incrementStep()` is called from `markTimelineStep()`
+- Check planner execution calls stats functions in `ui-handlers.js`
+- Verify timer interval is running (no browser throttling)
+
+**Material Icons not showing:**
+- Check CDN link in Network tab (should load fonts.googleapis.com)
+- Verify no content security policy blocking fonts
+- Check for AdBlocker interference with Google CDN
+- Test in incognito mode to rule out extension interference
+
+**Profile dropdown animation stuttering:**
+- Check browser supports CSS transitions
+- Verify no conflicting CSS from browser extensions
+- Test in incognito mode
+- Check for high CPU usage during animation
+
+**Admin menu not appearing:**
+- Open DevTools \u2192 Application \u2192 Local Storage
+- Verify `role` key exists with value `admin`
+- Check `updateProfileDisplay()` is called after login
+- Clear cache and re-login if role was recently changed
 
 **Module import errors:**
 - Verify `<script type="module">` in index.html

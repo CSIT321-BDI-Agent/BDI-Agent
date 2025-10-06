@@ -24,8 +24,11 @@ backend/
 │   └── adminRoutes.js           # Admin panel routes (45 lines)
 ├── mongo-init.js                # MongoDB initialization (12 lines)
 ├── planner-debug.js             # Planner test suite (269 lines, 11 scenarios)
+├── README.md                    # This file
 └── .env.example                 # Environment variables template
 ```
+
+**Total**: ~700 lines of backend code (highly modular)
 
 ## Quick Start
 
@@ -118,6 +121,8 @@ See `.env.example` for all available configuration options.
 - **Health Checks**: `/health` endpoint for Docker container monitoring
 - **Admin Features**: User management panel with role promotion/demotion
 - **Code Quality**: ~700 total lines, avg 40 lines per utility module
+- **BDI Planning**: 4-step cycle expansion (move to source, pick up, move to dest, drop)
+- **Telemetry**: Complete intention logs with beliefs, move reasons, and cycle tracking
 
 ## Common Tasks
 
