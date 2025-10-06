@@ -91,8 +91,9 @@
         </div>
       </div>
       
-      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
-        <span class="material-icons">chevron_left</span>
+      <button class="sidebar-toggle" id="sidebarToggle" aria-expanded="true" aria-label="Collapse sidebar">
+        <span class="material-icons" aria-hidden="true">chevron_left</span>
+        <span class="sidebar-toggle-label">Collapse</span>
       </button>
     </aside>
 
@@ -214,32 +215,52 @@
       const sidebar = document.getElementById('sidebar');
       const sidebarToggle = document.getElementById('sidebarToggle');
       const toggleIcon = sidebarToggle?.querySelector('.material-icons');
+      const toggleLabel = sidebarToggle?.querySelector('.sidebar-toggle-label');
+      const appLayout = document.querySelector('.app');
       
       // Check if we're on desktop (min-width: 768px)
       function isDesktop() {
         return window.innerWidth >= 768;
       }
+
+      function applySidebarState(collapsed) {
+        if (!sidebar) return;
+
+        sidebar.classList.toggle('collapsed', collapsed);
+        appLayout?.classList.toggle('sidebar-collapsed', collapsed);
+
+        if (toggleIcon) {
+          toggleIcon.textContent = collapsed ? 'chevron_right' : 'chevron_left';
+        }
+
+        if (toggleLabel) {
+          toggleLabel.textContent = collapsed ? 'Expand' : 'Collapse';
+        }
+
+        if (sidebarToggle) {
+          sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+          sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        }
+      }
       
       // Load saved state from localStorage
       function loadSidebarState() {
-        if (!isDesktop()) return;
-        
-        const savedState = localStorage.getItem('sidebarCollapsed');
-        if (savedState === 'true') {
-          sidebar?.classList.add('collapsed');
-          if (toggleIcon) toggleIcon.textContent = 'chevron_right';
+        if (!isDesktop()) {
+          applySidebarState(false);
+          return;
         }
+
+        const savedState = localStorage.getItem('sidebarCollapsed') === 'true';
+        applySidebarState(savedState);
       }
       
       // Toggle sidebar
       function toggleSidebar() {
-        if (!isDesktop()) return;
-        
-        const isCollapsed = sidebar?.classList.toggle('collapsed');
-        if (toggleIcon) {
-          toggleIcon.textContent = isCollapsed ? 'chevron_right' : 'chevron_left';
-        }
-        localStorage.setItem('sidebarCollapsed', isCollapsed ? 'true' : 'false');
+        if (!isDesktop() || !sidebar) return;
+
+        const willCollapse = !sidebar.classList.contains('collapsed');
+        applySidebarState(willCollapse);
+        localStorage.setItem('sidebarCollapsed', willCollapse ? 'true' : 'false');
       }
       
       // Setup event listener
@@ -250,9 +271,10 @@
       
       // Reset to expanded on resize to mobile
       window.addEventListener('resize', () => {
-        if (!isDesktop() && sidebar?.classList.contains('collapsed')) {
-          sidebar.classList.remove('collapsed');
-          if (toggleIcon) toggleIcon.textContent = 'chevron_left';
+        if (!isDesktop()) {
+          applySidebarState(false);
+        } else {
+          loadSidebarState();
         }
       });
     })();

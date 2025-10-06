@@ -433,6 +433,10 @@ select {
   padding: 0;
 }
 
+.mobile-menu-header .brand-logo {
+  filter: brightness(0) invert(1);
+}
+
 .mobile-menu-close {
   background: none;
   border: none;
@@ -453,6 +457,11 @@ select {
   grid-template-columns: 1fr;
   min-height: 100vh;
   gap: 0;
+  width: 100%;
+}
+
+.app.sidebar-collapsed {
+  grid-template-columns: 1fr;
 }
 
 .sidebar {
@@ -499,14 +508,25 @@ select {
 }
 
 .brand-logo {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
 }
 
 .brand-text {
   transition: opacity 0.3s ease, width 0.3s ease;
   overflow: hidden;
+}
+
+.sidebar.collapsed .brand {
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar.collapsed .nav a {
+  justify-content: center;
+  padding: 12px;
+  gap: 0;
 }
 
 .navsec {
@@ -581,34 +601,53 @@ select {
 }
 
 .sidebar-toggle {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--teal);
-  color: var(--white);
-  border: none;
-  cursor: pointer;
+  margin: auto 18px 18px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-dark);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow);
-  transition: all 0.3s ease;
-  padding: 0;
-  margin: 0;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-top: auto;
 }
 
 .sidebar-toggle:hover {
-  background: var(--teal);
-  transform: translateX(-50%) scale(1.1);
-  box-shadow: var(--shadow-hover);
+  background: var(--teal-light);
+  border-color: var(--teal);
+  color: var(--teal);
 }
 
 .sidebar-toggle .material-icons {
-  font-size: 24px;
+  font-size: 20px;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-toggle-label {
+  transition: opacity 0.3s ease, max-width 0.3s ease;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed .sidebar-toggle .material-icons {
+  transform: rotate(180deg);
+}
+
+.sidebar.collapsed .sidebar-toggle .sidebar-toggle-label {
+  opacity: 0;
+  max-width: 0;
+}
+
+.sidebar.collapsed .sidebar-toggle {
+  gap: 0;
+  padding: 10px;
 }
 
 /* Main content layout */
@@ -1370,6 +1409,10 @@ select {
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
     gap: 0;
     padding: 0;
+  }
+
+  .app.sidebar-collapsed {
+    grid-template-columns: var(--sidebar-width-collapsed) minmax(0, 1fr);
   }
   
   .sidebar {
