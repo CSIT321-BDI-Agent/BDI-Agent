@@ -6,7 +6,7 @@
 
 import { DOM } from './constants.js';
 import { showMessage, handleError } from './helpers.js';
-import { getCurrentUser } from './auth.js';
+import { getCurrentUser, authenticatedFetch } from './auth.js';
 import { logAction } from './logger.js';
 
 /**
@@ -30,11 +30,9 @@ export async function saveWorld(world) {
   const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
 
   try {
-    const response = await fetch(`${API_BASE}/worlds`, {
+    const response = await authenticatedFetch(`${API_BASE}/worlds`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        userId: user.userId,
         name: worldName.trim(),
         blocks: world.getCurrentBlocks(),
         stacks: world.getCurrentStacks()
@@ -79,9 +77,8 @@ export async function loadSelectedWorld(world) {
   const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
 
   try {
-    const response = await fetch(`${API_BASE}/worlds/${selected}?userId=${user.userId}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
+    const response = await authenticatedFetch(`${API_BASE}/worlds/${selected}`, {
+      method: 'GET'
     });
 
     if (!response.ok) {
@@ -117,9 +114,8 @@ export async function refreshLoadList() {
   const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
 
   try {
-    const response = await fetch(`${API_BASE}/worlds?userId=${user.userId}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
+    const response = await authenticatedFetch(`${API_BASE}/worlds`, {
+      method: 'GET'
     });
 
     if (!response.ok) {

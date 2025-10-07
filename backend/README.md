@@ -74,13 +74,13 @@ docker compose up --build
 - `POST /users/signup` - Create new user account
 - `POST /login` - Login and receive JWT token
 
-### World Persistence
-- `POST /worlds` - Save a world configuration
-- `GET /worlds` - Get all worlds for a user
-- `GET /worlds/:id` - Get specific world
+### World Persistence (JWT required)
+- `POST /worlds` - Save a world configuration for the authenticated user
+- `GET /worlds` - Get all worlds owned by the authenticated user
+- `GET /worlds/:id` - Get specific world owned by the authenticated user
 
-### Planning
-- `POST /plan` - Execute BDI planner on block configuration
+### Planning (JWT required)
+- `POST /plan` - Execute BDI planner on block configuration (input validated, maxIterations capped at 5,000)
 
 ### Admin (Requires JWT with admin role)
 - `GET /admin/users` - List all users
@@ -108,7 +108,7 @@ See `.env.example` for all available configuration options.
 **Optional:**
 - `PORT` - Server port (default: 3000)
 - `NODE_ENV` - Environment mode (development/production)
-- `ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` - Default admin credentials
+- `ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` - Default admin credentials (for Docker Compose you can place these in the project root `.env` file)
 
 ## Architecture Notes
 

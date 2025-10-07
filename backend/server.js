@@ -17,12 +17,65 @@ const User = require('./models/User');
 const { ensureDefaultAdmin } = require('./models/User');   
 const World = require('./models/World');
 
-const { attachUser } = require('./utils/auth');      
-const adminRoutes = require('./utils/adminRoutes');   
+const { attachUser, requireAuth } = require('./utils/auth');      
+const adminRoutes = require('./utils/adminRoutes');  
+const { getJwtSecret } = require('./utils/jwt');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/blocks_world';
+const JWT_SECRET = getJwtSecret();
+const BLOCK_NAME_REGEX = /^[A-Z]$/;
+const MAX_ITERATION_CAP = 5000;
+
+const validateStacksPayload = (stacks) => {
+  if (!Array.isArray(stacks)) {
+    throw new HttpError(400, 'Stacks must be an array of arrays.');
+  }
+
+  stacks.forEach((stack, stackIndex) => {
+    if (!Array.isArray(stack)) {
+      throw new HttpError(400, `Stack at index ${stackIndex} must be an array.`);
+    }
+
+    stack.forEach((block, blockIndex) => {
+      if (typeof block !== 'string' || !BLOCK_NAME_REGEX.test(block)) {
+        throw new HttpError(400, `Invalid block name at stack ${stackIndex}, position ${blockIndex}.`);
+      }
+    });
+  });
+
+  return stacks;
+};
+
+const validateGoalChain = (goalChain) => {
+  if (goalChain == null) {
+    return goalChain;
+  }
+
+  if (!Array.isArray(goalChain)) {
+    throw new HttpError(400, 'Goal chain must be an array of block identifiers.');
+  }
+
+  return goalChain.map((item, index) => {
+    if (typeof item !== 'string' || (!BLOCK_NAME_REGEX.test(item) && item !== 'Table')) {
+      throw new HttpError(400, `Invalid goal entry at position ${index}.`);
+    }
+    return item;
+  });
+};
+
+const sanitizePlannerOptions = (options = {}) => {
+  const sanitized = {};
+  if (options.maxIterations !== undefined) {
+    const maxIterations = Number(options.maxIterations);
+    if (!Number.isFinite(maxIterations) || maxIterations <= 0) {
+      throw new HttpError(400, 'maxIterations must be a positive number.');
+    }
+    sanitized.maxIterations = Math.min(Math.floor(maxIterations), MAX_ITERATION_CAP);
+  }
+  return sanitized;
+};
 
 // Enhanced CORS configuration for Docker
 const corsOptions = {
@@ -43,35 +96,32 @@ app.use(attachUser);
 connectDB(MONGODB_URI);
 
 // ------------------ Worlds Routes ------------------
-app.post('/worlds', withRoute(async (req, res) => {
-  const { name, blocks, stacks, userId } = req.body || {};
+app.post('/worlds', requireAuth, withRoute(async (req, res) => {
+  const { name, blocks, stacks } = req.body || {};
 
   const normalizedName = ensureNonEmptyString(name, 'Valid world name');
   ensureArray(blocks, 'Blocks');
   ensureArray(stacks, 'Stacks');
-  const userObjectId = ensureObjectId(userId, 'User ID');
 
   const world = await World.create({
     name: normalizedName,
     blocks,
     stacks,
-    user: userObjectId
+    user: req.user._id
   });
 
   res.status(201).json(world);
 }));
 
-app.get('/worlds', withRoute(async (req, res) => {
-  const userObjectId = ensureObjectId(req.query.userId, 'User ID');
-  const worlds = await World.find({ user: userObjectId }).sort({ createdAt: -1 });
+app.get('/worlds', requireAuth, withRoute(async (req, res) => {
+  const worlds = await World.find({ user: req.user._id }).sort({ createdAt: -1 });
   res.json(worlds);
 }));
 
-app.get('/worlds/:id', withRoute(async (req, res) => {
-  const userObjectId = ensureObjectId(req.query.userId, 'User ID');
+app.get('/worlds/:id', requireAuth, withRoute(async (req, res) => {
   const worldId = ensureObjectId(req.params.id, 'World ID');
 
-  const doc = await World.findOne({ _id: worldId, user: userObjectId });
+  const doc = await World.findOne({ _id: worldId, user: req.user._id });
   if (!doc) throw new HttpError(404, 'World not found or access denied');
 
   res.json(doc);
@@ -107,7 +157,7 @@ app.post('/users/signup', withRoute(async (req, res) => {
 
   const token = jwt.sign(
     { sub: newUser._id.toString(), role: newUser.role, username: newUser.username },
-    process.env.JWT_SECRET || 'dev-secret',
+    JWT_SECRET,
     { expiresIn: '7d' }
   );
 
@@ -134,7 +184,7 @@ app.post('/login', withRoute(async (req, res) => {
 
   const token = jwt.sign(
     { sub: user._id.toString(), role: user.role, username: user.username },
-    process.env.JWT_SECRET || 'dev-secret',
+    JWT_SECRET,
     { expiresIn: '7d' }
   );
 
@@ -148,10 +198,13 @@ app.post('/login', withRoute(async (req, res) => {
 }));
 
 // ------------------ Planning ------------------
-app.post('/plan', withRoute((req, res) => {
+app.post('/plan', requireAuth, withRoute((req, res) => {
   const { stacks, goalChain, plannerOptions, options } = req.body || {};
-  const mergedOptions = plannerOptions || options || {};
-  const plan = planBlocksWorld(stacks, goalChain, mergedOptions);
+
+  const validatedStacks = validateStacksPayload(stacks);
+  const validatedGoalChain = validateGoalChain(goalChain);
+  const mergedOptions = sanitizePlannerOptions({ ...options, ...plannerOptions });
+  const plan = planBlocksWorld(validatedStacks, validatedGoalChain, mergedOptions);
 
   res.json({
     moves: plan.moves,
