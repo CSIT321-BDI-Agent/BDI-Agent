@@ -9,6 +9,7 @@ import { World } from './World.js';
 import { resetIntentionTimeline, updatePlannerClockDisplay } from './timeline.js';
 import { initializeHandlers } from './ui-handlers.js';
 import { saveWorld, refreshLoadList } from './persistence.js';
+import { initializeDashboardUI } from './dashboard-ui.js';
 
 /**
  * Initialize the application
@@ -26,6 +27,9 @@ function initializeApp() {
   // Expose persistence functions globally for onclick handlers
   window.saveWorld = () => saveWorld(world);
   window.refreshLoadList = refreshLoadList;
+
+  // Initialize dashboard-specific UI widgets
+  initializeDashboardUI(world);
 
   // Initialize timeline display
   resetIntentionTimeline();

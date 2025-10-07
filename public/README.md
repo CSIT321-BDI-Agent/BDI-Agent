@@ -146,13 +146,14 @@ The application includes comprehensive real-time statistics tracking during simu
 - `Unexpected (Error)` - Exception occurred during execution (orange text)
 - `Unexpected (Illegal move)` - Invalid move detected (orange text)
 
-**Global Functions** (in index.html):
+**Stats Module API** (`public/utils/stats.js`):
 ```javascript
-window._updateStats(steps, status)  // Update display and color-code status
-window._startStatsTimer()           // Start elapsed time tracking
-window._stopStatsTimer()            // Stop timer
-window._resetStats()                // Reset all stats to "--"
-window._incrementStep()             // Increment step counter (auto-called)
+initializeStatsUI();         // Bind DOM references and reset display
+updateStats(steps, status);  // Update values and color-code status
+startStatsTimer();           // Begin elapsed time tracking
+stopStatsTimer();            // Halt the timer (called on completion/errors)
+resetStats();                // Restore default placeholders ("--")
+incrementStep();             // Step counter helper used by timeline.js
 ```
 
 **Integration Points:**
@@ -590,10 +591,10 @@ Use `debug.html` for manual endpoint checks:
 
 **Stats not updating:**
 - Check browser console for JavaScript errors
-- Verify `window._updateStats` is defined (view page source)
-- Ensure `window._incrementStep()` is called from `markTimelineStep()`
-- Check planner execution calls stats functions in `ui-handlers.js`
-- Verify timer interval is running (no browser throttling)
+- Confirm `initializeDashboardUI()` runs (binds stats module to DOM)
+- Ensure `markTimelineStep()` calls `incrementStep()` from `stats.js`
+- Verify planner lifecycle invokes `startStatsTimer()`/`stopStatsTimer()`
+- Make sure `updateStats()` receives the expected status text
 
 **Material Icons not showing:**
 - Check CDN link in Network tab (should load fonts.googleapis.com)

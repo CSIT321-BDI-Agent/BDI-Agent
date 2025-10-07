@@ -244,12 +244,12 @@ The codebase follows a modular architecture with clear separation of concerns:
 - `POST /users/signup` - User registration with bcrypt hashing and auto-login (JWT)
 - `POST /login` - User authentication with JWT token (7-day expiry)
 
-**World Management Routes:**
-- `POST /worlds` - Save world configuration (requires authentication)
-- `GET /worlds` - List all saved worlds for authenticated user
-- `GET /worlds/:id?userId=` - Load specific world
+**World Management Routes (JWT required):**
+- `POST /worlds` - Save world configuration for the authenticated user
+- `GET /worlds` - List all saved worlds owned by the authenticated user
+- `GET /worlds/:id` - Load a specific world owned by the authenticated user
 
-**Planning Routes:**
+**Planning Routes (JWT required):**
 - `POST /plan` - Generate a JS-son BDI plan for the provided stacks/goal
   - Accepts `{ stacks, goalChain, plannerOptions }`
   - Returns `{ moves, iterations, goalAchieved, intentionLog, beliefs }`
@@ -365,7 +365,7 @@ NODE_ENV=production                          # Environment mode
 MONGODB_URI=mongodb://localhost:27017/blocks_world  # Database connection
 
 # Security
-JWT_SECRET=your-secret-key-here              # JWT signing secret (required for production)
+JWT_SECRET=your-secret-key-here              # JWT signing secret (required; defaults to an insecure dev secret otherwise)
 
 # Admin Account (Auto-created on startup)
 ADMIN_EMAIL=admin@example.com
@@ -376,7 +376,7 @@ ADMIN_PASSWORD=admin123
 ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 ```
 
-When running under Docker, environment variables are provided via the compose files. Override them using an `.env` file or compose overrides as needed.
+When running under Docker, environment variables are provided via the compose files. Copy `.env.example` to `.env` in the project root to override the defaults used by both `docker-compose.yml` and `docker-compose.dev.yml`. For production runs you **must** define real values for `JWT_SECRET` and `ADMIN_PASSWORD`; the production compose file will refuse to start without them.
 
 ## Code Quality & Metrics
 

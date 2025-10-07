@@ -8,7 +8,7 @@
  * - Managing block relationships
  */
 
-import { randomColour } from './helpers.js';
+import { randomColour, showMessage } from './helpers.js';
 import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, STACK_MARGIN } from './constants.js';
 
 export class World {
@@ -26,18 +26,18 @@ export class World {
    */
   addBlock(name) {
     name = name.trim().toUpperCase();
-    if (!name) return;
+    if (!name) return false;
     
     // Check block limit
     const maxBlocks = window.APP_CONFIG?.MAX_BLOCKS || 26;
     if (this.blocks.length >= maxBlocks) {
-      this.setMessage(`Maximum ${maxBlocks} blocks allowed.`);
-      return;
+      this.setMessage(`Maximum ${maxBlocks} blocks allowed.`, 'warning');
+      return false;
     }
     
     if (this.blocks.includes(name)) {
-      this.setMessage(`Block "${name}" already exists.`);
-      return;
+      this.setMessage(`Block "${name}" already exists.`, 'warning');
+      return false;
     }
     
     this.blocks.push(name);
@@ -56,7 +56,53 @@ export class World {
       this.updatePositions();
     }
     
+    this.notifyBlocksChanged();
     this.setMessage('');
+    return true;
+  }
+
+  /**
+   * Remove a block from the world (must be clear)
+   * @param {string} name - Block name to remove
+   * @returns {boolean} Whether the block was removed
+   */
+  removeBlock(name) {
+    const blockName = (name || '').trim().toUpperCase();
+    if (!blockName || !this.blocks.includes(blockName)) {
+      this.setMessage(`Block "${blockName || '?'}" does not exist.`, 'warning');
+      return false;
+    }
+
+    if (!this.isClear(blockName)) {
+      this.setMessage(`Block "${blockName}" is not clear. Remove blocks on top first.`, 'warning');
+      return false;
+    }
+
+    const stackIndex = this.stacks.findIndex(s => s.includes(blockName));
+    if (stackIndex === -1) {
+      this.setMessage(`Could not locate block "${blockName}" in stacks.`, 'error');
+      return false;
+    }
+
+    const stack = this.stacks[stackIndex];
+    stack.pop();
+    if (stack.length === 0) {
+      this.stacks.splice(stackIndex, 1);
+    }
+
+    this.blocks = this.blocks.filter(b => b !== blockName);
+    delete this.on[blockName];
+    delete this.colours[blockName];
+
+    const div = this.container?.querySelector(`[data-block='${blockName}']`);
+    if (div) {
+      div.remove();
+    }
+
+    this.updatePositions();
+    this.notifyBlocksChanged();
+    this.setMessage('');
+    return true;
   }
 
   /**
@@ -81,6 +127,18 @@ export class World {
       this.stacks[destIndex].push(block);
       this.on[block] = dest;
     }
+  }
+
+  /**
+   * Dispatch a DOM event when block composition changes
+   */
+  notifyBlocksChanged() {
+    const detail = {
+      count: this.blocks.length,
+      blocks: this.getCurrentBlocks()
+    };
+
+    document.dispatchEvent(new CustomEvent('world:blocks-changed', { detail }));
   }
 
   /**
@@ -128,12 +186,17 @@ export class World {
    * Display a message to the user
    * @param {string} msg - Message text
    */
-  setMessage(msg) {
-    const messagesElem = document.getElementById('messages');
-    if (messagesElem) {
-      messagesElem.textContent = msg;
-      messagesElem.className = 'messages';
+  setMessage(msg, type = 'info') {
+    if (!msg) {
+      const messagesElem = document.getElementById('messages');
+      if (messagesElem) {
+        messagesElem.textContent = '';
+        messagesElem.className = 'messages';
+      }
+      return;
     }
+
+    showMessage(msg, type);
   }
 
   /**

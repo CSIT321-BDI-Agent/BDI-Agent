@@ -10,57 +10,126 @@ import { resetIntentionTimeline, renderIntentionTimeline, startPlannerClock, sto
 import { requestBDIPlan } from './planner.js';
 import { simulateMove } from './animation.js';
 import { saveWorld, loadSelectedWorld, refreshLoadList } from './persistence.js';
+import { startStatsTimer, stopStatsTimer, updateStats } from './stats.js';
+import { logAction } from './logger.js';
+
+const LETTER_A_CODE = 'A'.charCodeAt(0);
+const LETTER_Z_CODE = 'Z'.charCodeAt(0);
+
+let worldRef = null;
+let controlsDisabled = false;
+
+function getBlockCount() {
+  return worldRef ? worldRef.getCurrentBlocks().length : 0;
+}
+
+function getNextBlockLetter() {
+  if (!worldRef) return null;
+  const blocks = worldRef.getCurrentBlocks();
+  const maxBlocks = window.APP_CONFIG?.MAX_BLOCKS || 26;
+  if (blocks.length >= maxBlocks) return null;
+
+  if (blocks.length === 0) return 'A';
+  const sorted = [...blocks].sort();
+  const highest = sorted[sorted.length - 1];
+  const nextCode = highest.charCodeAt(0) + 1;
+  if (nextCode > LETTER_Z_CODE) return null;
+  return String.fromCharCode(nextCode);
+}
+
+function getTopmostBlock() {
+  if (!worldRef) return null;
+  const blocks = worldRef.getCurrentBlocks();
+  if (!blocks.length) return null;
+  return blocks[blocks.length - 1];
+}
+
+function refreshStepperAvailability(forceDisabled = controlsDisabled) {
+  const addBtn = DOM.addBlockBtn();
+  const removeBtn = DOM.removeBlockBtn();
+  if (!addBtn || !removeBtn) return;
+
+  if (forceDisabled) {
+    addBtn.disabled = true;
+    removeBtn.disabled = true;
+    return;
+  }
+
+  const nextLetter = getNextBlockLetter();
+  addBtn.disabled = !nextLetter;
+  removeBtn.disabled = getBlockCount() === 0;
+}
+
+function updateBlockControls() {
+  if (!worldRef) return;
+
+  const countLabel = DOM.blockCountLabel();
+  const nextLabel = DOM.nextBlockLabel();
+
+  if (countLabel) {
+    countLabel.textContent = getBlockCount().toString().padStart(2, '0');
+  }
+
+  if (nextLabel) {
+    const nextLetter = getNextBlockLetter();
+    nextLabel.textContent = nextLetter || '--';
+  }
+
+  refreshStepperAvailability();
+}
+
+function handleBlockAddition() {
+  if (!worldRef || controlsDisabled) return;
+  const nextLetter = getNextBlockLetter();
+  if (!nextLetter) {
+    const maxBlocks = window.APP_CONFIG?.MAX_BLOCKS || 26;
+    showMessage(`Maximum number of blocks (${maxBlocks}) reached.`, 'warning');
+    refreshStepperAvailability();
+    return;
+  }
+
+  const added = worldRef.addBlock(nextLetter);
+  if (added) {
+    logAction(`Added block "${nextLetter}" to workspace`, 'user');
+  }
+
+  refreshStepperAvailability();
+}
+
+function handleBlockRemoval() {
+  if (!worldRef || controlsDisabled) return;
+  const targetBlock = getTopmostBlock();
+  if (!targetBlock) {
+    showMessage('No blocks to remove.', 'info');
+    refreshStepperAvailability();
+    return;
+  }
+
+  const removed = worldRef.removeBlock(targetBlock);
+  if (removed) {
+    logAction(`Removed block "${targetBlock}" from workspace`, 'user');
+  }
+
+  refreshStepperAvailability();
+}
 
 /**
  * Enable/disable control buttons and inputs
  * @param {boolean} disabled - Whether controls should be disabled
  */
 export function setControlsDisabled(disabled) {
-  DOM.addBlockBtn().disabled = disabled;
-  DOM.startBtn().disabled = disabled;
-  DOM.saveBtn().disabled = disabled;
-  DOM.loadBtn().disabled = disabled;
-  DOM.newBlockInput().disabled = disabled;
-  DOM.goalInput().disabled = disabled;
-}
+  controlsDisabled = disabled;
 
-/**
- * Add block button handler
- * @param {Object} world - World instance
- */
-export function handleAddBlock(world) {
-  const input = DOM.newBlockInput();
-  const name = input.value.trim().toUpperCase();
-  
-  if (!name) {
-    showMessage('Please enter a block name (single letter).', 'error');
-    return;
-  }
+  const toggle = (element) => {
+    if (element) element.disabled = disabled;
+  };
 
-  if (!/^[A-Z]$/.test(name)) {
-    showMessage('Block names must be a single letter (A-Z).', 'error');
-    return;
-  }
+  toggle(DOM.startBtn());
+  toggle(DOM.saveBtn());
+  toggle(DOM.loadBtn());
+  toggle(DOM.goalInput());
 
-  const MAX_BLOCKS = window.APP_CONFIG?.MAX_BLOCKS || 26;
-  if (world.getCurrentBlocks().length >= MAX_BLOCKS) {
-    showMessage(`Maximum number of blocks (${MAX_BLOCKS}) reached.`, 'error');
-    return;
-  }
-
-  if (world.getCurrentBlocks().includes(name)) {
-    showMessage(`Block "${name}" already exists.`, 'error');
-    return;
-  }
-
-  world.addBlock(name);
-  input.value = '';
-  input.focus();
-  
-  // Log user action
-  if (window._logAction) {
-    window._logAction(`Added block "${name}" to workspace`, 'user');
-  }
+  refreshStepperAvailability(disabled);
 }
 
 /**
@@ -96,19 +165,13 @@ export async function runSimulation(world) {
   setControlsDisabled(true);
   resetIntentionTimeline('Requesting plan from BDI agent...');
   startPlannerClock();
-  
+
   // Start stats tracking
-  if (typeof window._startStatsTimer === 'function') {
-    window._startStatsTimer();
-  }
-  if (typeof window._updateStats === 'function') {
-    window._updateStats(0, 'Planning...');
-  }
-  
+  startStatsTimer();
+  updateStats(0, 'Planning...');
+
   // Log simulation start
-  if (window._logAction) {
-    window._logAction(`Started planning for goal: ${goalTokens.join(' on ')}`, 'user');
-  }
+  logAction(`Started planning for goal: ${goalTokens.join(' on ')}`, 'user');
 
   try {
     const plannerResponse = await requestBDIPlan(
@@ -127,14 +190,10 @@ export async function runSimulation(world) {
       stopPlannerClock(true);
       
       // Update stats with failure status
-      if (typeof window._stopStatsTimer === 'function') {
-        window._stopStatsTimer();
-      }
-      if (typeof window._updateStats === 'function') {
-        const actualCycles = (plannerResponse.intentionLog || []).length;
-        window._updateStats(actualCycles, 'Failure');
-      }
-      
+      stopStatsTimer();
+      const actualCycles = (plannerResponse.intentionLog || []).length;
+      updateStats(actualCycles, 'Failure');
+
       setControlsDisabled(false);
       return;
     }
@@ -151,21 +210,15 @@ export async function runSimulation(world) {
       stopPlannerClock(true);
       
       // Update stats for already satisfied goal
-      if (typeof window._stopStatsTimer === 'function') {
-        window._stopStatsTimer();
-      }
-      if (typeof window._updateStats === 'function') {
-        window._updateStats(0, 'Success');
-      }
-      
+      stopStatsTimer();
+      updateStats(0, 'Success');
+
       setControlsDisabled(false);
       return;
     }
 
     // Update status to Running
-    if (typeof window._updateStats === 'function') {
-      window._updateStats(0, 'Running...');
-    }
+    updateStats(0, 'Running...');
     
     // Execute moves sequentially
     await executeMoves(world, moves);
@@ -179,17 +232,11 @@ export async function runSimulation(world) {
     showMessage(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)!`, 'success');
     
     // Update stats with success status
-    if (typeof window._stopStatsTimer === 'function') {
-      window._stopStatsTimer();
-    }
-    if (typeof window._updateStats === 'function') {
-      window._updateStats(actualCycles, 'Success');
-    }
+    stopStatsTimer();
+    updateStats(actualCycles, 'Success');
     
     // Log completion
-    if (window._logAction) {
-      window._logAction(`✓ Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)`, 'system');
-    }
+    logAction(`✓ Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)`, 'system');
     
     setControlsDisabled(false);
 
@@ -199,12 +246,8 @@ export async function runSimulation(world) {
     resetIntentionTimeline('Planner request failed.');
     
     // Update stats with unexpected error
-    if (typeof window._stopStatsTimer === 'function') {
-      window._stopStatsTimer();
-    }
-    if (typeof window._updateStats === 'function') {
-      window._updateStats(0, 'Unexpected (Error)');
-    }
+    stopStatsTimer();
+    updateStats(0, 'Unexpected (Error)');
     
     setControlsDisabled(false);
   }
@@ -256,34 +299,34 @@ async function executeMoves(world, moves) {
  * @param {Object} world - World instance
  */
 export function initializeHandlers(world) {
-  // Add block button
-  DOM.addBlockBtn().addEventListener('click', () => handleAddBlock(world));
-  
-  // New block input - Enter key
-  DOM.newBlockInput().addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAddBlock(world);
-    }
-  });
+  worldRef = world;
+  updateBlockControls();
 
-  // Start planner button
-  DOM.startBtn().addEventListener('click', () => runSimulation(world));
-  
-  // Goal input - Enter key
-  DOM.goalInput().addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      runSimulation(world);
-    }
-  });
+  const addBtn = DOM.addBlockBtn();
+  const removeBtn = DOM.removeBlockBtn();
+  if (addBtn) addBtn.addEventListener('click', handleBlockAddition);
+  if (removeBtn) removeBtn.addEventListener('click', handleBlockRemoval);
 
-  // Save world button
-  DOM.saveBtn().addEventListener('click', () => saveWorld(world));
+  const startBtn = DOM.startBtn();
+  if (startBtn) startBtn.addEventListener('click', () => runSimulation(world));
 
-  // Load world button
-  DOM.loadBtn().addEventListener('click', () => loadSelectedWorld(world));
+  const goalInput = DOM.goalInput();
+  if (goalInput) {
+    goalInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        runSimulation(world);
+      }
+    });
+  }
 
-  // Refresh world list on page load
+  const saveBtn = DOM.saveBtn();
+  if (saveBtn) saveBtn.addEventListener('click', () => saveWorld(world));
+
+  const loadBtn = DOM.loadBtn();
+  if (loadBtn) loadBtn.addEventListener('click', () => loadSelectedWorld(world));
+
+  document.addEventListener('world:blocks-changed', updateBlockControls);
+
   refreshLoadList();
 }

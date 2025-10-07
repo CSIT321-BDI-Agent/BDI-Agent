@@ -4,7 +4,7 @@
  * Handles communication with the backend BDI planner endpoint
  */
 
-import { DOM } from './constants.js';
+import { authenticatedFetch } from './auth.js';
 
 /**
  * Request a BDI plan from the backend
@@ -24,9 +24,8 @@ export async function requestBDIPlan(stacks, goalChain, options = {}) {
     }
   };
 
-  const response = await fetch(`${API_BASE}/plan`, {
+  const response = await authenticatedFetch(`${API_BASE}/plan`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
 
