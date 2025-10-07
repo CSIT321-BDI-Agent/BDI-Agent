@@ -216,6 +216,10 @@ export function rebuildWorldFrom(world, stacks, on) {
 
     // Update visual positions
     world.updatePositions();
+
+    if (typeof world.notifyBlocksChanged === 'function') {
+      world.notifyBlocksChanged();
+    }
     
   } catch (error) {
     // Rollback on error

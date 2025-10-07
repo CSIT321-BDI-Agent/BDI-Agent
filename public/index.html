@@ -166,16 +166,24 @@
           <h3>Control Panel</h3>
           <div class="card-body">
             <div class="controls-grid">
-              <div class="form-group">
-                <label for="blockName">Add block:</label>
-                <input type="text" id="blockName" placeholder="Block name (e.g. A)" />
-                <button id="addBlockBtn">Add Block</button>
+              <div class="control-card control-card--blocks">
+                <div class="control-card__header">
+                  <span class="control-card__title">Blocks</span>
+                  <span class="control-card__meta">Next: <span id="nextBlockLabel">A</span></span>
+                </div>
+                <div class="block-stepper">
+                  <button id="removeBlockBtn" type="button" class="control-round-btn" aria-label="Remove last block">−</button>
+                  <span class="block-stepper__count"><span id="blockCountLabel">0</span> active</span>
+                  <button id="addBlockBtn" type="button" class="control-round-btn" aria-label="Add next block">+</button>
+                </div>
               </div>
 
-              <div class="form-group">
-                <label for="goalInput">Goal stack:</label>
-                <input type="text" id="goalInput" placeholder="e.g. A on C on D" />
-                <button id="startBtn">Start Simulation</button>
+              <div class="control-card control-card--goal">
+                <label for="goalInput" class="control-card__title">Goal stack</label>
+                <div class="goal-row">
+                  <input type="text" id="goalInput" placeholder="e.g. A on C on D" />
+                  <button id="startBtn" type="button">Start Simulation</button>
+                </div>
               </div>
             </div>
 

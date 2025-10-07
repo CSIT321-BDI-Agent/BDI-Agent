@@ -1157,67 +1157,109 @@ select {
 
 .controls-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
 }
 
-.controls-grid .form-group {
-  justify-content: flex-start;
+.control-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
+  gap: 12px;
+}
+
+.control-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.control-card__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.control-card__meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.block-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.block-stepper__count {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.control-round-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 12px;
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin-top: 0;
+}
+
+.control-round-btn:disabled {
+  opacity: 0.5;
+}
+
+.goal-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.goal-row input {
+  width: 100%;
+}
+
+.goal-row button {
+  width: 100%;
+  margin-top: 0;
 }
 
 .inline-controls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-.inline-controls > * { flex: 0 0 auto; }
-
-.inline-controls button {
-  font-size: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  width: 100%;
 }
 
-.inline-controls select {
-  padding: 6px 8px;
-  font-size: 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  min-width: 120px;
-  max-width: 100%;
-}
-
-/* Tame saved-world select width within the inline-controls row */
-.inline-controls #loadSelect {
-  width: auto;
-  min-width: 180px;
-}
-
-/* Standardize control sizes inside the Control Panel */
-.controls-grid .form-group input,
-.controls-grid .form-group select,
-.controls-grid .form-group button,
 .inline-controls button,
 .inline-controls select {
+  width: 100%;
   height: var(--control-height);
   line-height: calc(var(--control-height) - 2px);
   font-size: 12px;
   border-radius: 6px;
+  margin-top: 0;
 }
 
-/* Consistent padding for inputs/selects and buttons */
-.controls-grid .form-group input,
-.controls-grid .form-group select,
 .inline-controls select {
   padding: 0 8px;
 }
 
-.controls-grid .form-group button,
-.inline-controls button {
-  padding: 0 10px;
+.inline-controls #loadSelect {
+  min-width: 0;
 }
 
 /* Cards and content */
@@ -1752,6 +1794,8 @@ select {
     height: 100vh;
     position: sticky;
     top: 0;
+    left: 0;
+    align-self: flex-start;
     width: var(--sidebar-width);
     padding: 0;
   }
@@ -1847,39 +1891,30 @@ select {
   }
   
   .controls-grid {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   }
-  
-  .controls-grid .form-group {
+
+  .block-stepper {
+    flex-wrap: nowrap;
+  }
+
+  .goal-row {
     flex-direction: row;
     align-items: center;
-    gap: 8px;
-    min-width: 0; /* allow group to shrink inside its grid column */
   }
-  
-  .form-group input {
-    width: auto;
-    min-width: 150px;
-  }
-  /* Override generic input sizing inside the controls grid to prevent overflow */
-  .controls-grid .form-group label { white-space: normal; }
-  .controls-grid .form-group input,
-  .controls-grid .form-group select {
-    min-width: 0;
-    max-width: 100%;
-    flex: 1 1 0;
-    width: 100%;
-  }
-  .controls-grid .form-group button { flex: 0 0 auto; white-space: nowrap; min-width: 140px; }
 
-  /* Align labels to a consistent width for neat columns */
-  .controls-grid .form-group label { min-width: 120px; }
-  
-  .inline-controls {
-    justify-content: flex-start;
-    gap: 8px;
+  .goal-row input {
+    flex: 1 1 auto;
   }
-  .inline-controls #loadSelect { flex: 1 1 220px; }
+
+  .goal-row button {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .inline-controls {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
 }
 
 /* Desktop styles (1024px and up) */
@@ -1912,7 +1947,7 @@ select {
   
   .app {
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-    gap: 22px;
+    gap: 0;
     padding: 0;
   }
   
@@ -1950,22 +1985,11 @@ select {
     max-height: 260px;
   }
   
-  .controls-grid .form-group {
-    justify-content: flex-start;
-  }
-  /* Keep control-panel inputs flexible at desktop and above */
-  .controls-grid .form-group input,
-  .controls-grid .form-group select {
-    min-width: 0;
-  }
-  /* Slightly taller controls on desktop for better hit targets */
-  .controls-grid .form-group input,
-  .controls-grid .form-group select,
-  .controls-grid .form-group button,
   .inline-controls button,
   .inline-controls select {
     height: var(--control-height-lg);
     line-height: calc(var(--control-height-lg) - 2px);
+    font-size: 14px;
   }
 }
 
