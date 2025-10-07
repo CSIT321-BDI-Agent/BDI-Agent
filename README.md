@@ -376,7 +376,7 @@ ADMIN_PASSWORD=admin123
 ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 ```
 
-When running under Docker, environment variables are provided via the compose files. Copy `.env.example` to `.env` in the project root to override the defaults used by both `docker-compose.yml` and `docker-compose.dev.yml`.
+When running under Docker, environment variables are provided via the compose files. Copy `.env.example` to `.env` in the project root to override the defaults used by both `docker-compose.yml` and `docker-compose.dev.yml`. For production runs you **must** define real values for `JWT_SECRET` and `ADMIN_PASSWORD`; the production compose file will refuse to start without them.
 
 ## Code Quality & Metrics
 

@@ -105,10 +105,10 @@ See `.env.example` for all available configuration options.
 - `MONGODB_URI` - MongoDB connection string
 - `JWT_SECRET` - Secret for JWT token signing (production)
 
-**Optional:**
+-**Optional:**
 - `PORT` - Server port (default: 3000)
 - `NODE_ENV` - Environment mode (development/production)
-- `ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` - Default admin credentials (for Docker Compose you can place these in the project root `.env` file)
+- `ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` - Default admin credentials (for Docker Compose you can place these in the project root `.env` file; note that `docker-compose.yml` requires `ADMIN_PASSWORD` to be provided)
 
 ## Architecture Notes
 
