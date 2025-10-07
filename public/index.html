@@ -110,11 +110,6 @@
     </aside>
 
     <main class="main">
-      <!-- Admin toolbar (admin-only, toggled by JS) -->
-      <div id="adminNav" style="display:none; margin: 10px 0 0 0;">
-        <button onclick="window.location.href='admin.html'">⚙️ Admin Dashboard</button>
-      </div>
-
       <section class="hero">
         <div class="hero-header">
           <h2 class="hero-title">Simulation</h2>
@@ -190,7 +185,6 @@
               <button id="saveBtn" type="button">Save</button>
               <select id="loadSelect" title="Saved worlds"></select>
               <button id="loadBtn" type="button">Load</button>
-              <span class="pill">BDI Planner</span>
             </div>
           </div>
         </section>
@@ -251,12 +245,6 @@
     // Expose logout globally for onclick handlers
     window.logout = authLogout;
     
-    // Update UI with user info when page loads
-    window.addEventListener('load', () => {
-      updateUIWithUserInfo({
-        adminNav: '#adminNav'
-      });
-    });
   </script>
   <script type="module" src="utils/main.js"></script>
   <script>
