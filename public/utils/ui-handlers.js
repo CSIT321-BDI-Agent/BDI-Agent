@@ -10,6 +10,8 @@ import { resetIntentionTimeline, renderIntentionTimeline, startPlannerClock, sto
 import { requestBDIPlan } from './planner.js';
 import { simulateMove } from './animation.js';
 import { saveWorld, loadSelectedWorld, refreshLoadList } from './persistence.js';
+import { startStatsTimer, stopStatsTimer, updateStats } from './stats.js';
+import { logAction } from './logger.js';
 
 /**
  * Enable/disable control buttons and inputs
@@ -58,9 +60,7 @@ export function handleAddBlock(world) {
   input.focus();
   
   // Log user action
-  if (window._logAction) {
-    window._logAction(`Added block "${name}" to workspace`, 'user');
-  }
+    logAction(`Added block "${name}" to workspace`, 'user');
 }
 
 /**
@@ -98,17 +98,11 @@ export async function runSimulation(world) {
   startPlannerClock();
   
   // Start stats tracking
-  if (typeof window._startStatsTimer === 'function') {
-    window._startStatsTimer();
-  }
-  if (typeof window._updateStats === 'function') {
-    window._updateStats(0, 'Planning...');
-  }
+    startStatsTimer();
+    updateStats(0, 'Planning...');
   
   // Log simulation start
-  if (window._logAction) {
-    window._logAction(`Started planning for goal: ${goalTokens.join(' on ')}`, 'user');
-  }
+    logAction(`Started planning for goal: ${goalTokens.join(' on ')}`, 'user');
 
   try {
     const plannerResponse = await requestBDIPlan(
@@ -127,13 +121,9 @@ export async function runSimulation(world) {
       stopPlannerClock(true);
       
       // Update stats with failure status
-      if (typeof window._stopStatsTimer === 'function') {
-        window._stopStatsTimer();
-      }
-      if (typeof window._updateStats === 'function') {
+        stopStatsTimer();
         const actualCycles = (plannerResponse.intentionLog || []).length;
-        window._updateStats(actualCycles, 'Failure');
-      }
+        updateStats(actualCycles, 'Failure');
       
       setControlsDisabled(false);
       return;
@@ -151,21 +141,15 @@ export async function runSimulation(world) {
       stopPlannerClock(true);
       
       // Update stats for already satisfied goal
-      if (typeof window._stopStatsTimer === 'function') {
-        window._stopStatsTimer();
-      }
-      if (typeof window._updateStats === 'function') {
-        window._updateStats(0, 'Success');
-      }
+        stopStatsTimer();
+        updateStats(0, 'Success');
       
       setControlsDisabled(false);
       return;
     }
 
     // Update status to Running
-    if (typeof window._updateStats === 'function') {
-      window._updateStats(0, 'Running...');
-    }
+      updateStats(0, 'Running...');
     
     // Execute moves sequentially
     await executeMoves(world, moves);
@@ -179,17 +163,11 @@ export async function runSimulation(world) {
     showMessage(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)!`, 'success');
     
     // Update stats with success status
-    if (typeof window._stopStatsTimer === 'function') {
-      window._stopStatsTimer();
-    }
-    if (typeof window._updateStats === 'function') {
-      window._updateStats(actualCycles, 'Success');
-    }
+      stopStatsTimer();
+      updateStats(actualCycles, 'Success');
     
     // Log completion
-    if (window._logAction) {
-      window._logAction(`✓ Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)`, 'system');
-    }
+    logAction(`✓ Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)`, 'system');
     
     setControlsDisabled(false);
 
@@ -199,12 +177,8 @@ export async function runSimulation(world) {
     resetIntentionTimeline('Planner request failed.');
     
     // Update stats with unexpected error
-    if (typeof window._stopStatsTimer === 'function') {
-      window._stopStatsTimer();
-    }
-    if (typeof window._updateStats === 'function') {
-      window._updateStats(0, 'Unexpected (Error)');
-    }
+      stopStatsTimer();
+      updateStats(0, 'Unexpected (Error)');
     
     setControlsDisabled(false);
   }

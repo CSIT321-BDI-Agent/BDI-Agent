@@ -9,6 +9,7 @@
 
 import { formatPlannerDuration, formatBeliefSnapshot } from './helpers.js';
 import { DOM } from './constants.js';
+import { incrementStep } from './stats.js';
 
 // Timeline state
 let intentionTimelineState = null;
@@ -222,9 +223,7 @@ export function markTimelineStep(step) {
   if (!step || !intentionTimelineState) return;
   
   // Increment step counter in stats
-  if (typeof window._incrementStep === 'function') {
-    window._incrementStep();
-  }
+  incrementStep();
   
   // Find the next pending cycle to mark as complete
   for (const cycleState of intentionTimelineState.cycles) {

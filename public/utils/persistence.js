@@ -7,6 +7,7 @@
 import { DOM } from './constants.js';
 import { showMessage, handleError } from './helpers.js';
 import { getCurrentUser } from './auth.js';
+import { logAction } from './logger.js';
 
 /**
  * Save current world to backend
@@ -48,9 +49,7 @@ export async function saveWorld(world) {
     showMessage(`World "${worldName.trim()}" saved successfully!`, 'success');
     
     // Log save action
-    if (window._logAction) {
-      window._logAction(`Saved world "${worldName.trim()}" (${world.getCurrentBlocks().length} blocks)`, 'user');
-    }
+    logAction(`Saved world "${worldName.trim()}" (${world.getCurrentBlocks().length} blocks)`, 'user');
     
     await refreshLoadList();
   } catch (error) {
@@ -95,10 +94,8 @@ export async function loadSelectedWorld(world) {
     showMessage(`World "${data.name}" loaded successfully!`, 'success');
     
     // Log load action
-    if (window._logAction) {
-      const blockCount = world.getCurrentBlocks().length;
-      window._logAction(`Loaded world "${data.name}" (${blockCount} blocks)`, 'user');
-    }
+    const blockCount = world.getCurrentBlocks().length;
+    logAction(`Loaded world "${data.name}" (${blockCount} blocks)`, 'user');
   } catch (error) {
     handleError(error, 'loading world');
   }

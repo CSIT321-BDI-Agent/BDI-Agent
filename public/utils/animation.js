@@ -9,6 +9,7 @@
 
 import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, CLAW_HEIGHT, CLAW_OFFSET, STACK_MARGIN, resetClawToHome } from './constants.js';
 import { handleError } from './helpers.js';
+import { logMove } from './logger.js';
 
 /**
  * Calculate the position of a block in the world
@@ -143,10 +144,8 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     }
     
     // Log complete move to Action Tower
-    if (typeof window._logMove === 'function') {
-      const destination = dest === 'Table' ? 'Table' : dest;
-      window._logMove(`Move ${blockName} → ${destination}`);
-    }
+    const destination = dest === 'Table' ? 'Table' : dest;
+    logMove(`Move ${blockName} → ${destination}`);
     
     callback();
     
