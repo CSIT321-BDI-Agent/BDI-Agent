@@ -18,7 +18,7 @@
   
   /* Color palette - Updated to new scheme */
   --teal: #4FD1C5;
-  --teal-light: rgba(79, 209, 197, 0.15);
+  --teal-light: #6DD9CF;
   --dark-grey: #2D3748;
   --light-grey: #A0AEC0;
   --white: #F8F9FA;
@@ -54,7 +54,7 @@
   
   /* Button colors */
   --btn-primary: #4FD1C5;
-  --btn-primary-hover: #4FD1C5;
+  --btn-primary-hover: #6DD9CF;
   --btn-disabled: #A0AEC0;
   
   /* Layout */
@@ -153,7 +153,7 @@ button {
 button:hover:not(:disabled) {
   background-color: var(--btn-primary-hover);
   box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 button:active:not(:disabled) {
@@ -837,7 +837,6 @@ select {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin: auto 20px 24px;
   padding: 10px 18px;
   border: 1px solid var(--border);
   background: var(--bg-secondary);
@@ -852,7 +851,7 @@ select {
 .sidebar__toggle:hover {
   background: var(--teal-light);
   border-color: var(--teal);
-  color: var(--teal);
+  color: var(--teal-light);
 }
 
 .sidebar__toggle-icon {
