@@ -65,7 +65,8 @@ export function initializeMobileNavigation() {
  */
 export function initializeSidebarNavigation({
   defaultRoute = 'dashboard',
-  storageKey = 'bdiSidebarCollapsed'
+  storageKey = 'bdiSidebarCollapsed',
+  activeRoute
 } = {}) {
   if (sidebarNavInitialized) return;
 
@@ -138,11 +139,21 @@ export function initializeSidebarNavigation({
     if (path.endsWith('index.html') || path === '/' || path === '') {
       return defaultRoute;
     }
+    if (path.endsWith('admin.html')) {
+      return 'admin';
+    }
     return null;
   };
 
   attachDisabledHandlers();
-  applyActiveRoute(resolveRouteFromPath());
+
+  const resolvedRoute = typeof activeRoute === 'string'
+    ? activeRoute
+    : resolveRouteFromPath();
+
+  if (resolvedRoute) {
+    applyActiveRoute(resolvedRoute);
+  }
 
   if (sidebar && toggleButton && appLayout) {
     restoreSidebarState();

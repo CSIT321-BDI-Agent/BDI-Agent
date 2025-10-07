@@ -42,6 +42,10 @@
         <span class="material-icons mobile-menu-icon" aria-hidden="true">dashboard</span>
         <span class="mobile-menu-label">Dashboard</span>
       </a>
+      <a class="mobile-menu-link admin-nav-link is-hidden" data-route="admin" href="admin.html" aria-label="Admin Dashboard">
+        <span class="material-icons mobile-menu-icon" aria-hidden="true">admin_panel_settings</span>
+        <span class="mobile-menu-label">Admin Dashboard</span>
+      </a>
       <a class="mobile-menu-link" data-route="agent-logs" data-disabled="true" href="#" title="Coming soon" aria-label="Agent Logs">
         <span class="material-icons mobile-menu-icon" aria-hidden="true">receipt_long</span>
         <span class="mobile-menu-label">Agent Logs</span>
@@ -78,6 +82,10 @@
           <a class="sidebar__link" data-route="dashboard" href="index.html" title="Dashboard" aria-label="Dashboard">
             <span class="material-icons sidebar__icon" aria-hidden="true">dashboard</span>
             <span class="sidebar__label">Dashboard</span>
+          </a>
+          <a class="sidebar__link admin-nav-link is-hidden" data-route="admin" href="admin.html" title="Admin Dashboard" aria-label="Admin Dashboard">
+            <span class="material-icons sidebar__icon" aria-hidden="true">admin_panel_settings</span>
+            <span class="sidebar__label">Admin Dashboard</span>
           </a>
           <a class="sidebar__link" data-route="agent-logs" data-disabled="true" href="#" title="Agent logs coming soon" aria-label="Agent Logs">
             <span class="material-icons sidebar__icon" aria-hidden="true">receipt_long</span>
@@ -185,14 +193,18 @@
                   <button id="startBtn" type="button">Start Simulation</button>
                 </div>
               </div>
-            </div>
 
-            <hr class="divider">
-
-            <div class="inline-controls">
-              <button id="saveBtn" type="button">Save</button>
-              <select id="loadSelect" title="Saved worlds"></select>
-              <button id="loadBtn" type="button">Load</button>
+              <div class="control-card control-card--actions">
+                <div class="control-card__header">
+                  <span class="control-card__title">Saved worlds</span>
+                  <span class="control-card__meta">Manage configurations</span>
+                </div>
+                <div class="control-actions">
+                  <button id="saveBtn" type="button">Save Current</button>
+                  <select id="loadSelect" title="Saved worlds"></select>
+                  <button id="loadBtn" type="button">Load Selected</button>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -255,7 +267,7 @@
     
     window.addEventListener('load', () => {
       updateUIWithUserInfo({
-        adminNav: '#adminNav'
+        adminNav: '.admin-nav-link'
       });
     });
   </script>

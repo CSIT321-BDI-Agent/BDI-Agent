@@ -266,7 +266,9 @@ export function updateUIWithUserInfo(selectors = {}) {
     if (selectors.adminNav) {
       const adminNavElems = document.querySelectorAll(selectors.adminNav);
       adminNavElems.forEach(elem => {
-        elem.style.display = 'block';
+        elem.classList.remove('is-hidden');
+        elem.removeAttribute('hidden');
+        elem.style.display = '';
       });
     }
     
