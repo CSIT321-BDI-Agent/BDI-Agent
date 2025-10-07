@@ -17,8 +17,11 @@
       <span aria-hidden="true"></span>
       <span aria-hidden="true"></span>
     </button>
-    <div class="mobile-brand" id="mobileBrand">BDI Blocks World</div>
-    <div></div> <!-- Spacer for centering brand -->
+    <div class="mobile-brand">
+      <img src="img/logo.svg" alt="BDI Blocks World logo" class="mobile-brand-logo" />
+      <span class="mobile-brand-text" id="mobileBrandText">BDI Blocks World</span>
+    </div>
+    <div class="mobile-header-spacer" aria-hidden="true"></div>
   </div>
 
   <!-- Mobile Overlay -->
@@ -27,78 +30,82 @@
   <!-- Mobile Menu -->
   <div class="mobile-menu" id="mobileMenu">
     <div class="mobile-menu-header">
-      <div class="brand" id="mobileMenuBrand">
-        <img src="img/logo.svg" alt="Logo" class="brand-logo" />
-        <span class="brand-text">BDI Blocks World</span>
+      <div class="mobile-menu-brand">
+        <img src="img/logo.svg" alt="BDI Blocks World logo" class="mobile-menu-brand-logo" />
+        <span class="mobile-menu-brand-text" id="mobileMenuBrandText">BDI Blocks World</span>
       </div>
       <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">&times;</button>
     </div>
-    
-    <div class="navsec">
-      <h6>Navigation</h6>
-      <nav class="nav">
-        <a href="index.html" class="active">
-          <span class="material-icons">dashboard</span>
-          <span class="nav-text">Dashboard</span>
-        </a>
-        <a href="#" onclick="alert('Agent Logs - Coming Soon'); return false;">
-          <span class="material-icons">description</span>
-          <span class="nav-text">Agent Logs</span>
-        </a>
-        <a href="#" onclick="alert('Import/Export - Coming Soon'); return false;">
-          <span class="material-icons">import_export</span>
-          <span class="nav-text">Import/Export</span>
-        </a>
-      </nav>
-    </div>
 
-    <div class="help">
-      <strong>Quick Help:</strong><br/>
-      • Drag blocks to move them<br/>
-      • Set goals like "on(A,B)"<br/>
-      • Run BDI to see planning in action<br/>
-      • Save/load different worlds
+    <nav class="mobile-menu-nav" aria-label="Primary">
+      <a class="mobile-menu-link" data-route="dashboard" href="index.html" aria-label="Dashboard">
+        <span class="material-icons mobile-menu-icon" aria-hidden="true">dashboard</span>
+        <span class="mobile-menu-label">Dashboard</span>
+      </a>
+      <a class="mobile-menu-link" data-route="agent-logs" data-disabled="true" href="#" title="Coming soon" aria-label="Agent Logs">
+        <span class="material-icons mobile-menu-icon" aria-hidden="true">receipt_long</span>
+        <span class="mobile-menu-label">Agent Logs</span>
+      </a>
+      <a class="mobile-menu-link" data-route="import-export" data-disabled="true" href="#" title="Coming soon" aria-label="Import/Export">
+        <span class="material-icons mobile-menu-icon" aria-hidden="true">import_export</span>
+        <span class="mobile-menu-label">Import/Export</span>
+      </a>
+    </nav>
+
+    <div class="mobile-menu-help">
+      <div class="mobile-menu-help-header">
+        <span class="material-icons" aria-hidden="true">help_outline</span>
+        <strong>Quick Help</strong>
+      </div>
+      <ul class="mobile-menu-help-list">
+        <li>Drag blocks to move them</li>
+        <li>Set goals like "on(A,B)"</li>
+        <li>Run BDI to see planning in action</li>
+        <li>Save or load different worlds</li>
+      </ul>
     </div>
   </div>
 
   <div class="app">
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-content">
-        <div class="brand" id="sidebarBrand">
-          <img src="img/logo.svg" alt="Logo" class="brand-logo" />
-          <span class="brand-text">BDI Blocks World</span>
+    <aside class="sidebar" id="sidebar" data-collapsed="false">
+      <div class="sidebar__inner">
+        <div class="sidebar__header">
+          <img src="img/logo.svg" alt="BDI Blocks World logo" class="sidebar__logo" />
+          <span class="sidebar__title" id="sidebarTitle">BDI Blocks World</span>
         </div>
 
-        <div class="navsec">
-          <h6>Navigation</h6>
-          <nav class="nav">
-            <a href="index.html" class="active">
-              <span class="material-icons">dashboard</span>
-              <span class="nav-text">Dashboard</span>
-            </a>
-            <a href="#" onclick="alert('Agent Logs - Coming Soon'); return false;">
-              <span class="material-icons">description</span>
-              <span class="nav-text">Agent Logs</span>
-            </a>
-            <a href="#" onclick="alert('Import/Export - Coming Soon'); return false;">
-              <span class="material-icons">import_export</span>
-              <span class="nav-text">Import/Export</span>
-            </a>
-          </nav>
-        </div>
+        <nav class="sidebar__nav" aria-label="Primary">
+          <a class="sidebar__link" data-route="dashboard" href="index.html" title="Dashboard" aria-label="Dashboard">
+            <span class="material-icons sidebar__icon" aria-hidden="true">dashboard</span>
+            <span class="sidebar__label">Dashboard</span>
+          </a>
+          <a class="sidebar__link" data-route="agent-logs" data-disabled="true" href="#" title="Agent logs coming soon" aria-label="Agent Logs">
+            <span class="material-icons sidebar__icon" aria-hidden="true">receipt_long</span>
+            <span class="sidebar__label">Agent Logs</span>
+          </a>
+          <a class="sidebar__link" data-route="import-export" data-disabled="true" href="#" title="Import/export coming soon" aria-label="Import/Export">
+            <span class="material-icons sidebar__icon" aria-hidden="true">import_export</span>
+            <span class="sidebar__label">Import/Export</span>
+          </a>
+        </nav>
 
-        <div class="help">
-          <strong>Quick Help:</strong><br/>
-          • Drag blocks to move them<br/>
-          • Set goals like "on(A,B)"<br/>
-          • Run BDI to see planning in action<br/>
-          • Save/load different worlds
+        <div class="sidebar__help">
+          <span class="material-icons sidebar__help-icon" aria-hidden="true">help_outline</span>
+          <div class="sidebar__help-content">
+            <strong class="sidebar__help-title">Quick Help</strong>
+            <ul class="sidebar__help-list">
+              <li>Drag blocks to move them</li>
+              <li>Set goals like "on(A,B)"</li>
+              <li>Run BDI to see planning in action</li>
+              <li>Save or load different worlds</li>
+            </ul>
+          </div>
         </div>
       </div>
-      
-      <button class="sidebar-toggle" id="sidebarToggle" aria-expanded="true" aria-label="Collapse sidebar">
-        <span class="material-icons" aria-hidden="true">chevron_left</span>
-        <span class="sidebar-toggle-label">Collapse</span>
+
+      <button class="sidebar__toggle" id="sidebarToggle" type="button" aria-label="Collapse navigation" aria-expanded="true">
+        <span class="material-icons sidebar__toggle-icon" id="sidebarToggleIcon" aria-hidden="true">chevron_left</span>
+        <span class="sidebar__toggle-text">Collapse</span>
       </button>
     </aside>
 
@@ -247,9 +254,7 @@
     // Update UI with user info when page loads
     window.addEventListener('load', () => {
       updateUIWithUserInfo({
-        username: '.user-mini .pill',
-        adminNav: '#adminNav',
-        adminLinks: '#adminLinkDesktop, #adminLinkMobile'
+        adminNav: '#adminNav'
       });
     });
   </script>
@@ -346,13 +351,13 @@
 
       window.addEventListener('load', () => {
         // Set brand names from config
-        const appName = window.APP_CONFIG?.APP_NAME || 'BDI Blocks World';
-        const mobileBrand = document.getElementById('mobileBrand');
-        const mobileMenuBrand = document.getElementById('mobileMenuBrand');
-        const sidebarBrand = document.getElementById('sidebarBrand');
-        if (mobileBrand) mobileBrand.textContent = appName;
-        if (mobileMenuBrand) mobileMenuBrand.textContent = appName;
-        if (sidebarBrand) sidebarBrand.textContent = appName;
+  const appName = window.APP_CONFIG?.APP_NAME || 'BDI Blocks World';
+  const mobileBrand = document.getElementById('mobileBrandText');
+  const mobileMenuBrand = document.getElementById('mobileMenuBrandText');
+  const sidebarBrand = document.getElementById('sidebarTitle');
+  if (mobileBrand) mobileBrand.textContent = appName;
+  if (mobileMenuBrand) mobileMenuBrand.textContent = appName;
+  if (sidebarBrand) sidebarBrand.textContent = appName;
 
         refreshLoadList();
       });
@@ -411,6 +416,9 @@
         mobileMenu.classList.add('active');
         mobileOverlay.classList.add('active');
         mobileMenuToggle.classList.add('active');
+        if (mobileMenuToggle) {
+          mobileMenuToggle.setAttribute('aria-expanded', 'true');
+        }
         document.body.style.overflow = 'hidden';
       }
 
@@ -418,6 +426,9 @@
         mobileMenu.classList.remove('active');
         mobileOverlay.classList.remove('active');
         mobileMenuToggle.classList.remove('active');
+        if (mobileMenuToggle) {
+          mobileMenuToggle.setAttribute('aria-expanded', 'false');
+        }
         document.body.style.overflow = '';
       }
 
@@ -425,7 +436,7 @@
       mobileMenuClose?.addEventListener('click', closeMobileMenu);
       mobileOverlay?.addEventListener('click', closeMobileMenu);
 
-      const mobileNavLinks = mobileMenu?.querySelectorAll('.nav a');
+      const mobileNavLinks = mobileMenu?.querySelectorAll('.mobile-menu-link');
       mobileNavLinks?.forEach(link => {
         link.addEventListener('click', () => setTimeout(closeMobileMenu, 100));
       });
@@ -437,6 +448,93 @@
       window.addEventListener('resize', () => {
         if (window.innerWidth >= 768 && mobileMenu.classList.contains('active')) closeMobileMenu();
       });
+    })();
+
+    // Sidebar toggle & navigation state
+    (function() {
+      const sidebar = document.getElementById('sidebar');
+      const app = document.querySelector('.app');
+      const toggleButton = document.getElementById('sidebarToggle');
+      const toggleIcon = document.getElementById('sidebarToggleIcon');
+      const toggleText = toggleButton?.querySelector('.sidebar__toggle-text');
+      const storageKey = 'bdiSidebarCollapsed';
+
+      const navLinks = document.querySelectorAll('[data-route]');
+
+      const resolveRouteFromPath = () => {
+        const path = window.location.pathname;
+        if (path.endsWith('index.html') || path === '/' || path === '') {
+          return 'dashboard';
+        }
+        return null;
+      };
+
+      const applyActiveRoute = (route) => {
+        navLinks.forEach(link => {
+          const isActive = route !== null && link.dataset.route === route;
+          link.classList.toggle('is-active', isActive);
+          if (isActive) {
+            link.setAttribute('aria-current', 'page');
+          } else {
+            link.removeAttribute('aria-current');
+          }
+        });
+      };
+
+      const attachDisabledHandlers = () => {
+        navLinks.forEach(link => {
+          if (link.dataset.disabled === 'true') {
+            link.classList.add('is-disabled');
+            link.setAttribute('aria-disabled', 'true');
+            link.addEventListener('click', (event) => event.preventDefault());
+          }
+        });
+      };
+
+      const applySidebarState = (collapsed) => {
+        if (!sidebar || !app || !toggleButton) return;
+        const isCollapsed = Boolean(collapsed);
+        sidebar.setAttribute('data-collapsed', isCollapsed ? 'true' : 'false');
+        app.classList.toggle('sidebar-collapsed', isCollapsed);
+        toggleButton.setAttribute('aria-expanded', (!isCollapsed).toString());
+        if (toggleIcon) toggleIcon.textContent = isCollapsed ? 'chevron_right' : 'chevron_left';
+        if (toggleText) toggleText.textContent = isCollapsed ? 'Expand' : 'Collapse';
+      };
+
+      const restoreSidebarState = () => {
+        if (!sidebar || !toggleButton || !window.localStorage) return;
+        const saved = window.localStorage.getItem(storageKey);
+        const collapsed = saved === 'true';
+        applySidebarState(collapsed);
+      };
+
+      const handleToggleClick = () => {
+        if (!sidebar || !toggleButton || !window.localStorage) return;
+        const currentlyCollapsed = sidebar.getAttribute('data-collapsed') === 'true';
+        const nextState = !currentlyCollapsed;
+        applySidebarState(nextState);
+        window.localStorage.setItem(storageKey, nextState ? 'true' : 'false');
+      };
+
+      const handleResize = () => {
+        if (!sidebar || !toggleButton || !window.localStorage) return;
+        if (window.innerWidth < 768) {
+          applySidebarState(false);
+          window.localStorage.removeItem(storageKey);
+        } else {
+          restoreSidebarState();
+        }
+      };
+
+      attachDisabledHandlers();
+      applyActiveRoute(resolveRouteFromPath());
+
+      if (sidebar && app && toggleButton) {
+        restoreSidebarState();
+        toggleButton.addEventListener('click', handleToggleClick);
+        window.addEventListener('resize', handleResize);
+        handleResize();
+      }
     })();
 
     // Profile Dropdown Functionality
