@@ -18,7 +18,7 @@
   
   /* Color palette - Updated to new scheme */
   --teal: #4FD1C5;
-  --teal-light: #6DD9CF;
+  --teal-light: #CEF2EF;
   --dark-grey: #2D3748;
   --light-grey: #A0AEC0;
   --white: #F8F9FA;
@@ -575,9 +575,8 @@ select {
 
 .sidebar {
   display: none;
-  position: relative;
+  position: sticky !important;
   transition: width 0.3s ease;
-  overflow: hidden;
   background: var(--card);
   border-right: 1px solid var(--border);
 }
@@ -601,8 +600,7 @@ select {
 }
 
 /* Allow grid children to shrink and not force overflow */
-.main, .sidebar { min-width: 0; }
-.card { min-width: 0; }
+.main, .sidebar, .card { min-width: 0; }
 
 .brand {
   font-weight: 800;
@@ -705,7 +703,7 @@ select {
   gap: 24px;
   height: 100%;
   padding: 24px 20px 16px;
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 .sidebar__header {
@@ -721,10 +719,14 @@ select {
 }
 
 .sidebar__title {
+  display: block;
   font-size: 18px;
   font-weight: 700;
   color: var(--text-dark);
   white-space: nowrap;
+  overflow: hidden;
+  max-width: 200px;
+  transition: opacity 0.3s ease, max-width 0.3s ease;
 }
 
 .sidebar__nav {
@@ -742,12 +744,15 @@ select {
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, gap 0.3s ease, padding 0.3s ease;
 }
 
 .sidebar__label {
+  display: inline-block;
   white-space: nowrap;
-  transition: opacity 0.2s ease;
+  overflow: hidden;
+  max-width: 180px;
+  transition: opacity 0.3s ease, max-width 0.3s ease, margin 0.3s ease;
 }
 
 .sidebar__icon {
@@ -788,6 +793,7 @@ select {
   border: 1px solid var(--teal);
   background: var(--teal-light);
   color: var(--text);
+  transition: background 0.3s ease, border 0.3s ease, padding 0.3s ease, gap 0.3s ease;
 }
 
 .sidebar__help-icon {
@@ -800,6 +806,9 @@ select {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 320px;
+  overflow: hidden;
+  transition: opacity 0.3s ease, max-height 0.35s ease, margin 0.3s ease;
 }
 
 .sidebar__help-title {
@@ -860,14 +869,27 @@ select {
 }
 
 .sidebar__toggle-text {
+  display: inline-block;
   white-space: nowrap;
+  overflow: hidden;
+  max-width: 120px;
+  transition: opacity 0.3s ease, max-width 0.3s ease, margin 0.3s ease;
 }
 
 .sidebar[data-collapsed="true"] .sidebar__title,
 .sidebar[data-collapsed="true"] .sidebar__label,
-.sidebar[data-collapsed="true"] .sidebar__help-content,
 .sidebar[data-collapsed="true"] .sidebar__toggle-text {
-  display: none;
+  opacity: 0;
+  max-width: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.sidebar[data-collapsed="true"] .sidebar__help-content {
+  opacity: 0;
+  max-height: 0;
+  margin: 0;
+  pointer-events: none;
 }
 
 .sidebar[data-collapsed="true"] .sidebar__inner {
@@ -876,11 +898,13 @@ select {
 
 .sidebar[data-collapsed="true"] .sidebar__header {
   justify-content: center;
+  gap: 0;
 }
 
 .sidebar[data-collapsed="true"] .sidebar__link {
   justify-content: center;
   padding: 12px 0;
+  gap: 0;
 }
 
 .sidebar[data-collapsed="true"] .sidebar__nav {
@@ -889,9 +913,11 @@ select {
 
 .sidebar[data-collapsed="true"] .sidebar__help {
   justify-content: center;
-  padding: 12px;
+  padding: 12px 0;
   background: transparent;
   border: none;
+  gap: 0;
+  align-items: center;
 }
 
 .sidebar[data-collapsed="true"] .sidebar__toggle-icon {
@@ -1431,6 +1457,7 @@ select {
   background: var(--bg-dark);
   color: var(--teal);
   border: 1px solid var(--dark-grey);
+  border-radius: 15px;
   min-width: 64px;
   text-align: center;
   font-variant-numeric: tabular-nums;
