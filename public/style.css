@@ -22,6 +22,7 @@
   --dark-grey: #2D3748;
   --light-grey: #A0AEC0;
   --white: #F8F9FA;
+  --orange: #F46036;
   --icon-inactive: rgba(79, 209, 197, 0.4);
   
   /* Neutral colors */
@@ -1016,9 +1017,11 @@ select {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--white);
+  background: var(--card);
   color: var(--text);
-  border: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
   padding: 8px 16px;
   cursor: pointer;
   font-size: 14px;
@@ -1032,6 +1035,10 @@ select {
 .profile-btn:hover {
   background: var(--white) !important;
   transform: translateY(0px) !important;
+}
+
+.profile-btn:hover .profile-arrow {
+  transform: rotate(180deg);
 }
 
 .profile-icon {
@@ -1054,12 +1061,18 @@ select {
   transform: rotate(180deg);
 }
 
+.profile-menu:hover .profile-arrow {
+  transform: rotate(180deg);
+}
+
 /* Connected rectangle dropdown - opens on hover (desktop) or click (mobile) */
 .profile-menu {
   position: absolute;
   top: 100%;
   background: var(--card);
-  border: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow);
   width: 130px;
   max-height: 0;
@@ -1098,13 +1111,14 @@ select {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 8px 16px;
   color: var(--text);
   text-decoration: none;
   transition: all 0.2s ease;
   font-size: 14px;
   font-weight: 500;
-  border-bottom: 1px solid var(--border);
+  /* border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border); */
   background: var(--card);
 }
 
