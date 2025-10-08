@@ -35,7 +35,7 @@
         <button type="submit" class="mt-6 w-full rounded-2xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">Sign In</button>
       </form>
 
-      <div id="messages" class="messages mt-4"></div>
+      <div id="messages" class="messages hidden"></div>
 
       <div class="auth-footer mt-6 text-center text-sm text-slate-600">
         Don't have an account?
@@ -60,7 +60,7 @@
 
     function setMessage(text = '', type = 'info') {
       if (!messages) return;
-      const BASE = 'messages mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-medium transition-all duration-200';
+      const BASE = 'messages block mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-medium transition-all duration-200';
       const TYPE_MAP = {
         info: `${BASE} border-brand-primary/30 bg-brand-primary/10 text-brand-dark`,
         success: `${BASE} border-green-300 bg-green-50 text-green-700`,

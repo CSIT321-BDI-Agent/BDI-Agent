@@ -23,7 +23,7 @@ export function randomColour() {
 export function showMessage(text, type = 'info') {
   const messagesElem = document.getElementById('messages');
   if (messagesElem) {
-    const BASE = 'messages mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-medium transition-all duration-200';
+    const BASE = 'messages block mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-medium transition-all duration-200';
     const TYPE_MAP = {
       info: `${BASE} border-brand-primary/30 bg-brand-primary/10 text-brand-dark`,
       success: `${BASE} border-green-300 bg-green-50 text-green-700`,

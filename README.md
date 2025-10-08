@@ -193,7 +193,8 @@ BDI-Agent/
 │   ├── admin.html            # Admin user management panel (79 lines)
 │   ├── debug.html            # Debug utilities (174 lines)
 │   ├── tailwind.css          # Tailwind source (replaces legacy style.css)
-│   ├── script.js.backup      # Legacy monolithic script (backup)
+│   ├── assets/
+│   │   └── app.css           # Generated Tailwind bundle
 │   ├── utils/                # Modular JavaScript (ES6 modules)
 │   │   ├── main.js           # Entry point (30 lines)
 │   │   ├── auth.js           # Authentication utilities (284 lines)

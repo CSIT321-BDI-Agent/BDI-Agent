@@ -75,11 +75,11 @@
     @apply bg-white/10 text-white;
   }
 
-  .block {
+  .world-block {
     @apply absolute flex h-[30px] w-[80px] items-center justify-center rounded-md border border-white/40 text-sm font-semibold text-white shadow-sm transition-[left,top] duration-500 ease-out;
   }
 
-  .block.moving {
+  .world-block.moving {
     @apply ring-2 ring-brand-primary/50 shadow-[0_0_12px_rgba(79,209,197,0.45)] scale-[1.02];
   }
 }

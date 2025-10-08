@@ -181,7 +181,7 @@ export function rebuildWorldFrom(world, stacks, on) {
     };
 
     // Clear DOM elements
-    const blockElements = Array.from(DOM.world().querySelectorAll('.block'));
+    const blockElements = Array.from(DOM.world().querySelectorAll('.world-block'));
     blockElements.forEach(elem => elem.remove());
 
     // Reset world state
