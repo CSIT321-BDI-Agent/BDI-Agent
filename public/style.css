@@ -845,7 +845,6 @@ select {
   display: none;
   align-items: center;
   justify-content: center;
-  gap: 10px;
   padding: 10px 18px;
   border: 1px solid var(--border);
   background: var(--bg-secondary);
@@ -860,7 +859,7 @@ select {
 .sidebar__toggle:hover {
   background: var(--teal-light);
   border-color: var(--teal);
-  color: var(--teal-light);
+  color: var(--white);
 }
 
 .sidebar__toggle-icon {
@@ -1031,8 +1030,8 @@ select {
 }
 
 .profile-btn:hover {
-  background: var(--light-grey);
-  box-shadow: var(--shadow-hover);
+  background: var(--white) !important;
+  transform: translateY(0px) !important;
 }
 
 .profile-icon {
@@ -1468,7 +1467,7 @@ select {
   overflow-x: auto;
   background-color: var(--bg);
   padding: 8px;
-  height: calc(var(--world-height) + 40px);
+  height: calc(var(--world-height) + 120px);
   border: 1px solid var(--border);
   margin: 0 auto;
   max-width: 100%;
