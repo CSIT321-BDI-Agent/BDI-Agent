@@ -79,6 +79,7 @@ export function initializeSidebarNavigation({
   const toggleIcon = document.getElementById('sidebarToggleIcon');
   const toggleText = toggleButton?.querySelector('.sidebar__toggle-text');
   const appLayout = document.querySelector('.app');
+  const mainContent = document.querySelector('main');
   const navLinks = document.querySelectorAll('[data-route]');
   const collapsibleTexts = sidebar?.querySelectorAll('[data-sidebar-collapsible="text"]') ?? [];
   const collapsibleExpanded = sidebar?.querySelectorAll('[data-sidebar-collapsible="expanded"]') ?? [];
@@ -124,7 +125,7 @@ export function initializeSidebarNavigation({
   };
 
   const applySidebarState = (collapsed) => {
-    if (!sidebar || !toggleButton || !appLayout) return;
+    if (!sidebar || !toggleButton || !appLayout || !mainContent) return;
     const isCollapsed = Boolean(collapsed);
     sidebar.setAttribute('data-collapsed', isCollapsed ? 'true' : 'false');
     sidebar.classList.toggle('md:w-72', !isCollapsed);
@@ -137,6 +138,8 @@ export function initializeSidebarNavigation({
     collapsibleExpanded.forEach(elem => {
       elem.classList.toggle('md:hidden', isCollapsed);
     });
+    mainContent.classList.toggle('md:ml-72', !isCollapsed);
+    mainContent.classList.toggle('md:ml-24', isCollapsed);
     appLayout.classList.toggle('sidebar-collapsed', isCollapsed);
     toggleButton.setAttribute('aria-expanded', (!isCollapsed).toString());
     if (toggleIcon) toggleIcon.textContent = isCollapsed ? 'chevron_right' : 'chevron_left';
@@ -158,10 +161,11 @@ export function initializeSidebarNavigation({
   };
 
   const handleResize = () => {
-    if (!sidebar || !toggleButton || !window.localStorage) return;
+    if (!sidebar || !toggleButton || !window.localStorage || !mainContent) return;
     if (window.innerWidth < 768) {
       applySidebarState(false);
       window.localStorage.removeItem(storageKey);
+      mainContent.classList.remove('md:ml-72', 'md:ml-24');
     } else {
       restoreSidebarState();
     }
