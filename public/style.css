@@ -66,7 +66,7 @@
   --sidebar-width-collapsed: 84px;
   
   /* Control sizing */
-  --control-height: 28px;
+  --control-height: 32px;
   --control-height-lg: 32px;
 }
 
@@ -577,6 +577,7 @@ select {
 .sidebar {
   display: none;
   position: sticky !important;
+  height: 100% !important;
   transition: width 0.3s ease;
   background: var(--card);
   border-right: 1px solid var(--border);
@@ -788,7 +789,7 @@ select {
 
 .sidebar__help {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   padding: 18px 16px;
   border: 1px solid var(--teal);
@@ -888,6 +889,9 @@ select {
 .sidebar[data-collapsed="true"] .sidebar__help-content {
   opacity: 0;
   max-height: 0;
+  max-width: 0;
+  width: 0;
+  flex: 0 0 auto;
   margin: 0;
   pointer-events: none;
 }
@@ -1196,6 +1200,7 @@ select {
 
 .control-card__meta {
   font-size: 12px;
+  font-weight: 400;
   color: var(--muted);
 }
 
@@ -1214,10 +1219,9 @@ select {
 }
 
 .control-round-btn {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  font-size: 26px;
+  width: 37px;
+  height: 37px;
+  font-size: 14px;
   line-height: 1;
   font-weight: 600;
   display: flex;
@@ -1265,17 +1269,20 @@ select {
 }
 
 .control-actions {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  align-items: center;
   gap: 8px;
+  flex-wrap: nowrap;
 }
 
-.control-actions button,
-.control-actions select {
-  width: 100%;
+.control-actions button {
+  width: auto;
+  flex: 0 0 auto;
 }
 
 .control-actions select {
+  flex: 1 1 auto;
+  min-width: 160px;
   height: var(--control-height);
   line-height: calc(var(--control-height) - 2px);
   font-size: 12px;
@@ -1549,7 +1556,7 @@ select {
 #loadSelect {
   width: 100%;
   max-width: 100%;
-  font-size: 14px;
+  font-size: 12px;
   padding: 8px;
   border: 1px solid var(--border-input);
   background: var(--card);
@@ -1941,12 +1948,12 @@ select {
   input[type="email"], 
   input[type="password"] {
     min-width: 250px;
-    font-size: 18px;
+    font-size: 12px;
     padding: 12px 16px;
   }
   
   button {
-    font-size: 18px;
+    font-size: 12px;
     padding: 12px 20px;
   }
   
@@ -2063,7 +2070,7 @@ select {
   
   button {
     padding: 8px 16px;
-    font-size: 14px;
+    font-size: 12px;
   }
   
   .messages {
