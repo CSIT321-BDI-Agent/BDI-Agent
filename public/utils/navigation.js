@@ -128,6 +128,7 @@ export function initializeSidebarNavigation({
     if (!sidebar || !toggleButton || !appLayout || !mainContent) return;
     const isCollapsed = Boolean(collapsed);
     sidebar.setAttribute('data-collapsed', isCollapsed ? 'true' : 'false');
+  sidebar.classList.toggle('is-collapsed', isCollapsed);
     sidebar.classList.toggle('md:w-72', !isCollapsed);
     sidebar.classList.toggle('md:w-24', isCollapsed);
     sidebar.classList.toggle('md:px-6', !isCollapsed);

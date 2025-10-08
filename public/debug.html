@@ -10,11 +10,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/app.css" />
 </head>
-<body class="min-h-screen bg-brand-surface text-brand-dark">
+<body class="min-h-screen bg-brand-light text-brand-dark">
   <main class="flex min-h-screen items-center justify-center px-4 py-12">
-    <section class="w-full max-w-3xl rounded-3xl border border-slate-200/70 bg-white/95 p-8 shadow-card backdrop-blur">
+  <section class="w-full max-w-3xl border border-slate-200/70 bg-white/95 p-8 shadow-card backdrop-blur">
       <div class="mb-6 text-center">
-        <span class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+  <span class="inline-flex h-12 w-12 items-center justify-center bg-brand-primary/10 text-brand-primary">
           <img src="img/logo.svg" alt="BDI Blocks World logo" class="h-8 w-8" />
         </span>
         <h1 id="debugHeader" class="mt-4 text-3xl font-semibold text-brand-dark">Debug Page</h1>
@@ -22,24 +22,24 @@
       </div>
 
       <div class="debug-buttons grid gap-3 sm:grid-cols-2">
-        <button onclick="testUserSignup()" class="rounded-2xl border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+  <button onclick="testUserSignup()" class="border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
           Test User Signup
         </button>
-        <button onclick="testUserLogin()" class="rounded-2xl border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+  <button onclick="testUserLogin()" class="border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
           Test User Login
         </button>
-        <button onclick="testWorldSave()" class="rounded-2xl border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+  <button onclick="testWorldSave()" class="border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
           Test World Save
         </button>
-        <button onclick="testWorldLoad()" class="rounded-2xl border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+  <button onclick="testWorldLoad()" class="border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
           Test World Load
         </button>
-        <button onclick="checkLocalStorage()" class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+  <button onclick="checkLocalStorage()" class="border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
           Check LocalStorage
         </button>
       </div>
 
-      <div id="output" class="debug-output mt-6 max-h-80 overflow-y-auto rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 text-sm text-slate-700 shadow-inner"></div>
+  <div id="output" class="debug-output mt-6 max-h-80 overflow-y-auto border border-slate-200/70 bg-slate-50/80 p-4 text-sm text-slate-700 shadow-inner"></div>
     </section>
   </main>
 
@@ -57,7 +57,7 @@
 
     function log(message) {
       console.log(message);
-      output.innerHTML += `<p class="mb-2 rounded-xl bg-white/80 px-3 py-2">${message}</p>`;
+  output.innerHTML += `<p class="mb-2 bg-white/80 px-3 py-2">${message}</p>`;
       output.scrollTop = output.scrollHeight;
     }
 

@@ -8,7 +8,7 @@ import { DOM } from './constants.js';
 import { incrementStep } from './stats.js';
 import { formatPlannerDuration } from './helpers.js';
 
-const ENTRY_BASE_CLASS = 'rounded-xl border border-slate-200 bg-white/95 p-4 shadow-card transition-all duration-200';
+const ENTRY_BASE_CLASS = 'border border-slate-200 bg-white/95 p-4 shadow-card transition-all duration-200';
 const ENTRY_ACTIVE_CLASSES = ['border-brand-primary', 'ring-2', 'ring-brand-primary/40'];
 const ENTRY_COMPLETED_CLASSES = ['border-green-300', 'bg-green-50'];
 const ENTRY_NO_ACTION_CLASSES = ['border-dashed', 'border-slate-300', 'bg-slate-100'];
@@ -19,7 +19,7 @@ const MOVE_DONE_CLASSES = ['border-brand-primary', 'text-brand-dark', 'font-semi
 const MOVE_SKIP_CLASSES = ['border-slate-300', 'text-slate-400', 'italic'];
 const MOVE_INFO_CLASSES = ['text-slate-400'];
 
-const TIMELINE_EMPTY_CLASS = 'rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs font-medium text-slate-500';
+const TIMELINE_EMPTY_CLASS = 'border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs font-medium text-slate-500';
 
 // Timeline state
 let intentionTimelineState = null;
@@ -144,7 +144,7 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
     title.textContent = `Cycle ${idx + 1}`;
 
     const time = document.createElement('span');
-    time.className = 'text-xs font-mono text-brand-muted';
+    time.className = 'text-xs font-mono text-brand-dark/60';
     time.textContent = '--:--';
 
     header.appendChild(title);

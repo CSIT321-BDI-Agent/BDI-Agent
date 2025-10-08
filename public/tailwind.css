@@ -8,7 +8,7 @@
   }
 
   body {
-    @apply bg-brand-surface text-brand-dark font-sans antialiased;
+    @apply bg-brand-light text-brand-dark font-sans antialiased;
   }
 
   h1,
@@ -32,6 +32,14 @@
 
   .profile-menu.active {
     @apply block scale-100 opacity-100 pointer-events-auto;
+  }
+
+  .card {
+    @apply rounded-none;
+  }
+
+  .btn {
+    @apply rounded-none;
   }
 
   .mobile-overlay {
@@ -73,6 +81,22 @@
 
   .mobile-menu-link.is-active {
     @apply bg-white/10 text-white;
+  }
+
+  .sidebar.is-collapsed .sidebar__header {
+    @apply justify-center;
+  }
+
+  .sidebar.is-collapsed .sidebar__link {
+    @apply justify-center gap-0 px-2;
+  }
+
+  .sidebar.is-collapsed .sidebar__link .material-icons {
+    @apply mx-auto;
+  }
+
+  .sidebar.is-collapsed .sidebar__toggle {
+    @apply justify-center;
   }
 
   .world-block {

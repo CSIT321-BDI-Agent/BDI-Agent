@@ -8,20 +8,9 @@ module.exports = {
       colors: {
         brand: {
           primary: "#4FD1C5",
-          primaryHover: "#6DD9CF",
           accent: "#F46036",
           dark: "#2D3748",
-          light: "#F8F9FA",
-          muted: "#A0AEC0",
-          surface: "#f5f7fa"
-        },
-        status: {
-          error: "#d32f2f",
-          errorBg: "#ffe6e6",
-          success: "#2e7d32",
-          successBg: "#e8f5e8",
-          info: "#1976d2",
-          infoBg: "#e3f2fd"
+          light: "#F8F9FA"
         }
       },
       boxShadow: {
