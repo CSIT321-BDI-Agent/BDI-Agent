@@ -19,6 +19,22 @@ export function initializeProfileMenu() {
     return;
   }
 
+  const showElement = (element, displayClass = 'flex') => {
+    if (!element) return;
+    element.classList.remove('hidden');
+    if (displayClass) {
+      element.classList.add(displayClass);
+    }
+  };
+
+  const hideElement = (element, displayClass = 'flex') => {
+    if (!element) return;
+    element.classList.add('hidden');
+    if (displayClass) {
+      element.classList.remove(displayClass);
+    }
+  };
+
   const updateProfileDisplay = () => {
     const username = window.localStorage?.getItem('username');
     const token = window.localStorage?.getItem('token');
@@ -26,36 +42,44 @@ export function initializeProfileMenu() {
 
     if (token && username) {
       profileName.textContent = username;
-      profileMenuLoggedIn.style.display = 'block';
-      profileMenuLoggedOut.style.display = 'none';
+      showElement(profileMenuLoggedIn, 'flex');
+      hideElement(profileMenuLoggedOut, 'flex');
       if (adminMenuItem) {
-        adminMenuItem.style.display = role === 'admin' ? 'flex' : 'none';
+        if (role === 'admin') {
+          showElement(adminMenuItem, 'flex');
+        } else {
+          hideElement(adminMenuItem, 'flex');
+        }
       }
       if (adminBanner) {
-        adminBanner.style.display = role === 'admin' ? 'block' : 'none';
+        if (role === 'admin') {
+          showElement(adminBanner, 'flex');
+        } else {
+          hideElement(adminBanner, 'flex');
+        }
       }
     } else {
       profileName.textContent = 'Guest';
-      profileMenuLoggedIn.style.display = 'none';
-      profileMenuLoggedOut.style.display = 'block';
+      hideElement(profileMenuLoggedIn, 'flex');
+      showElement(profileMenuLoggedOut, 'flex');
       if (adminMenuItem) {
-        adminMenuItem.style.display = 'none';
+        hideElement(adminMenuItem, 'flex');
       }
       if (adminBanner) {
-        adminBanner.style.display = 'none';
+        hideElement(adminBanner, 'flex');
       }
     }
   };
 
   const toggleMenu = (event) => {
     event.stopPropagation();
-    const isOpen = profileMenu.classList.contains('active');
-    profileMenu.classList.toggle('active');
+    const isOpen = !profileMenu.classList.contains('hidden');
+    profileMenu.classList.toggle('hidden');
     profileBtn.setAttribute('aria-expanded', (!isOpen).toString());
   };
 
   const closeMenu = () => {
-    profileMenu.classList.remove('active');
+    profileMenu.classList.add('hidden');
     profileBtn.setAttribute('aria-expanded', 'false');
   };
 
@@ -68,7 +92,7 @@ export function initializeProfileMenu() {
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && profileMenu.classList.contains('active')) {
+    if (event.key === 'Escape' && !profileMenu.classList.contains('hidden')) {
       closeMenu();
     }
   });

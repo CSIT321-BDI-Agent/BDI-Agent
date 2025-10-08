@@ -192,7 +192,7 @@ BDI-Agent/
 │   ├── signup.html           # User registration (82 lines)
 │   ├── admin.html            # Admin user management panel (79 lines)
 │   ├── debug.html            # Debug utilities (174 lines)
-│   ├── style.css             # Styling with CSS variables (1,580 lines, includes animations)
+│   ├── tailwind.css          # Tailwind source (replaces legacy style.css)
 │   ├── script.js.backup      # Legacy monolithic script (backup)
 │   ├── utils/                # Modular JavaScript (ES6 modules)
 │   │   ├── main.js           # Entry point (30 lines)
@@ -623,3 +623,4 @@ docker compose logs app
 docker compose restart app
 ```
 ---
+

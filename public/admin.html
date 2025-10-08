@@ -1,67 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard</title>
-  <link rel="icon" type="image/x-icon" href="/img/logo.svg">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard - BDI Blocks World</title>
+  <link rel="icon" type="image/x-icon" href="/img/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+  <link rel="stylesheet" href="assets/app.css" />
 </head>
-<body>
-  <!-- Mobile Header -->
-  <div class="mobile-header">
-    <button class="hamburger" id="mobileMenuToggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobileMenu">
+<body class="min-h-screen bg-brand-surface text-brand-dark">
+  <div class="mobile-header sticky top-0 z-40 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm md:hidden">
+    <button class="hamburger inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-brand-dark transition hover:bg-brand-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" id="mobileMenuToggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobileMenu">
       <span aria-hidden="true"></span>
       <span aria-hidden="true"></span>
       <span aria-hidden="true"></span>
     </button>
-    <div class="mobile-brand">
-      <img src="img/logo.svg" alt="BDI Blocks World logo" class="mobile-brand-logo">
-      <span class="mobile-brand-text" id="mobileBrandText">BDI Blocks World</span>
+    <div class="mobile-brand flex items-center gap-3">
+      <img src="img/logo.svg" alt="BDI Blocks World logo" class="mobile-brand-logo h-10 w-10" />
+      <span class="mobile-brand-text text-base font-semibold" id="mobileBrandText">BDI Blocks World</span>
     </div>
-    <div class="mobile-header-spacer" aria-hidden="true"></div>
+    <div class="mobile-header-spacer h-10 w-10" aria-hidden="true"></div>
   </div>
 
-  <!-- Mobile Overlay -->
-  <div class="mobile-overlay" id="mobileOverlay"></div>
+  <div class="mobile-overlay fixed inset-0 z-30 hidden bg-slate-900/70 opacity-0 pointer-events-none transition-opacity duration-300 md:hidden" id="mobileOverlay"></div>
 
-  <!-- Mobile Menu -->
-  <div class="mobile-menu" id="mobileMenu">
-    <div class="mobile-menu-header">
-      <div class="mobile-menu-brand">
-        <img src="img/logo.svg" alt="BDI Blocks World logo" class="mobile-menu-brand-logo">
-        <span class="mobile-menu-brand-text" id="mobileMenuBrandText">BDI Blocks World</span>
+  <div class="mobile-menu fixed inset-y-0 left-0 z-40 flex w-72 max-w-[80%] -translate-x-full flex-col gap-6 overflow-y-auto bg-white/95 px-5 py-6 shadow-2xl ring-1 ring-slate-200/80 transition-transform duration-300 md:hidden" id="mobileMenu">
+    <div class="mobile-menu-header flex items-center justify-between">
+      <div class="mobile-menu-brand flex items-center gap-3">
+        <img src="img/logo.svg" alt="BDI Blocks World logo" class="mobile-menu-brand-logo h-10 w-10" />
+        <span class="mobile-menu-brand-text text-base font-semibold" id="mobileMenuBrandText">BDI Blocks World</span>
       </div>
-      <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">&times;</button>
+      <button class="mobile-menu-close text-3xl leading-none text-slate-400 transition hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" id="mobileMenuClose" aria-label="Close menu">&times;</button>
     </div>
 
-    <nav class="mobile-menu-nav" aria-label="Primary">
-      <a class="mobile-menu-link" data-route="dashboard" href="index.html" aria-label="Dashboard">
-        <span class="material-icons mobile-menu-icon" aria-hidden="true">dashboard</span>
+    <nav class="mobile-menu-nav flex flex-col gap-2" aria-label="Primary">
+      <a class="mobile-menu-link flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10 hover:text-brand-dark" data-route="dashboard" href="index.html" aria-label="Dashboard">
+        <span class="material-icons mobile-menu-icon text-lg text-brand-primary" aria-hidden="true">dashboard</span>
         <span class="mobile-menu-label">Dashboard</span>
       </a>
-      <a class="mobile-menu-link admin-nav-link is-hidden" data-route="admin" href="admin.html" aria-label="Admin Dashboard">
-        <span class="material-icons mobile-menu-icon" aria-hidden="true">admin_panel_settings</span>
+      <a class="mobile-menu-link admin-nav-link flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10 hover:text-brand-dark" data-route="admin" href="admin.html" aria-label="Admin Dashboard">
+        <span class="material-icons mobile-menu-icon text-lg text-brand-primary" aria-hidden="true">admin_panel_settings</span>
         <span class="mobile-menu-label">Admin Dashboard</span>
       </a>
-      <a class="mobile-menu-link" data-route="agent-logs" data-disabled="true" href="#" title="Coming soon" aria-label="Agent Logs">
-        <span class="material-icons mobile-menu-icon" aria-hidden="true">receipt_long</span>
+      <a class="mobile-menu-link flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-brand-primary/10" data-route="agent-logs" data-disabled="true" href="#" title="Coming soon" aria-label="Agent Logs">
+        <span class="material-icons mobile-menu-icon text-lg" aria-hidden="true">receipt_long</span>
         <span class="mobile-menu-label">Agent Logs</span>
       </a>
-      <a class="mobile-menu-link" data-route="import-export" data-disabled="true" href="#" title="Coming soon" aria-label="Import/Export">
-        <span class="material-icons mobile-menu-icon" aria-hidden="true">import_export</span>
+      <a class="mobile-menu-link flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-brand-primary/10" data-route="import-export" data-disabled="true" href="#" title="Coming soon" aria-label="Import/Export">
+        <span class="material-icons mobile-menu-icon text-lg" aria-hidden="true">import_export</span>
         <span class="mobile-menu-label">Import/Export</span>
       </a>
     </nav>
 
-    <div class="mobile-menu-help">
-      <div class="mobile-menu-help-header">
-        <span class="material-icons" aria-hidden="true">help_outline</span>
+    <div class="mobile-menu-help mt-auto rounded-xl border border-brand-primary/30 bg-brand-primary/10 p-4 text-sm text-slate-600">
+      <div class="mobile-menu-help-header mb-3 flex items-center gap-2 text-brand-dark">
+        <span class="material-icons text-base" aria-hidden="true">help_outline</span>
         <strong>Admin Tips</strong>
       </div>
-      <ul class="mobile-menu-help-list">
+      <ul class="mobile-menu-help-list space-y-2">
         <li>Review all registered users</li>
         <li>Promote trusted collaborators</li>
         <li>Downgrade or remove problematic accounts</li>
@@ -70,106 +70,120 @@
     </div>
   </div>
 
-  <div class="app">
-    <aside class="sidebar" id="sidebar" data-collapsed="false">
-      <div class="sidebar__inner">
-        <div class="sidebar__header">
-          <img src="img/logo.svg" alt="BDI Blocks World logo" class="sidebar__logo">
-          <span class="sidebar__title" id="sidebarTitle">BDI Blocks World</span>
+  <div class="app flex min-h-screen flex-col md:flex-row">
+    <aside class="sidebar hidden w-full shrink-0 flex-col gap-6 border-r border-slate-200/70 bg-white/95 px-6 py-6 shadow-lg transition-all duration-300 md:flex md:w-72 md:bg-white/80 md:backdrop-blur" id="sidebar" data-collapsed="false">
+      <div class="sidebar__inner flex flex-col gap-8">
+        <div class="sidebar__header flex items-center gap-3">
+          <img src="img/logo.svg" alt="BDI Blocks World logo" class="sidebar__logo h-12 w-12" />
+          <span class="sidebar__title text-lg font-semibold leading-tight" id="sidebarTitle" data-sidebar-collapsible="text">BDI Blocks World</span>
         </div>
 
-        <nav class="sidebar__nav" aria-label="Primary">
-          <a class="sidebar__link" data-route="dashboard" href="index.html" title="Dashboard" aria-label="Dashboard">
-            <span class="material-icons sidebar__icon" aria-hidden="true">dashboard</span>
-            <span class="sidebar__label">Dashboard</span>
+        <nav class="sidebar__nav flex flex-col gap-1" aria-label="Primary">
+          <a class="sidebar__link flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10 hover:text-brand-dark" data-route="dashboard" href="index.html" title="Dashboard" aria-label="Dashboard">
+            <span class="material-icons sidebar__icon text-lg text-brand-primary" aria-hidden="true">dashboard</span>
+            <span class="sidebar__label" data-sidebar-collapsible="text">Dashboard</span>
           </a>
-          <a class="sidebar__link admin-nav-link is-hidden" data-route="admin" href="admin.html" title="Admin Dashboard" aria-label="Admin Dashboard">
-            <span class="material-icons sidebar__icon" aria-hidden="true">admin_panel_settings</span>
-            <span class="sidebar__label">Admin Dashboard</span>
+          <a class="sidebar__link admin-nav-link flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10 hover:text-brand-dark" data-route="admin" href="admin.html" title="Admin Dashboard" aria-label="Admin Dashboard">
+            <span class="material-icons sidebar__icon text-lg text-brand-primary" aria-hidden="true">admin_panel_settings</span>
+            <span class="sidebar__label" data-sidebar-collapsible="text">Admin Dashboard</span>
           </a>
-          <a class="sidebar__link" data-route="agent-logs" data-disabled="true" href="#" title="Agent logs coming soon" aria-label="Agent Logs">
-            <span class="material-icons sidebar__icon" aria-hidden="true">receipt_long</span>
-            <span class="sidebar__label">Agent Logs</span>
+          <a class="sidebar__link flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-brand-primary/10" data-route="agent-logs" data-disabled="true" href="#" title="Agent logs coming soon" aria-label="Agent Logs">
+            <span class="material-icons sidebar__icon text-lg" aria-hidden="true">receipt_long</span>
+            <span class="sidebar__label" data-sidebar-collapsible="text">Agent Logs</span>
           </a>
-          <a class="sidebar__link" data-route="import-export" data-disabled="true" href="#" title="Import/export coming soon" aria-label="Import/Export">
-            <span class="material-icons sidebar__icon" aria-hidden="true">import_export</span>
-            <span class="sidebar__label">Import/Export</span>
+          <a class="sidebar__link flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-brand-primary/10" data-route="import-export" data-disabled="true" href="#" title="Import/export coming soon" aria-label="Import/Export">
+            <span class="material-icons sidebar__icon text-lg" aria-hidden="true">import_export</span>
+            <span class="sidebar__label" data-sidebar-collapsible="text">Import/Export</span>
           </a>
         </nav>
 
-        <div class="sidebar__help">
-          <span class="material-icons sidebar__help-icon" aria-hidden="true">help_outline</span>
-          <div class="sidebar__help-content">
-            <strong class="sidebar__help-title">Admin Tips</strong>
-            <ul class="sidebar__help-list">
-              <li>Review user roles regularly</li>
-              <li>Promote reliable collaborators</li>
-              <li>Demote inactive administrators</li>
-              <li>Delete accounts when necessary</li>
+        <div class="sidebar__help flex items-start gap-3 rounded-xl border border-brand-primary/30 bg-brand-primary/10 p-4 text-sm text-slate-600" data-sidebar-collapsible="expanded">
+          <span class="material-icons sidebar__help-icon text-lg text-brand-primary" aria-hidden="true">help_outline</span>
+          <div class="sidebar__help-content space-y-2">
+            <strong class="sidebar__help-title text-sm font-semibold uppercase tracking-wide text-brand-dark">Admin Tips</strong>
+            <ul class="sidebar__help-list space-y-2">
+              <li>Review all registered users</li>
+              <li>Promote trusted collaborators</li>
+              <li>Downgrade or remove problematic accounts</li>
+              <li>Changes apply immediately</li>
             </ul>
           </div>
         </div>
       </div>
 
-      <button class="sidebar__toggle" id="sidebarToggle" type="button" aria-label="Collapse navigation" aria-expanded="true">
-        <span class="material-icons sidebar__toggle-icon" id="sidebarToggleIcon" aria-hidden="true">chevron_left</span>
-        <span class="sidebar__toggle-text">Collapse</span>
+      <button class="sidebar__toggle mt-auto inline-flex items-center gap-2 self-start rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-brand-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" id="sidebarToggle" type="button" aria-label="Collapse navigation" aria-expanded="true">
+        <span class="material-icons sidebar__toggle-icon text-base" id="sidebarToggleIcon" aria-hidden="true">chevron_left</span>
+        <span class="sidebar__toggle-text text-sm font-medium">Collapse</span>
       </button>
     </aside>
 
-    <main class="main admin-container">
-      <section class="hero">
-        <div class="hero-header">
-          <h2 class="hero-title">Admin Dashboard</h2>
-          <div class="profile-dropdown">
-            <button class="profile-btn" id="profileBtn" aria-label="Profile menu" aria-expanded="false">
-              <span class="material-icons profile-icon">account_circle</span>
-              <span class="profile-name" id="profileName">Admin</span>
-              <span class="material-icons profile-arrow">expand_more</span>
-            </button>
-            <div class="profile-menu" id="profileMenu">
-              <div id="profileMenuLoggedIn" style="display:none;">
-                <a href="#" class="profile-menu-item" id="viewProfile">
-                  <span class="material-icons">person</span>
-                  <span>Profile</span>
-                </a>
-                <a href="admin.html" class="profile-menu-item" id="adminMenuItem" style="display:none;">
-                  <span class="material-icons">admin_panel_settings</span>
-                  <span>Admin Dashboard</span>
-                </a>
-                <a href="#" class="profile-menu-item" onclick="logout(); return false;">
-                  <span class="material-icons">logout</span>
-                  <span>Logout</span>
-                </a>
-              </div>
-              <div id="profileMenuLoggedOut">
-                <a href="login.html" class="profile-menu-item">
-                  <span class="material-icons">login</span>
-                  <span>Sign In</span>
-                </a>
-                <a href="signup.html" class="profile-menu-item">
-                  <span class="material-icons">person_add</span>
-                  <span>Register</span>
-                </a>
-              </div>
+    <main class="main flex-1 px-4 pb-16 pt-6 md:px-10 md:pt-10">
+      <header class="hero flex flex-col gap-4 rounded-2xl border border-slate-200/70 bg-white/90 px-6 py-6 shadow-card backdrop-blur md:flex-row md:items-center md:justify-between">
+        <div class="space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-muted">Administration</p>
+          <h1 class="hero-title text-3xl font-semibold text-brand-dark">Admin Dashboard</h1>
+          <p class="text-sm text-slate-600">Manage user access, promote admins, and monitor account activity.</p>
+        </div>
+        <div class="relative">
+          <button class="profile-btn inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-brand-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" id="profileBtn" aria-label="Profile menu" aria-expanded="false">
+            <span class="material-icons profile-icon text-brand-primary">account_circle</span>
+            <span class="profile-name text-sm font-semibold" id="profileName">Guest</span>
+            <span class="material-icons profile-arrow text-base text-slate-400">expand_more</span>
+          </button>
+          <div class="profile-menu absolute right-0 top-full z-20 mt-2 w-56 rounded-xl border border-slate-200/70 bg-white/95 p-2 shadow-lg backdrop-blur" id="profileMenu">
+            <div id="profileMenuLoggedIn" style="display:none;" class="flex flex-col gap-1">
+              <a href="#" class="profile-menu-item flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10" id="viewProfile">
+                <span class="material-icons text-brand-primary">person</span>
+                <span>Profile</span>
+              </a>
+              <a href="admin.html" class="profile-menu-item flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10" id="adminMenuItem" style="display:none;">
+                <span class="material-icons text-brand-primary">admin_panel_settings</span>
+                <span>Admin Dashboard</span>
+              </a>
+              <a href="#" class="profile-menu-item flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10" onclick="logout(); return false;">
+                <span class="material-icons text-brand-primary">logout</span>
+                <span>Logout</span>
+              </a>
+            </div>
+            <div id="profileMenuLoggedOut" class="flex flex-col gap-1">
+              <a href="login.html" class="profile-menu-item flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10">
+                <span class="material-icons text-brand-primary">login</span>
+                <span>Sign In</span>
+              </a>
+              <a href="signup.html" class="profile-menu-item flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10">
+                <span class="material-icons text-brand-primary">person_add</span>
+                <span>Register</span>
+              </a>
             </div>
           </div>
         </div>
+      </header>
+
+      <section class="mt-8 rounded-2xl border border-slate-200/70 bg-white/95 shadow-card backdrop-blur">
+        <div class="flex items-center justify-between border-b border-slate-200/60 px-6 py-4">
+          <h2 class="text-lg font-semibold text-brand-dark">User Management</h2>
+          <span class="text-xs font-medium uppercase tracking-[0.2em] text-brand-muted">Live</span>
+        </div>
+        <div class="space-y-6 px-6 py-6">
+          <p id="status" class="rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-4 py-3 text-sm font-semibold text-brand-dark">Loading...</p>
+          <div class="overflow-hidden rounded-xl border border-slate-200/70">
+            <table class="min-w-full divide-y divide-slate-200 text-left text-sm text-slate-700">
+              <thead class="bg-slate-100 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <tr>
+                  <th scope="col" class="px-4 py-3">Username</th>
+                  <th scope="col" class="px-4 py-3">Email</th>
+                  <th scope="col" class="px-4 py-3">Role</th>
+                  <th scope="col" class="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users" class="divide-y divide-slate-200 bg-white"></tbody>
+            </table>
+          </div>
+          <p class="rounded-xl border border-slate-200/70 bg-slate-50/80 px-4 py-3 text-sm text-slate-600">
+            Promotion changes take effect immediately. Encourage collaborators to register accounts before elevating their access.
+          </p>
+        </div>
       </section>
-
-      <p id="status" class="admin-status">Loading...</p>
-
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>Username</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="users"></tbody>
-      </table>
     </main>
   </div>
 
@@ -199,17 +213,17 @@
         list.forEach(user => {
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td>${user.username}</td>
-            <td>${user.email}</td>
-            <td>${user.role}</td>
-            <td>
-              ${user.role !== 'admin' ? `<button class="action" onclick="promote('${user._id}')">Promote</button>` : ''}
-              ${user.role === 'admin' ? `<button class="action" onclick="demote('${user._id}')">Demote</button>` : ''}
-              <button class="action" onclick="removeUser('${user._id}')">Delete</button>
+            <td class="px-4 py-3 font-semibold text-brand-dark">${user.username}</td>
+            <td class="px-4 py-3">${user.email}</td>
+            <td class="px-4 py-3 capitalize">${user.role}</td>
+            <td class="px-4 py-3 text-right space-x-2">
+              ${user.role !== 'admin' ? `<button class="action inline-flex items-center gap-1 rounded-full bg-brand-primary/10 px-3 py-1 text-xs font-semibold text-brand-primary transition hover:bg-brand-primary/20" onclick="promote('${user._id}')">Promote</button>` : ''}
+              ${user.role === 'admin' ? `<button class="action inline-flex items-center gap-1 rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-300" onclick="demote('${user._id}')">Demote</button>` : ''}
+              <button class="action inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-200" onclick="removeUser('${user._id}')">Delete</button>
             </td>`;
           rows.appendChild(tr);
         });
-        statusEl.textContent = '✅ Users loaded.';
+        statusEl.textContent = 'Users loaded.';
       } catch (error) {
         statusEl.textContent = 'Error: ' + error.message;
       }
@@ -255,3 +269,4 @@
   </script>
 </body>
 </html>
+

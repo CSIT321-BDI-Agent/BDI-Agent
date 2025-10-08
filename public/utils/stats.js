@@ -5,6 +5,13 @@
  * (steps taken, elapsed time, status badges).
  */
 
+const STATUS_TONE_CLASSES = {
+  default: 'text-brand-dark',
+  info: 'text-state-info',
+  success: 'text-state-success',
+  error: 'text-state-error'
+};
+
 let statStepsElem = null;
 let statTimeElem = null;
 let statStatusElem = null;
@@ -45,7 +52,7 @@ export function updateStats(steps, status) {
   if (typeof status === 'string') {
     const normalized = status.trim();
     statStatusElem.textContent = normalized;
-    statStatusElem.style.color = resolveStatusColor(normalized);
+    applyStatusTone(resolveStatusTone(normalized));
   }
 }
 
@@ -59,7 +66,7 @@ export function startStatsTimer() {
   totalSteps = 0;
   statStepsElem.textContent = '0';
   statStatusElem.textContent = 'Running';
-  statStatusElem.style.color = 'var(--info-text)';
+  applyStatusTone('info');
 
   if (statsUpdateInterval) clearInterval(statsUpdateInterval);
   statsUpdateInterval = window.setInterval(() => {
@@ -93,7 +100,7 @@ export function resetStats() {
   statStepsElem.textContent = '--';
   statTimeElem.textContent = '--';
   statStatusElem.textContent = '--';
-  statStatusElem.style.color = 'var(--text)';
+  applyStatusTone('default');
 }
 
 /**
@@ -110,13 +117,23 @@ export function incrementStep() {
  * @param {string} status
  * @returns {string}
  */
-function resolveStatusColor(status) {
+function resolveStatusTone(status) {
   const value = status.toLowerCase();
   if (value.includes('success')) {
-    return 'var(--success-text)';
+    return 'success';
   }
   if (value.includes('fail') || value.includes('illegal') || value.includes('error')) {
-    return 'var(--error-text)';
+    return 'error';
   }
-  return 'var(--text)';
+  if (value.includes('run')) {
+    return 'info';
+  }
+  return 'default';
+}
+
+function applyStatusTone(tone = 'default') {
+  if (!statStatusElem) return;
+  Object.values(STATUS_TONE_CLASSES).forEach(cls => statStatusElem.classList.remove(cls));
+  const applied = STATUS_TONE_CLASSES[tone] || STATUS_TONE_CLASSES.default;
+  statStatusElem.classList.add(applied);
 }

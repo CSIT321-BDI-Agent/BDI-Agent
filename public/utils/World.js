@@ -46,7 +46,7 @@ export class World {
     this.colours[name] = randomColour();
 
     const div = document.createElement('div');
-    div.className = 'block';
+    div.className = 'block absolute flex h-[30px] w-[80px] items-center justify-center rounded-md border border-brand-muted text-sm font-semibold text-white shadow-sm transition-[left,top] duration-500 ease-out select-none cursor-default';
     div.dataset.block = name;
     div.textContent = name;
     div.style.backgroundColor = this.colours[name];
@@ -191,7 +191,7 @@ export class World {
       const messagesElem = document.getElementById('messages');
       if (messagesElem) {
         messagesElem.textContent = '';
-        messagesElem.className = 'messages';
+        messagesElem.className = 'messages hidden';
       }
       return;
     }

@@ -1,0 +1,28 @@
+{
+  "name": "bdi-agent",
+  "version": "1.0.0",
+  "description": "Belief-Desire-Intention blocks world simulator frontend",
+  "main": "index.js",
+  "scripts": {
+    "build:css": "npx tailwindcss -i ./public/tailwind.css -o ./public/assets/app.css --minify",
+    "watch:css": "npx tailwindcss -i ./public/tailwind.css -o ./public/assets/app.css --watch",
+    "test": "echo \"No frontend tests defined\" && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CSIT321-BDI-Agent/BDI-Agent.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/CSIT321-BDI-Agent/BDI-Agent/issues"
+  },
+  "homepage": "https://github.com/CSIT321-BDI-Agent/BDI-Agent#readme",
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.10",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.13"
+  }
+}

@@ -2,40 +2,49 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title id="pageTitle">Sign Up - BDI Blocks World</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="pageTitle">Create Account - BDI Blocks World</title>
+  <link rel="icon" type="image/x-icon" href="/img/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/app.css" />
 </head>
-<body>
-  <main class="auth-wrapper">
-    <section class="auth-card">
-      <h1 class="auth-title">Sign Up</h1>
-      <p class="auth-subtitle">Create an account to build, save, and share block worlds.</p>
+<body class="min-h-screen bg-brand-surface text-brand-dark">
+  <main class="flex min-h-screen items-center justify-center px-4 py-12">
+    <section class="w-full max-w-lg rounded-3xl border border-slate-200/70 bg-white/95 p-8 shadow-card backdrop-blur">
+      <div class="mb-6 text-center">
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+          <img src="img/logo.svg" alt="BDI Blocks World logo" class="h-8 w-8" />
+        </span>
+        <h1 class="auth-title mt-4 text-3xl font-semibold text-brand-dark">Create Account</h1>
+        <p class="auth-subtitle mt-2 text-sm text-slate-600">Join the community to build, save, and share block worlds.</p>
+      </div>
 
-      <form id="signupForm" class="auth-form" novalidate>
+      <form id="signupForm" class="auth-form space-y-4" novalidate>
         <div class="form-field">
-          <label for="email">Email</label>
-          <input type="email" id="email" name="email" required autocomplete="email" placeholder="you@example.com">
+          <label for="email" class="block text-sm font-semibold text-brand-dark">Email</label>
+          <input type="email" id="email" name="email" required autocomplete="email" class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-primary focus:ring-brand-primary" />
         </div>
 
         <div class="form-field">
-          <label for="username">Username</label>
-          <input type="text" id="username" name="username" required autocomplete="username" placeholder="Your username">
+          <label for="username" class="block text-sm font-semibold text-brand-dark">Username</label>
+          <input type="text" id="username" name="username" required autocomplete="username" class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-primary focus:ring-brand-primary" />
         </div>
 
         <div class="form-field">
-          <label for="password">Password</label>
-          <input type="password" id="password" name="password" required autocomplete="new-password" placeholder="At least 6 characters">
+          <label for="password" class="block text-sm font-semibold text-brand-dark">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="new-password" class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-primary focus:ring-brand-primary" />
         </div>
 
-        <button type="submit">Sign Up</button>
+        <button type="submit" class="mt-6 w-full rounded-2xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">Create Account</button>
       </form>
 
-      <div id="messages" class="messages"></div>
+      <div id="messages" class="messages mt-4"></div>
 
-      <div class="auth-footer">
+      <div class="auth-footer mt-6 text-center text-sm text-slate-600">
         Already have an account?
-        <a href="login.html">Sign in</a>
+        <a href="login.html" class="font-semibold text-brand-primary hover:text-brand-primary/80">Sign in</a>
       </div>
     </section>
   </main>
@@ -44,31 +53,37 @@
   <script type="module">
     import { signup, redirectIfAuthenticated } from './utils/auth.js';
 
-    // Immediate redirect if already logged in (prevent flash)
     redirectIfAuthenticated();
 
-    // Set page title from config
     window.addEventListener('DOMContentLoaded', () => {
       const appName = window.APP_CONFIG?.APP_NAME || 'BDI Blocks World';
       const pageTitle = document.getElementById('pageTitle');
-      if (pageTitle) pageTitle.textContent = `Sign Up - ${appName}`;
+      if (pageTitle) pageTitle.textContent = `Create Account - ${appName}`;
     });
 
     const messages = document.getElementById('messages');
 
     function setMessage(text = '', type = 'info') {
       if (!messages) return;
+      const BASE = 'messages mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-medium transition-all duration-200';
+      const TYPE_MAP = {
+        info: `${BASE} border-brand-primary/30 bg-brand-primary/10 text-brand-dark`,
+        success: `${BASE} border-green-300 bg-green-50 text-green-700`,
+        error: `${BASE} border-red-300 bg-red-50 text-red-600`
+      };
+
       if (!text) {
         messages.textContent = '';
-        messages.className = 'messages';
+        messages.className = 'messages hidden';
         return;
       }
+
       messages.textContent = text;
-      messages.className = `messages ${type}`;
+      messages.className = TYPE_MAP[type] || TYPE_MAP.info;
     }
 
-    document.getElementById('signupForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    document.getElementById('signupForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
 
       const email = document.getElementById('email').value.trim();
       const username = document.getElementById('username').value.trim();
@@ -77,22 +92,18 @@
       setMessage();
 
       if (!email || !username || !password) {
-        setMessage('All fields are required.', 'error');
+        setMessage('Please complete all fields.', 'error');
         return;
       }
 
       try {
-        setMessage('Creating account...', 'info');
-
+        setMessage('Creating your account...', 'info');
         await signup(email, username, password);
-
-        setMessage('Account created successfully. Redirecting...', 'success');
-        setTimeout(() => {
-          window.location.href = window.APP_CONFIG?.AUTH?.MAIN_PAGE || 'index.html';
-        }, 1500);
-      } catch (err) {
-        console.error('Signup error:', err);
-        setMessage(err.message || 'Signup failed. Please try again.', 'error');
+        setMessage('Account created. Redirecting...', 'success');
+        setTimeout(() => window.location.href = 'index.html', 900);
+      } catch (error) {
+        console.error('Signup error:', error);
+        setMessage(error.message || 'Signup failed. Please try again.', 'error');
       }
     });
   </script>

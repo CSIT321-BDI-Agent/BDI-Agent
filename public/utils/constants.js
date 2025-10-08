@@ -50,6 +50,7 @@ export function initializeClaw() {
   
   const claw = document.createElement('div');
   claw.id = 'claw';
+  claw.className = 'absolute z-50 flex h-[25px] w-[60px] items-end justify-center rounded-t-md bg-brand-dark';
   claw.setAttribute('data-claw-id', '0'); // Future: support for multiple claws
   worldElem.appendChild(claw);
   

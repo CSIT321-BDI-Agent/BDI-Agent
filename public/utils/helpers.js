@@ -23,15 +23,27 @@ export function randomColour() {
 export function showMessage(text, type = 'info') {
   const messagesElem = document.getElementById('messages');
   if (messagesElem) {
+    const BASE = 'messages mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-medium transition-all duration-200';
+    const TYPE_MAP = {
+      info: `${BASE} border-brand-primary/30 bg-brand-primary/10 text-brand-dark`,
+      success: `${BASE} border-green-300 bg-green-50 text-green-700`,
+      error: `${BASE} border-red-300 bg-red-50 text-red-600`
+    };
+
+    if (!text) {
+      messagesElem.textContent = '';
+      messagesElem.className = 'messages hidden';
+      return;
+    }
+
     messagesElem.textContent = text;
-    messagesElem.className = `messages ${type}`;
-    
-    // Clear message after 5 seconds for non-error messages
+    messagesElem.className = TYPE_MAP[type] || TYPE_MAP.info;
+
     if (type !== 'error') {
-      setTimeout(() => {
+      window.setTimeout(() => {
         if (messagesElem.textContent === text) {
           messagesElem.textContent = '';
-          messagesElem.className = 'messages';
+          messagesElem.className = 'messages hidden';
         }
       }, 5000);
     }
@@ -83,12 +95,13 @@ export function formatBeliefSnapshot(beliefs) {
   }
 
   const pending = beliefs.pendingRelation
-    ? `${beliefs.pendingRelation.block} → ${beliefs.pendingRelation.destination}`
+    ? `${beliefs.pendingRelation.block} -> ${beliefs.pendingRelation.destination}`
     : 'none';
 
   const clear = Array.isArray(beliefs.clearBlocks) && beliefs.clearBlocks.length > 0
     ? beliefs.clearBlocks.join(', ')
     : 'none';
 
-  return `Pending relation: ${pending} • Clear blocks: ${clear}`;
+  return `Pending relation: ${pending} | Clear blocks: ${clear}`;
 }
+

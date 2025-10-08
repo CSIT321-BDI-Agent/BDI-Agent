@@ -266,12 +266,12 @@ export function updateUIWithUserInfo(selectors = {}) {
     if (selectors.adminNav) {
       const adminNavElems = document.querySelectorAll(selectors.adminNav);
       adminNavElems.forEach(elem => {
-        elem.classList.remove('is-hidden');
+        elem.classList.remove('hidden');
         elem.removeAttribute('hidden');
         elem.style.display = '';
       });
     }
-    
+
     if (selectors.adminLinks) {
       const adminLinkElems = document.querySelectorAll(selectors.adminLinks);
       adminLinkElems.forEach(elem => {
