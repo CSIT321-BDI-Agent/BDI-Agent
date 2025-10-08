@@ -20,7 +20,9 @@ public/
 ├── admin.html        # Admin user management panel (79 lines)
 ├── debug.html        # API testing utilities (174 lines)
 ├── script.js.backup  # Legacy monolithic script (backup only)
-├── style.css         # Centralized styling with CSS variables (1,580 lines, includes animations)
+├── styles/           # Tailwind CSS styling
+│   ├── tailwind.css  # Source CSS with custom components (1,100+ lines)
+│   └── main.css      # Compiled & minified Tailwind CSS
 ├── config.js         # Runtime configuration constants (30 lines)
 └── utils/            # Modular JavaScript utilities (ES6 modules)
     ├── main.js           # Application entry point (30 lines)
@@ -44,7 +46,7 @@ public/
 - **Real-time Stats Tracking**: Live step counter, elapsed timer (100ms updates), and status monitoring
 - **Material Icons**: Professional Google Material Icons for consistent UI
 - **Modern Animations**: Scroll unfurl profile dropdown with cubic-bezier easing
-- **Animation System**: Smooth robotic claw animations with CSS transitions
+- **Animation System**: Smooth robotic claw animations with Tailwind transitions
 - **Planner Timeline**: Visual timeline showing each reasoning cycle
 - **World Persistence**: Save/load configurations with MongoDB backend
 
@@ -194,10 +196,10 @@ The application uses **Google Material Icons** for consistent, professional UI:
 | `login` | Sign in | Profile menu |
 | `person_add` | Create account | Profile menu |
 
-**Styling** (in style.css):
-- Teal color (#14b8a6) for consistency
-- Hover scale effect (1.0 → 1.1)
-- Smooth transitions
+**Styling** (Tailwind CSS):
+- Teal color (#4FD1C5) for consistency
+- Hover scale effect via Tailwind utilities
+- Smooth transitions with duration-300
 
 **Browser Compatibility:**
 - Icons load from CDN (requires internet)
@@ -223,18 +225,16 @@ Menu items cascade in with sequential delays:
 - 3rd item: 0.15s delay
 - 4th item: 0.20s delay
 
-**CSS Implementation** (style.css):
+**Tailwind CSS Implementation** (styles/tailwind.css):
 ```css
 .profile-menu {
-  max-height: 0;
-  transform: translateY(-10px) scaleY(0);
-  transform-origin: top center;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  @apply absolute right-0 top-full mt-2 w-64 bg-white border 
+         border-gray-200 shadow-lg opacity-0 pointer-events-none 
+         transition-all duration-300 transform origin-top-right scale-95;
 }
 
 .profile-menu.active {
-  max-height: 400px;
-  transform: translateY(0) scaleY(1);
+  @apply opacity-100 pointer-events-auto scale-100;
 }
 
 @keyframes slideIn {
@@ -275,9 +275,9 @@ window.APP_CONFIG = {
 
 ## Technology Stack
 
-- **Vanilla JavaScript**: No build step, no bundler
-- **CSS Variables**: 50+ custom properties for theming
-- **ES5 Compatible**: Works in all modern browsers
+- **Vanilla JavaScript**: ES6 modules, no bundler required
+- **Tailwind CSS**: Utility-first CSS with custom components
+- **ES6 Compatible**: Works in all modern browsers
 - **LocalStorage**: Client-side session persistence
 - **Fetch API**: RESTful communication with backend
 
@@ -296,7 +296,7 @@ world.getCurrentStacks();  // Get current configuration
 ```
 
 ### Animation System (`utils/animation.js`)
-CSS-based transitions with `.moving` class:
+Tailwind-based transitions with `.moving` class:
 ```javascript
 import { simulateMove } from './utils/animation.js';
 
@@ -347,29 +347,41 @@ Receives detailed telemetry:
 
 ## Styling Architecture
 
-### CSS Variables (style.css)
-Centralized design tokens:
-```css
-:root {
-  /* Colors */
-  --color-primary: #4A90E2;
-  --color-bg-dark: #1a1a1a;
-  
-  /* Breakpoints */
-  --breakpoint-tablet: 768px;
-  --breakpoint-mobile: 480px;
-  
-  /* Animation */
-  --transition-fast: 0.2s;
-  --transition-smooth: 0.3s;
+### Tailwind CSS
+The project uses Tailwind CSS v3 for all styling, with custom components defined in `@layer components`.
+
+**Configuration**: `backend/tailwind.config.js`
+```javascript
+module.exports = {
+  content: ["../public/**/*.html", "../public/**/*.js"],
+  theme: {
+    extend: {
+      colors: {
+        teal: { DEFAULT: '#4FD1C5', light: '#CEF2EF' },
+        'dark-grey': '#2D3748',
+        'light-grey': '#A0AEC0',
+        orange: '#F46036',
+      },
+      fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+    },
+  },
 }
 ```
 
+**Build Commands** (run from `backend/` directory):
+- `npm run tailwind:build` - Build production CSS
+- `npm run tailwind:watch` - Watch mode for development
+
 ### Component Classes
-- `.btn`, `.btn-secondary`, `.btn-sm` - Button variants
-- `.form-group`, `.form-field` - Unified form elements
-- `.timeline-item`, `.timeline-move` - Planner timeline
-- `.status-message`, `.error-message` - User feedback
+Over 100 custom component classes are defined in `styles/tailwind.css`:
+- `.auth-card`, `.auth-wrapper` - Authentication pages
+- `.control-card`, `.control-actions` - Control panels
+- `.timeline-entry`, `.timeline-move` - Planner timeline
+- `.sidebar`, `.mobile-menu` - Navigation components
+- `.hero`, `.profile-dropdown` - Main app UI
+- `.messages`, `.toast` - User feedback
 
 ## Authentication Flow
 

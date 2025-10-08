@@ -28,7 +28,7 @@ A classic AI environment implementing **Belief-Desire-Intention planning** for m
 - **Unified Error Handling**: Centralized via `utils/routeHandler.js`
 - **Input Validation**: Reusable validators in `utils/validators.js`
 
-**Frontend** (`public/`): Vanilla JavaScript ES6 Modules + HTML5 + CSS3
+**Frontend** (`public/`): Vanilla JavaScript ES6 Modules + HTML5 + Tailwind CSS
 - **10 ES6 Modules**: Organized into `public/utils/` for maintainability
   - `auth.js` (300 lines) - Centralized authentication
   - `main.js` (40 lines) - Entry point
@@ -44,7 +44,7 @@ A classic AI environment implementing **Belief-Desire-Intention planning** for m
 - **Material Icons**: Google Material Icons for consistent UI across browsers
 - **Real-time Stats**: Live step counter (4 cycles per move), elapsed timer (100ms interval), and status tracking
 - **Modern Animations**: Scroll unfurl profile dropdown with cubic-bezier easing and staggered reveals
-- Responsive design with CSS custom properties
+- Responsive design with Tailwind CSS utility-first framework
 - Real-time planner clock and intention timeline visualization
 
 ## Prerequisites
@@ -192,7 +192,9 @@ BDI-Agent/
 │   ├── signup.html           # User registration (82 lines)
 │   ├── admin.html            # Admin user management panel (79 lines)
 │   ├── debug.html            # Debug utilities (174 lines)
-│   ├── style.css             # Styling with CSS variables (1,580 lines, includes animations)
+│   ├── styles/
+│   │   ├── tailwind.css      # Tailwind CSS source with custom components (1,100+ lines)
+│   │   └── main.css          # Compiled Tailwind CSS (minified)
 │   ├── script.js.backup      # Legacy monolithic script (backup)
 │   ├── utils/                # Modular JavaScript (ES6 modules)
 │   │   ├── main.js           # Entry point (30 lines)
@@ -226,7 +228,7 @@ The codebase follows a modular architecture with clear separation of concerns:
 **Frontend Modules** (`public/utils/`):
 - **Authentication** (`auth.js`): JWT-based auth with 13+ helper functions
 - **World Management** (`World.js`): Block state and position calculations
-- **Animation** (`animation.js`): CSS-based transitions with claw visualization
+- **Animation** (`animation.js`): Tailwind-based transitions with claw visualization
 - **Timeline** (`timeline.js`): Real-time planner clock and intention visualization
 - **Persistence** (`persistence.js`): Save/load functionality with MongoDB backend
 - **UI Handlers** (`ui-handlers.js`): Event-driven simulation orchestration
