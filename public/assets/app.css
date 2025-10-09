@@ -1792,6 +1792,12 @@ select {
 .ease-out {
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 }
+.scrollbar-hidden {
+    scrollbar-width: none;
+  }
+.scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
 .placeholder\:text-brand-dark\/50::-moz-placeholder {
   color: rgb(45 55 72 / 0.5);
 }
