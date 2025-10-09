@@ -26,7 +26,8 @@ export function showMessage(text, type = 'info') {
   const BASE = 'messages block mt-4 w-full border px-4 py-3 text-sm font-medium transition-all duration-200';
     const TYPE_MAP = {
       info: `${BASE} border-brand-primary/30 bg-brand-primary/10 text-brand-dark`,
-      success: `${BASE} border-green-300 bg-green-50 text-green-700`,
+      success: `${BASE} border-emerald-300 bg-emerald-50 text-emerald-700`,
+      warning: `${BASE} border-amber-300 bg-amber-50 text-amber-700`,
       error: `${BASE} border-red-300 bg-red-50 text-red-600`
     };
 

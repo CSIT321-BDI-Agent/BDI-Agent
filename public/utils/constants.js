@@ -40,7 +40,15 @@ export const DOM = {
   loadSelect: () => document.getElementById('loadSelect'),
   messages: () => document.getElementById('messages'),
   intentionTimeline: () => document.getElementById('intentionTimeline'),
-  plannerClock: () => document.getElementById('plannerClock')
+  plannerClock: () => document.getElementById('plannerClock'),
+  infoGoal: () => document.getElementById('info-goal'),
+  infoCurrent: () => document.getElementById('info-current'),
+  stats: () => ({
+    steps: document.getElementById('stat-steps'),
+    time: document.getElementById('stat-time'),
+    status: document.getElementById('stat-status')
+  }),
+  actionLog: () => document.getElementById('actionLog')
 };
 
 // Initialize claw element

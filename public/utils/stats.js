@@ -7,9 +7,9 @@
 
 const STATUS_TONE_CLASSES = {
   default: 'text-brand-dark',
-  info: 'text-state-info',
-  success: 'text-state-success',
-  error: 'text-state-error'
+  info: 'text-brand-primary',
+  success: 'text-emerald-600',
+  error: 'text-red-600'
 };
 
 let statStepsElem = null;

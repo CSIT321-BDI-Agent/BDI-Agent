@@ -45,8 +45,8 @@ export class World {
     this.on[name] = 'Table';
     this.colours[name] = randomColour();
 
-    const div = document.createElement('div');
-    div.className = 'world-block absolute flex h-[30px] w-[80px] items-center justify-center rounded-md border border-brand-dark/30 text-sm font-semibold text-white shadow-sm transition-[left,top] duration-500 ease-out select-none cursor-default';
+  const div = document.createElement('div');
+  div.className = 'world-block absolute flex h-[30px] w-[80px] items-center justify-center rounded-none border border-brand-dark/30 text-sm font-semibold text-white shadow-sm transition-[left,top] duration-500 ease-out select-none cursor-default';
     div.dataset.block = name;
     div.textContent = name;
     div.style.backgroundColor = this.colours[name];
