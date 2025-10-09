@@ -81,6 +81,8 @@ export function initializeSidebarNavigation({
   const appLayout = document.querySelector('.app');
   const mainContent = document.querySelector('main');
   const navLinks = document.querySelectorAll('[data-route]');
+  const sidebarContent = sidebar?.querySelector('[data-sidebar-content]');
+  const brandContainer = sidebar?.querySelector('[data-sidebar-brand]');
   const collapsibleTexts = sidebar?.querySelectorAll('[data-sidebar-collapsible="text"]') ?? [];
   const collapsibleExpanded = sidebar?.querySelectorAll('[data-sidebar-collapsible="expanded"]') ?? [];
 
@@ -131,14 +133,20 @@ export function initializeSidebarNavigation({
   sidebar.classList.toggle('is-collapsed', isCollapsed);
     sidebar.classList.toggle('md:w-72', !isCollapsed);
     sidebar.classList.toggle('md:w-24', isCollapsed);
-    sidebar.classList.toggle('md:px-6', !isCollapsed);
-    sidebar.classList.toggle('md:px-3', isCollapsed);
     collapsibleTexts.forEach(elem => {
       elem.classList.toggle('md:hidden', isCollapsed);
     });
     collapsibleExpanded.forEach(elem => {
       elem.classList.toggle('md:hidden', isCollapsed);
     });
+    if (sidebarContent) {
+      sidebarContent.classList.toggle('md:px-6', !isCollapsed);
+      sidebarContent.classList.toggle('md:px-3', isCollapsed);
+    }
+    if (brandContainer) {
+      brandContainer.classList.toggle('md:justify-start', !isCollapsed);
+      brandContainer.classList.toggle('md:justify-center', isCollapsed);
+    }
     mainContent.classList.toggle('md:ml-72', !isCollapsed);
     mainContent.classList.toggle('md:ml-24', isCollapsed);
     appLayout.classList.toggle('sidebar-collapsed', isCollapsed);

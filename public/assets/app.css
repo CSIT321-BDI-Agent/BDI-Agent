@@ -1067,6 +1067,9 @@ select {
 .h-\[30px\] {
   height: 30px;
 }
+.h-full {
+  height: 100%;
+}
 .max-h-72 {
   max-height: 18rem;
 }
@@ -1941,6 +1944,14 @@ select {
 
   .md\:items-center {
     align-items: center;
+  }
+
+  .md\:justify-start {
+    justify-content: flex-start;
+  }
+
+  .md\:justify-center {
+    justify-content: center;
   }
 
   .md\:justify-between {

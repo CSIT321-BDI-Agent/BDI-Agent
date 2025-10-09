@@ -113,19 +113,20 @@
     <aside
       id="sidebar"
       data-collapsed="false"
-      class="sidebar hidden bg-brand-dark text-white transition-all duration-300 ease-in-out md:fixed md:inset-y-0 md:flex md:w-72 md:flex-col md:overflow-y-auto md:px-6 md:py-6 md:shadow-lg"
+      class="sidebar hidden bg-brand-dark text-white transition-all duration-300 ease-in-out md:fixed md:inset-y-0 md:flex md:w-72 md:flex-col md:shadow-lg"
     >
-      <div class="flex items-center gap-3">
-  <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-10 w-10 bg-white/10 p-2" />
-        <span id="sidebarTitle" data-sidebar-collapsible="text" class="text-lg font-semibold text-white">BDI Blocks World</span>
-      </div>
+      <div class="flex h-full flex-col md:overflow-y-auto md:px-6 md:py-6" data-sidebar-content>
+        <div class="flex items-center justify-center gap-3 md:justify-start" data-sidebar-brand>
+          <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-10 w-10 bg-white/10 p-2" />
+          <span id="sidebarTitle" data-sidebar-collapsible="text" class="text-lg font-semibold text-white">BDI Blocks World</span>
+        </div>
 
-      <nav class="mt-8 flex flex-col gap-1" aria-label="Primary">
-        <a
-          href="index.html"
-          data-route="dashboard"
-          class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
-          title="Dashboard"
+        <nav class="mt-8 flex flex-col gap-1" aria-label="Primary">
+          <a
+            href="index.html"
+            data-route="dashboard"
+            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            title="Dashboard"
           aria-label="Dashboard"
         >
           <span class="material-icons text-lg" aria-hidden="true">dashboard</span>
@@ -161,33 +162,34 @@
           aria-label="Import/Export"
         >
           <span class="material-icons text-lg" aria-hidden="true">import_export</span>
-          <span class="sidebar__label" data-sidebar-collapsible="text">Import/Export</span>
-        </a>
-      </nav>
+            <span class="sidebar__label" data-sidebar-collapsible="text">Import/Export</span>
+          </a>
+        </nav>
 
-  <div class="mt-8 space-y-3 bg-white/10 p-4 text-sm text-white/80" data-sidebar-collapsible="expanded">
-        <div class="flex items-center gap-2 font-semibold">
-          <span class="material-icons text-base" aria-hidden="true">lightbulb</span>
-          <span data-sidebar-collapsible="text">Quick Help</span>
+        <div class="mt-8 space-y-3 bg-white/10 p-4 text-sm text-white/80" data-sidebar-collapsible="expanded">
+          <div class="flex items-center gap-2 font-semibold">
+            <span class="material-icons text-base" aria-hidden="true">lightbulb</span>
+            <span data-sidebar-collapsible="text">Quick Help</span>
+          </div>
+          <ul class="space-y-2 text-white/70" data-sidebar-collapsible="text">
+            <li>Drag blocks directly within the world.</li>
+            <li>Use goal syntax like on(A,B) to stack blocks.</li>
+            <li>Start the BDI planner to animate the claw.</li>
+            <li>Save interesting worlds and load them later.</li>
+          </ul>
         </div>
-        <ul class="space-y-2 text-white/70" data-sidebar-collapsible="text">
-          <li>Drag blocks directly within the world.</li>
-          <li>Use goal syntax like on(A,B) to stack blocks.</li>
-          <li>Start the BDI planner to animate the claw.</li>
-          <li>Save interesting worlds and load them later.</li>
-        </ul>
-      </div>
 
-      <button
-        id="sidebarToggle"
-        type="button"
-        aria-label="Collapse navigation"
-        aria-expanded="true"
-  class="sidebar__toggle mt-6 inline-flex items-center gap-2 border border-white/20 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:text-white"
-      >
-        <span class="material-icons text-base" id="sidebarToggleIcon" aria-hidden="true">chevron_left</span>
-        <span class="sidebar__toggle-text" data-sidebar-collapsible="text">Collapse</span>
-      </button>
+        <button
+          id="sidebarToggle"
+          type="button"
+          aria-label="Collapse navigation"
+          aria-expanded="true"
+          class="sidebar__toggle mt-auto inline-flex items-center justify-center gap-2 border border-white/20 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:text-white"
+        >
+          <span class="material-icons text-base" id="sidebarToggleIcon" aria-hidden="true">chevron_left</span>
+          <span class="sidebar__toggle-text" data-sidebar-collapsible="text">Collapse</span>
+        </button>
+      </div>
     </aside>
 
     <!-- Main Content -->
