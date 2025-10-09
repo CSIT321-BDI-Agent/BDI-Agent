@@ -5,64 +5,102 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Dashboard - BDI Blocks World</title>
-  <link rel="icon" type="image/x-icon" href="/img/logo.svg" />
+  <link rel="icon" type="image/x-icon" href="/img/BDI.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
   <link rel="stylesheet" href="assets/app.css" />
 </head>
-<body class="min-h-screen bg-brand-light text-brand-dark">
-  <div class="mobile-header sticky top-0 z-40 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm md:hidden">
-    <button class="hamburger inline-flex h-10 w-10 items-center justify-center border border-slate-200 text-brand-dark transition hover:bg-brand-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" id="mobileMenuToggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobileMenu">
-      <span aria-hidden="true"></span>
-      <span aria-hidden="true"></span>
-      <span aria-hidden="true"></span>
+<body class="min-h-screen bg-brand-light font-sans text-brand-dark antialiased">
+  <!-- Mobile Header -->
+  <header class="fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-white/40 bg-white/90 px-4 py-3 shadow md:hidden">
+    <button
+      id="mobileMenuToggle"
+      type="button"
+      aria-label="Toggle navigation menu"
+      aria-expanded="false"
+      aria-controls="mobileMenu"
+      class="btn inline-flex h-10 w-10 items-center justify-center border border-slate-200 bg-white text-brand-dark shadow-sm"
+    >
+      <span class="sr-only">Toggle navigation menu</span>
+      <span aria-hidden="true" class="flex flex-col items-center gap-1.5">
+        <span class="block h-0.5 w-6 rounded bg-brand-dark"></span>
+        <span class="block h-0.5 w-6 rounded bg-brand-dark"></span>
+        <span class="block h-0.5 w-6 rounded bg-brand-dark"></span>
+      </span>
     </button>
-    <div class="mobile-brand flex items-center gap-3">
-      <img src="img/logo.svg" alt="BDI Blocks World logo" class="mobile-brand-logo h-10 w-10" />
-      <span class="mobile-brand-text text-base font-semibold" id="mobileBrandText">BDI Blocks World</span>
+    <div class="flex items-center gap-2">
+      <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-8 w-8" />
+      <span id="mobileBrandText" class="text-sm font-semibold text-brand-dark">BDI Blocks World</span>
     </div>
-    <div class="mobile-header-spacer h-10 w-10" aria-hidden="true"></div>
-  </div>
+    <div class="w-10" aria-hidden="true"></div>
+  </header>
 
-  <div class="mobile-overlay fixed inset-0 z-30 hidden bg-slate-900/70 opacity-0 pointer-events-none transition-opacity duration-300 md:hidden" id="mobileOverlay"></div>
+  <!-- Mobile Overlay -->
+  <div id="mobileOverlay" class="fixed inset-0 z-30 hidden bg-slate-900/40 transition-opacity duration-200 md:hidden"></div>
 
-  <div class="mobile-menu fixed inset-y-0 left-0 z-40 flex w-72 max-w-[80%] -translate-x-full flex-col gap-6 overflow-y-auto bg-white/95 px-5 py-6 shadow-2xl ring-1 ring-slate-200/80 transition-transform duration-300 md:hidden" id="mobileMenu">
-    <div class="mobile-menu-header flex items-center justify-between">
-      <div class="mobile-menu-brand flex items-center gap-3">
-        <img src="img/logo.svg" alt="BDI Blocks World logo" class="mobile-menu-brand-logo h-10 w-10" />
-        <span class="mobile-menu-brand-text text-base font-semibold" id="mobileMenuBrandText">BDI Blocks World</span>
+  <!-- Mobile Menu -->
+  <div
+    id="mobileMenu"
+    class="fixed inset-y-0 left-0 z-40 flex w-72 max-w-full -translate-x-full flex-col bg-brand-dark text-white shadow-xl transition-transform duration-300 md:hidden"
+  >
+    <div class="flex items-center justify-between px-4 pb-2 pt-5">
+      <div class="sidebar__header flex items-center gap-3">
+        <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-10 w-10 bg-white/10 p-2" />
+        <span id="mobileMenuBrandText" class="text-base font-semibold text-white">BDI Blocks World</span>
       </div>
-      <button class="mobile-menu-close text-3xl leading-none text-slate-400 transition hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" id="mobileMenuClose" aria-label="Close menu">&times;</button>
+      <button id="mobileMenuClose" aria-label="Close menu" class="text-2xl leading-none">&times;</button>
     </div>
-
-    <nav class="mobile-menu-nav flex flex-col gap-2" aria-label="Primary">
-      <a class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10 hover:text-brand-dark" data-route="dashboard" href="index.html" aria-label="Dashboard">
-        <span class="material-icons mobile-menu-icon text-lg text-brand-primary" aria-hidden="true">dashboard</span>
-        <span class="mobile-menu-label">Dashboard</span>
+    <nav class="mt-4 flex flex-col gap-1 px-4 pb-6" aria-label="Primary">
+      <a
+        href="index.html"
+        data-route="dashboard"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+        aria-label="Dashboard"
+      >
+        <span class="material-icons text-lg" aria-hidden="true">dashboard</span>
+        <span>Dashboard</span>
       </a>
-  <a class="mobile-menu-link admin-nav-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10 hover:text-brand-dark" data-route="admin" href="admin.html" aria-label="Admin Dashboard">
-        <span class="material-icons mobile-menu-icon text-lg text-brand-primary" aria-hidden="true">admin_panel_settings</span>
-        <span class="mobile-menu-label">Admin Dashboard</span>
+      <a
+        href="admin.html"
+        data-route="admin"
+        class="mobile-menu-link admin-nav-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white"
+        aria-label="Admin Dashboard"
+      >
+        <span class="material-icons text-lg" aria-hidden="true">admin_panel_settings</span>
+        <span>Admin Dashboard</span>
       </a>
-  <a class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-brand-primary/10" data-route="agent-logs" data-disabled="true" href="#" title="Coming soon" aria-label="Agent Logs">
-        <span class="material-icons mobile-menu-icon text-lg" aria-hidden="true">receipt_long</span>
-        <span class="mobile-menu-label">Agent Logs</span>
+      <a
+        href="#"
+        data-route="agent-logs"
+        data-disabled="true"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50"
+        title="Coming soon"
+        aria-label="Agent Logs"
+      >
+        <span class="material-icons text-lg" aria-hidden="true">receipt_long</span>
+        <span>Agent Logs</span>
       </a>
-  <a class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-brand-primary/10" data-route="import-export" data-disabled="true" href="#" title="Coming soon" aria-label="Import/Export">
-        <span class="material-icons mobile-menu-icon text-lg" aria-hidden="true">import_export</span>
-        <span class="mobile-menu-label">Import/Export</span>
+      <a
+        href="#"
+        data-route="import-export"
+        data-disabled="true"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50"
+        title="Coming soon"
+        aria-label="Import/Export"
+      >
+        <span class="material-icons text-lg" aria-hidden="true">import_export</span>
+        <span>Import/Export</span>
       </a>
     </nav>
-
-  <div class="mobile-menu-help mt-auto border border-brand-primary/30 bg-brand-primary/10 p-4 text-sm text-slate-600">
-      <div class="mobile-menu-help-header mb-3 flex items-center gap-2 text-brand-dark">
+    <div class="mt-auto space-y-3 border-t border-white/10 px-4 py-5 text-sm text-white/80">
+      <div class="flex items-center gap-2 font-semibold">
         <span class="material-icons text-base" aria-hidden="true">help_outline</span>
-        <strong>Admin Tips</strong>
+        <span>Admin Tips</span>
       </div>
-      <ul class="mobile-menu-help-list space-y-2">
-        <li>Review all registered users</li>
+      <ul class="list-disc space-y-1 pl-5 text-white/70">
+        <li>Review and audit users regularly</li>
         <li>Promote trusted collaborators</li>
         <li>Downgrade or remove problematic accounts</li>
         <li>Changes apply immediately</li>
@@ -71,119 +109,192 @@
   </div>
 
   <div class="app flex min-h-screen flex-col md:flex-row">
-    <aside class="sidebar hidden w-full shrink-0 flex-col gap-6 border-r border-slate-200/70 bg-white/95 px-6 py-6 shadow-lg transition-all duration-300 md:flex md:w-72 md:bg-white/80 md:backdrop-blur" id="sidebar" data-collapsed="false">
-      <div class="sidebar__inner flex flex-col gap-8">
-        <div class="sidebar__header flex items-center gap-3">
-          <img src="img/logo.svg" alt="BDI Blocks World logo" class="sidebar__logo h-12 w-12" />
-          <span class="sidebar__title text-lg font-semibold leading-tight" id="sidebarTitle" data-sidebar-collapsible="text">BDI Blocks World</span>
+    <aside
+      id="sidebar"
+      data-collapsed="false"
+      class="sidebar hidden bg-brand-dark text-white transition-all duration-300 ease-in-out md:fixed md:inset-y-0 md:flex md:w-72 md:flex-col md:shadow-lg"
+    >
+      <div class="flex h-full flex-col md:overflow-y-auto md:px-6 md:py-6 scrollbar-hidden" data-sidebar-content>
+        <div class="flex items-center justify-center gap-3 md:justify-start" data-sidebar-brand>
+          <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-10 w-10" />
+          <span id="sidebarTitle" data-sidebar-collapsible="text" class="text-lg font-semibold text-white">BDI Blocks World</span>
         </div>
 
-        <nav class="sidebar__nav flex flex-col gap-1" aria-label="Primary">
-          <a class="sidebar__link flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10 hover:text-brand-dark" data-route="dashboard" href="index.html" title="Dashboard" aria-label="Dashboard">
-            <span class="material-icons sidebar__icon text-lg text-brand-primary" aria-hidden="true">dashboard</span>
+        <nav class="mt-8 flex flex-col gap-1" aria-label="Primary">
+          <a
+            href="index.html"
+            data-route="dashboard"
+            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            title="Dashboard"
+            aria-label="Dashboard"
+          >
+            <span class="material-icons text-lg" aria-hidden="true">dashboard</span>
             <span class="sidebar__label" data-sidebar-collapsible="text">Dashboard</span>
           </a>
-          <a class="sidebar__link admin-nav-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10 hover:text-brand-dark" data-route="admin" href="admin.html" title="Admin Dashboard" aria-label="Admin Dashboard">
-            <span class="material-icons sidebar__icon text-lg text-brand-primary" aria-hidden="true">admin_panel_settings</span>
+          <a
+            href="admin.html"
+            data-route="admin"
+            class="sidebar__link admin-nav-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white transition bg-white/10"
+            title="Admin Dashboard"
+            aria-label="Admin Dashboard"
+          >
+            <span class="material-icons text-lg" aria-hidden="true">admin_panel_settings</span>
             <span class="sidebar__label" data-sidebar-collapsible="text">Admin Dashboard</span>
           </a>
-          <a class="sidebar__link flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-brand-primary/10" data-route="agent-logs" data-disabled="true" href="#" title="Agent logs coming soon" aria-label="Agent Logs">
-            <span class="material-icons sidebar__icon text-lg" aria-hidden="true">receipt_long</span>
+          <a
+            href="#"
+            data-route="agent-logs"
+            data-disabled="true"
+            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50 transition pointer-events-none opacity-40"
+            title="Agent logs coming soon"
+            aria-label="Agent Logs"
+          >
+            <span class="material-icons text-lg" aria-hidden="true">receipt_long</span>
             <span class="sidebar__label" data-sidebar-collapsible="text">Agent Logs</span>
           </a>
-          <a class="sidebar__link flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-brand-primary/10" data-route="import-export" data-disabled="true" href="#" title="Import/export coming soon" aria-label="Import/Export">
-            <span class="material-icons sidebar__icon text-lg" aria-hidden="true">import_export</span>
+          <a
+            href="#"
+            data-route="import-export"
+            data-disabled="true"
+            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50 transition pointer-events-none opacity-40"
+            title="Import/export coming soon"
+            aria-label="Import/Export"
+          >
+            <span class="material-icons text-lg" aria-hidden="true">import_export</span>
             <span class="sidebar__label" data-sidebar-collapsible="text">Import/Export</span>
           </a>
         </nav>
 
-  <div class="sidebar__help flex items-start gap-3 border border-brand-primary/30 bg-brand-primary/10 p-4 text-sm text-slate-600" data-sidebar-collapsible="expanded">
-          <span class="material-icons sidebar__help-icon text-lg text-brand-primary" aria-hidden="true">help_outline</span>
-          <div class="sidebar__help-content space-y-2">
-            <strong class="sidebar__help-title text-sm font-semibold uppercase tracking-wide text-brand-dark">Admin Tips</strong>
-            <ul class="sidebar__help-list space-y-2">
-              <li>Review all registered users</li>
-              <li>Promote trusted collaborators</li>
-              <li>Downgrade or remove problematic accounts</li>
-              <li>Changes apply immediately</li>
-            </ul>
+        <div class="mt-8 space-y-3 bg-white/10 p-4 text-sm text-white/80" data-sidebar-collapsible="expanded">
+          <div class="flex items-center gap-2 font-semibold">
+            <span class="material-icons text-base" aria-hidden="true">lightbulb</span>
+            <span data-sidebar-collapsible="text">Admin Tips</span>
           </div>
+          <ul class="space-y-2 text-white/70" data-sidebar-collapsible="text">
+            <li>Review users weekly to maintain healthy access control.</li>
+            <li>Promote additional admins only when necessary.</li>
+            <li>Use demote instead of delete whenever possible.</li>
+            <li>Contact support if accounts look suspicious.</li>
+          </ul>
         </div>
-      </div>
 
-  <button class="sidebar__toggle mt-auto inline-flex items-center gap-2 self-start border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-brand-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" id="sidebarToggle" type="button" aria-label="Collapse navigation" aria-expanded="true">
-        <span class="material-icons sidebar__toggle-icon text-base" id="sidebarToggleIcon" aria-hidden="true">chevron_left</span>
-        <span class="sidebar__toggle-text text-sm font-medium">Collapse</span>
-      </button>
+        <button
+          id="sidebarToggle"
+          type="button"
+          aria-label="Collapse navigation"
+          aria-expanded="true"
+          class="sidebar__toggle mt-auto inline-flex items-center justify-center gap-2 border border-white/20 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:text-white"
+        >
+          <span class="material-icons text-base" id="sidebarToggleIcon" aria-hidden="true">chevron_left</span>
+          <span class="sidebar__toggle-text" data-sidebar-collapsible="text">Collapse</span>
+        </button>
+      </div>
     </aside>
 
-  <main class="main flex-1 px-4 pb-16 pt-6 transition-all duration-300 ease-in-out md:px-10 md:pt-10">
-  <header class="hero flex flex-col gap-4 border border-slate-200/70 bg-white/90 px-6 py-6 shadow-card backdrop-blur md:flex-row md:items-center md:justify-between">
-        <div class="space-y-2">
-          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-dark/70">Administration</p>
-          <h1 class="hero-title text-3xl font-semibold text-brand-dark">Admin Dashboard</h1>
-          <p class="text-sm text-slate-600">Manage user access, promote admins, and monitor account activity.</p>
-        </div>
-        <div class="relative">
-          <button class="profile-btn inline-flex items-center gap-2 border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-brand-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" id="profileBtn" aria-label="Profile menu" aria-expanded="false">
-            <span class="material-icons profile-icon text-brand-primary">account_circle</span>
-            <span class="profile-name text-sm font-semibold" id="profileName">Guest</span>
-            <span class="material-icons profile-arrow text-base text-slate-400">expand_more</span>
-          </button>
-          <div class="profile-menu absolute right-0 top-full z-20 mt-2 w-56 border border-slate-200/70 bg-white/95 p-2 shadow-lg backdrop-blur" id="profileMenu">
-            <div id="profileMenuLoggedIn" style="display:none;" class="flex flex-col gap-1">
-              <a href="#" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10" id="viewProfile">
-                <span class="material-icons text-brand-primary">person</span>
-                <span>Profile</span>
-              </a>
-              <a href="admin.html" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10" id="adminMenuItem" style="display:none;">
-                <span class="material-icons text-brand-primary">admin_panel_settings</span>
-                <span>Admin Dashboard</span>
-              </a>
-              <a href="#" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10" onclick="logout(); return false;">
-                <span class="material-icons text-brand-primary">logout</span>
-                <span>Logout</span>
-              </a>
+    <main class="flex flex-1 flex-col bg-brand-light pt-20 transition-all duration-300 ease-in-out md:ml-72 md:pt-10">
+      <div class="px-4 pb-10 md:px-10">
+        <div class="border border-white/40 bg-white/70 p-6 shadow-card backdrop-blur">
+          <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div class="space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-brand-dark/70">Administration</p>
+              <h1 class="text-2xl font-extrabold text-brand-dark md:text-3xl">Admin Dashboard</h1>
+              <p class="text-sm text-brand-dark/70 md:max-w-xl">
+                Manage users, promote admins, and keep your BDI Blocks World organization secure.
+              </p>
             </div>
-            <div id="profileMenuLoggedOut" class="flex flex-col gap-1">
-              <a href="login.html" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10">
-                <span class="material-icons text-brand-primary">login</span>
-                <span>Sign In</span>
-              </a>
-              <a href="signup.html" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-brand-primary/10">
-                <span class="material-icons text-brand-primary">person_add</span>
-                <span>Register</span>
-              </a>
+            <div class="relative">
+              <button
+                id="profileBtn"
+                type="button"
+                aria-haspopup="true"
+                aria-expanded="false"
+                class="flex items-center gap-3 border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-brand-dark shadow-card transition hover:border-brand-primary hover:text-brand-dark"
+              >
+                <span class="material-icons text-lg text-brand-primary" aria-hidden="true">account_circle</span>
+                <span id="profileName" class="text-sm font-semibold">Guest</span>
+                <span class="material-icons text-base text-brand-dark/60" aria-hidden="true">expand_more</span>
+              </button>
+              <div
+                id="profileMenu"
+                class="absolute right-0 z-30 mt-3 w-56 origin-top-right border border-slate-200 bg-white p-2 shadow-card hidden"
+              >
+                <div id="profileMenuLoggedIn" class="hidden flex-col gap-1">
+                  <a href="#" id="viewProfile" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">person</span>
+                    <span>Profile</span>
+                  </a>
+                  <a href="admin.html" id="adminMenuItem" class="profile-menu-item hidden items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">admin_panel_settings</span>
+                    <span>Admin Dashboard</span>
+                  </a>
+                  <a href="#" onclick="logout(); return false;" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">logout</span>
+                    <span>Logout</span>
+                  </a>
+                </div>
+                <div id="profileMenuLoggedOut" class="flex flex-col gap-1">
+                  <a href="login.html" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">login</span>
+                    <span>Sign In</span>
+                  </a>
+                  <a href="signup.html" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">person_add</span>
+                    <span>Register</span>
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </header>
 
-  <section class="mt-8 border border-slate-200/70 bg-white/95 shadow-card backdrop-blur">
-        <div class="flex items-center justify-between border-b border-slate-200/60 px-6 py-4">
-          <h2 class="text-lg font-semibold text-brand-dark">User Management</h2>
-          <span class="text-xs font-medium uppercase tracking-[0.2em] text-brand-dark/70">Live</span>
+        <div class="mt-8 grid gap-6 lg:grid-cols-[1.7fr_1fr]">
+          <section class="border border-slate-200 bg-white shadow-card">
+            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <h2 class="text-lg font-semibold text-brand-dark">User Management</h2>
+              <span class="inline-flex items-center rounded-none bg-brand-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-primary">Live</span>
+            </div>
+            <div class="space-y-5 px-6 py-6">
+              <p id="status" class="border border-brand-primary/30 bg-brand-primary/10 px-4 py-3 text-sm font-semibold text-brand-dark">Loading...</p>
+              <div class="overflow-hidden border border-slate-200">
+                <table class="min-w-full divide-y divide-slate-200 text-left text-sm text-brand-dark">
+                  <thead class="bg-brand-dark/10 text-xs font-semibold uppercase tracking-[0.18em] text-brand-dark/70">
+                    <tr>
+                      <th scope="col" class="px-4 py-3">Username</th>
+                      <th scope="col" class="px-4 py-3">Email</th>
+                      <th scope="col" class="px-4 py-3">Role</th>
+                      <th scope="col" class="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="users" class="divide-y divide-slate-200 bg-white"></tbody>
+                </table>
+              </div>
+              <p class="border border-slate-200 bg-brand-dark/5 px-4 py-3 text-sm text-brand-dark/80">
+                Promotion changes take effect immediately. Encourage collaborators to register accounts before elevating their access.
+              </p>
+            </div>
+          </section>
+
+          <section class="border border-slate-200 bg-white shadow-card">
+            <div class="border-b border-slate-200 px-6 py-4">
+              <h3 class="text-lg font-semibold text-brand-dark">Recent Admin Activity</h3>
+            </div>
+            <div class="space-y-3 px-6 py-6 text-sm text-brand-dark/80">
+              <p class="flex items-center gap-2">
+                <span class="material-icons text-base text-brand-primary" aria-hidden="true">update</span>
+                Review the latest user changes after each session.
+              </p>
+              <p class="flex items-center gap-2">
+                <span class="material-icons text-base text-brand-primary" aria-hidden="true">security</span>
+                Confirm demotions and deletions with a second admin when possible.
+              </p>
+              <p class="flex items-center gap-2">
+                <span class="material-icons text-base text-brand-primary" aria-hidden="true">info</span>
+                Need help? Contact support via the admin profile menu.
+              </p>
+            </div>
+          </section>
         </div>
-        <div class="space-y-6 px-6 py-6">
-          <p id="status" class="border border-brand-primary/30 bg-brand-primary/10 px-4 py-3 text-sm font-semibold text-brand-dark">Loading...</p>
-          <div class="overflow-hidden border border-slate-200/70">
-            <table class="min-w-full divide-y divide-slate-200 text-left text-sm text-slate-700">
-              <thead class="bg-slate-100 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                <tr>
-                  <th scope="col" class="px-4 py-3">Username</th>
-                  <th scope="col" class="px-4 py-3">Email</th>
-                  <th scope="col" class="px-4 py-3">Role</th>
-                  <th scope="col" class="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="users" class="divide-y divide-slate-200 bg-white"></tbody>
-            </table>
-          </div>
-          <p class="border border-slate-200/70 bg-slate-50/80 px-4 py-3 text-sm text-slate-600">
-            Promotion changes take effect immediately. Encourage collaborators to register accounts before elevating their access.
-          </p>
-        </div>
-      </section>
+      </div>
     </main>
   </div>
 

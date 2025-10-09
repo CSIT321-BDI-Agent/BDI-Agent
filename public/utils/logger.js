@@ -7,11 +7,11 @@ import { DOM } from './constants.js';
  * dashboard "Action Tower" panel.
  */
 
-const ENTRY_BASE_CLASS = 'flex items-start gap-3 border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-brand-dark shadow-sm';
+const ENTRY_BASE_CLASS = 'flex items-start gap-3 px-3 py-2 font-mono text-[12px] leading-5 text-emerald-300';
 const LABEL_CLASSES = {
-  agent: 'log-badge font-semibold uppercase tracking-[0.18em] text-brand-primary',
-  user: 'log-badge font-semibold uppercase tracking-[0.18em] text-brand-dark/70',
-  system: 'log-badge font-semibold uppercase tracking-[0.18em] text-slate-500'
+  agent: 'log-badge font-semibold uppercase tracking-[0.18em] text-emerald-400',
+  user: 'log-badge font-semibold uppercase tracking-[0.18em] text-sky-300',
+  system: 'log-badge font-semibold uppercase tracking-[0.18em] text-slate-400'
 };
 
 let logContainer = null;
@@ -43,24 +43,17 @@ export function logAction(action, type = 'agent') {
   const resolvedType = LABEL_CLASSES[type] ? type : 'system';
   label.className = LABEL_CLASSES[resolvedType];
   label.textContent = resolvedType === 'agent'
-    ? 'BDI Agent'
+    ? 'AGENT'
     : resolvedType === 'user'
       ? (window.localStorage?.getItem('username') || 'User')
       : 'System';
 
   const message = document.createElement('span');
-  message.className = 'log-message flex-1 text-[13px] text-brand-dark';
+  message.className = 'log-message flex-1 text-emerald-200';
   message.textContent = action;
-
-  const time = document.createElement('time');
-  time.className = 'log-time ml-auto text-[10px] font-mono uppercase tracking-[0.2em] text-brand-dark/50';
-  const now = new Date();
-  time.dateTime = now.toISOString();
-  time.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   entry.appendChild(label);
   entry.appendChild(message);
-  entry.appendChild(time);
 
   logContainer.appendChild(entry);
 

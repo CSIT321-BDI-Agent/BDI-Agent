@@ -133,7 +133,7 @@ export async function refreshLoadList() {
 
     const defaultOption = document.createElement('option');
     defaultOption.value = '';
-    defaultOption.textContent = '-- Select a saved world --';
+    defaultOption.textContent = 'Select a saved world';
     selector.appendChild(defaultOption);
 
     worlds.forEach(w => {

@@ -55,7 +55,7 @@ function bindGoalPreview() {
     const goalText = goalInput.value.trim();
     infoGoal.textContent = goalText
       ? `(${goalText.split(/\s*on\s*/i).join(', ')})`
-      : '(—)';
+      : '( - )';
   };
 
   goalInput.addEventListener('input', updateGoalText);
@@ -70,12 +70,12 @@ function bindWorldInfoUpdates() {
 function updateWorldInfo() {
   const infoCurrent = DOM.infoCurrent();
   if (!infoCurrent || !boundWorld || !Array.isArray(boundWorld.stacks)) {
-    if (infoCurrent) infoCurrent.textContent = '(—)';
+    if (infoCurrent) infoCurrent.textContent = '( - )';
     return;
   }
 
   if (boundWorld.stacks.length === 0) {
-    infoCurrent.textContent = '(empty table)';
+    infoCurrent.textContent = '( - )';
     return;
   }
 

@@ -113,11 +113,11 @@
     display: none;
   }
 
-  .scrollbar-hidden {
+  .scrollbar-hide {
     scrollbar-width: none;
   }
 
-  .scrollbar-hidden::-webkit-scrollbar {
+  .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
 }
