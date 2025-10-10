@@ -5,9 +5,44 @@
  */
 
 import { DOM } from './constants.js';
-import { showMessage, handleError } from './helpers.js';
+import { showMessage, handleError, computeChecksum } from './helpers.js';
 import { getCurrentUser, authenticatedFetch } from './auth.js';
 import { logAction } from './logger.js';
+
+const META_STORAGE_KEY = 'bdiWorldMeta';
+
+const loadMetaCache = () => {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return {};
+  }
+  try {
+    const raw = window.localStorage?.getItem(META_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (error) {
+    console.warn('Failed to load world metadata cache:', error);
+    return {};
+  }
+};
+
+const worldMetaCache = loadMetaCache();
+
+const persistMetaCache = () => {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
+  try {
+    window.localStorage?.setItem(META_STORAGE_KEY, JSON.stringify(worldMetaCache));
+  } catch (error) {
+    console.warn('Failed to persist world metadata cache:', error);
+  }
+};
+
+const getWorldStateSnapshot = (world) => ({
+  stacks: world.getCurrentStacks(),
+  colours: world.getCurrentColours()
+});
 
 /**
  * Save current world to backend
@@ -27,15 +62,26 @@ export async function saveWorld(world) {
     return;
   }
 
+  const trimmedName = worldName.trim();
+  const currentSnapshot = getWorldStateSnapshot(world);
+  const currentChecksum = computeChecksum(currentSnapshot);
+  const cachedMeta = worldMetaCache[trimmedName];
+  if (cachedMeta && cachedMeta.checksum === currentChecksum) {
+    showMessage(`World "${trimmedName}" is already saved with the current layout.`, 'warning');
+    return;
+  }
+
   const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
 
   try {
     const response = await authenticatedFetch(`${API_BASE}/worlds`, {
       method: 'POST',
       body: JSON.stringify({
-        name: worldName.trim(),
+        name: trimmedName,
         blocks: world.getCurrentBlocks(),
-        stacks: world.getCurrentStacks()
+        stacks: currentSnapshot.stacks,
+        colours: currentSnapshot.colours,
+        checksum: currentChecksum
       })
     });
 
@@ -44,10 +90,17 @@ export async function saveWorld(world) {
       throw new Error(errorData.message || `Failed to save world: ${response.statusText}`);
     }
 
-    showMessage(`World "${worldName.trim()}" saved successfully!`, 'success');
+    showMessage(`World "${trimmedName}" saved successfully!`, 'success');
     
     // Log save action
-    logAction(`Saved world "${worldName.trim()}" (${world.getCurrentBlocks().length} blocks)`, 'user');
+    logAction(`Saved world "${trimmedName}" (${world.getCurrentBlocks().length} blocks)`, 'user');
+
+    worldMetaCache[trimmedName] = {
+      checksum: currentChecksum,
+      colours: currentSnapshot.colours,
+      updatedAt: Date.now()
+    };
+    persistMetaCache();
     
     await refreshLoadList();
   } catch (error) {
@@ -87,7 +140,26 @@ export async function loadSelectedWorld(world) {
     }
 
     const data = await response.json();
-    rebuildWorldFrom(world, data.stacks, data.on);
+    const savedMeta = data?.name ? worldMetaCache[data.name] : null;
+    const targetColours = data.colours || data.colors || savedMeta?.colours || {};
+    const targetStacks = Array.isArray(data.stacks) ? data.stacks : [];
+    const targetChecksum = computeChecksum({ stacks: targetStacks, colours: targetColours });
+
+    const currentChecksum = computeChecksum(getWorldStateSnapshot(world));
+    if (currentChecksum === targetChecksum) {
+      showMessage(`World "${data.name}" already matches this saved state.`, 'warning');
+      return;
+    }
+
+    rebuildWorldFrom(world, targetStacks, data.on, targetColours);
+    const refreshedChecksum = computeChecksum(getWorldStateSnapshot(world));
+    worldMetaCache[data.name] = {
+      checksum: refreshedChecksum,
+      colours: world.getCurrentColours(),
+      updatedAt: Date.now()
+    };
+    persistMetaCache();
+
     showMessage(`World "${data.name}" loaded successfully!`, 'success');
     
     // Log load action
@@ -154,7 +226,7 @@ export async function refreshLoadList() {
  * @param {Array<Array<string>>} stacks - Saved stacks
  * @param {Object} on - Saved on relationships (optional, will be reconstructed)
  */
-export function rebuildWorldFrom(world, stacks, on) {
+export function rebuildWorldFrom(world, stacks, on, colours) {
   try {
     // Validate input
     if (!Array.isArray(stacks)) {
@@ -188,7 +260,8 @@ export function rebuildWorldFrom(world, stacks, on) {
     world.stacks = [];
     world.on = {};
     world.blocks = [];
-    world.colours = {};
+    const providedColours = colours && typeof colours === 'object' ? { ...colours } : {};
+    world.colours = providedColours;
 
     // Get all unique blocks from stacks
     const allBlocks = [...new Set(stacks.flat())];
@@ -212,6 +285,7 @@ export function rebuildWorldFrom(world, stacks, on) {
 
     // Update visual positions
     world.updatePositions();
+    world.applyColoursToDOM();
 
     if (typeof world.notifyBlocksChanged === 'function') {
       world.notifyBlocksChanged();

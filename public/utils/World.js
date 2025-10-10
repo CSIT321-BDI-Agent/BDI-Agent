@@ -9,7 +9,7 @@
  */
 
 import { randomColour, showMessage } from './helpers.js';
-import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, STACK_MARGIN } from './constants.js';
+import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, STACK_MARGIN, BLOCK_COLOUR_PALETTE } from './constants.js';
 
 export class World {
   constructor(container) {
@@ -43,13 +43,16 @@ export class World {
     this.blocks.push(name);
     this.stacks.push([name]);
     this.on[name] = 'Table';
-    this.colours[name] = randomColour();
+    if (!this.colours[name]) {
+      this.colours[name] = this.getColourForBlock(name);
+    }
+    const blockColour = this.colours[name];
 
   const div = document.createElement('div');
   div.className = 'world-block absolute flex h-[30px] w-[80px] items-center justify-center rounded-none border border-brand-dark/30 text-sm font-semibold text-white shadow-sm transition-[left,top] duration-500 ease-out select-none cursor-default';
     div.dataset.block = name;
     div.textContent = name;
-    div.style.backgroundColor = this.colours[name];
+    div.style.backgroundColor = blockColour;
     
     if (this.container) {
       this.container.appendChild(div);
@@ -213,5 +216,46 @@ export class World {
    */
   getCurrentStacks() {
     return this.stacks.map(s => [...s]);
+  }
+
+  /**
+   * Get current block colour mapping
+   * @returns {Object} Copy of colours map
+   */
+  getCurrentColours() {
+    return { ...this.colours };
+  }
+
+  /**
+   * Apply colour styles to all block DOM elements
+   */
+  applyColoursToDOM() {
+    if (!this.container) return;
+    this.blocks.forEach(blockName => {
+      const div = this.container.querySelector(`[data-block='${blockName}']`);
+      if (!div) return;
+      if (!this.colours[blockName]) {
+        this.colours[blockName] = this.getColourForBlock(blockName);
+      }
+      div.style.backgroundColor = this.colours[blockName];
+    });
+  }
+
+  /**
+   * Resolve a unique colour for the given block name.
+   * @param {string} name
+   * @returns {string}
+   */
+  getColourForBlock(name) {
+    const index = name.charCodeAt(0) - 65;
+    if (BLOCK_COLOUR_PALETTE[index]) {
+      return BLOCK_COLOUR_PALETTE[index];
+    }
+    let candidate;
+    const existingColours = new Set(Object.values(this.colours));
+    do {
+      candidate = randomColour();
+    } while (existingColours.has(candidate));
+    return candidate;
   }
 }

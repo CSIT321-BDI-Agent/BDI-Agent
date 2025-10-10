@@ -11,6 +11,14 @@ export const BLOCK_HEIGHT = 30;
 export const WORLD_HEIGHT = 240;
 export const STACK_MARGIN = 10;
 
+export const BLOCK_COLOUR_PALETTE = [
+  '#ff6b6b', '#f06595', '#845ef7', '#5c7cfa', '#339af0', '#22b8cf',
+  '#20c997', '#51cf66', '#94d82d', '#fcc419', '#ff922b', '#ff6b3c',
+  '#ff8787', '#ff9f43', '#ffa94d', '#ffd43b', '#63e6be', '#38d9a9',
+  '#12b886', '#0ca678', '#099268', '#0b7285', '#1864ab', '#364fc7',
+  '#4c6ef5', '#9775fa'
+];
+
 // Claw Animation Settings
 export const CLAW_HEIGHT = 25;
 export const CLAW_WIDTH = 60; // Must match --claw-width in CSS
