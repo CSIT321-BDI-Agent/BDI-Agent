@@ -28,6 +28,42 @@ const JWT_SECRET = getJwtSecret();
 const BLOCK_NAME_REGEX = /^[A-Z]$/;
 const MAX_ITERATION_CAP = 5000;
 
+const sanitizeColourMap = (input) => {
+  if (!input || typeof input !== 'object') {
+    return {};
+  }
+
+  return Object.entries(input).reduce((acc, [key, value]) => {
+    if (typeof key === 'string' && typeof value === 'string') {
+      acc[key.trim()] = value;
+    }
+    return acc;
+  }, {});
+};
+
+const sanitizeTimelineSnapshot = (snapshot) => {
+  if (!snapshot || typeof snapshot !== 'object') {
+    return null;
+  }
+
+  if (!Array.isArray(snapshot.log)) {
+    return null;
+  }
+
+  return snapshot;
+};
+
+const normalizeBlocksList = (blocks) => {
+  return blocks.map((block, index) => {
+    const normalized = ensureNonEmptyString(block, `Block at index ${index}`);
+    const upper = normalized.toUpperCase();
+    if (!BLOCK_NAME_REGEX.test(upper)) {
+      throw new HttpError(400, `Invalid block name "${block}" in blocks list.`);
+    }
+    return upper;
+  });
+};
+
 const validateStacksPayload = (stacks) => {
   if (!Array.isArray(stacks)) {
     throw new HttpError(400, 'Stacks must be an array of arrays.');
@@ -97,20 +133,46 @@ connectDB(MONGODB_URI);
 
 // ------------------ Worlds Routes ------------------
 app.post('/worlds', requireAuth, withRoute(async (req, res) => {
-  const { name, blocks, stacks } = req.body || {};
-
-  const normalizedName = ensureNonEmptyString(name, 'Valid world name');
-  ensureArray(blocks, 'Blocks');
-  ensureArray(stacks, 'Stacks');
-
-  const world = await World.create({
-    name: normalizedName,
+  const {
+    name,
     blocks,
     stacks,
-    user: req.user._id
-  });
+    colours,
+    colors,
+    timeline
+  } = req.body || {};
 
-  res.status(201).json(world);
+  const normalizedName = ensureNonEmptyString(name, 'Valid world name');
+  const blocksArray = ensureArray(blocks, 'Blocks');
+  const stacksArray = ensureArray(stacks, 'Stacks');
+
+  const normalizedBlocks = normalizeBlocksList(blocksArray);
+  const validatedStacks = validateStacksPayload(stacksArray).map(stack => [...stack]);
+  const sanitizedColours = sanitizeColourMap(colours ?? colors);
+  const sanitizedTimeline = sanitizeTimelineSnapshot(timeline);
+
+  const existing = await World.findOne({ user: req.user._id, name: normalizedName });
+  if (existing) {
+    throw new HttpError(409, `World name "${normalizedName}" already exists. Choose a different name.`);
+  }
+
+  try {
+    const world = await World.create({
+      name: normalizedName,
+      blocks: normalizedBlocks,
+      stacks: validatedStacks,
+      colours: sanitizedColours,
+      timeline: sanitizedTimeline,
+      user: req.user._id
+    });
+
+    res.status(201).json(world);
+  } catch (error) {
+    if (error && error.code === 11000) {
+      throw new HttpError(409, `World name "${normalizedName}" already exists. Choose a different name.`);
+    }
+    throw error;
+  }
 }));
 
 app.get('/worlds', requireAuth, withRoute(async (req, res) => {

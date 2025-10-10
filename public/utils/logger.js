@@ -4,7 +4,7 @@ import { DOM } from './constants.js';
  * Action log utilities
  *
  * Handles rendering of user/system/agent activity entries within the
- * dashboard "Action Tower" panel.
+ * dashboard "Action Log" panel.
  */
 
 const ENTRY_BASE_CLASS = 'flex items-start gap-3 px-3 py-2 font-mono text-[12px] leading-5 text-emerald-300';
@@ -72,3 +72,4 @@ export function logAction(action, type = 'agent') {
 export function logMove(description) {
   logAction(description, 'agent');
 }
+

@@ -5,9 +5,10 @@
  */
 
 import { DOM } from './constants.js';
-import { showMessage, handleError, computeChecksum } from './helpers.js';
+import { showMessage, handleError } from './helpers.js';
 import { getCurrentUser, authenticatedFetch } from './auth.js';
 import { logAction } from './logger.js';
+import { getIntentionTimelineSnapshot, restoreTimelineFromSnapshot } from './timeline.js';
 
 const META_STORAGE_KEY = 'bdiWorldMeta';
 
@@ -41,8 +42,101 @@ const persistMetaCache = () => {
 
 const getWorldStateSnapshot = (world) => ({
   stacks: world.getCurrentStacks(),
-  colours: world.getCurrentColours()
+  colours: world.getCurrentColours(),
+  timeline: getIntentionTimelineSnapshot()
 });
+
+const getLoadSelect = () => DOM.loadSelect();
+
+const normalizeWorldIdentifier = (doc) => {
+  const raw = doc?._id ?? doc?.id ?? null;
+  if (!raw) return null;
+  if (typeof raw === 'string') return raw;
+  if (typeof raw === 'object') {
+    if (typeof raw.$oid === 'string') return raw.$oid;
+    if (typeof raw.toString === 'function') {
+      const candidate = raw.toString();
+      if (candidate && candidate !== '[object Object]') {
+        return candidate;
+      }
+    }
+  }
+  return null;
+};
+
+const ensureDefaultLoadOption = (selector, text = 'Select a saved world') => {
+  if (!selector) return;
+  const existing = selector.querySelector('option[value=""]');
+  if (existing) {
+    existing.textContent = text;
+    return;
+  }
+  const option = document.createElement('option');
+  option.value = '';
+  option.textContent = text;
+  selector.appendChild(option);
+};
+
+const upsertLoadOption = (worldDoc) => {
+  const selector = getLoadSelect();
+  if (!selector || !worldDoc) return;
+
+  const id = normalizeWorldIdentifier(worldDoc);
+  const name = typeof worldDoc.name === 'string' ? worldDoc.name.trim() : '';
+
+  if (!id || !name) return;
+
+  ensureDefaultLoadOption(selector);
+
+  const escapeValue = (value) => {
+    if (typeof value !== 'string') return value;
+    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+      return CSS.escape(value);
+    }
+    return value.replace(/"/g, '\\"');
+  };
+
+  let option = selector.querySelector(`option[value="${escapeValue(id)}"]`);
+  if (!option) {
+    option = document.createElement('option');
+    const defaultOption = selector.querySelector('option[value=""]');
+    if (defaultOption) {
+      selector.insertBefore(option, defaultOption.nextSibling);
+    } else {
+      selector.appendChild(option);
+    }
+  }
+
+  option.value = id;
+  option.textContent = name;
+};
+
+const rebuildLoadOptions = (worlds) => {
+  const selector = getLoadSelect();
+  if (!selector) return;
+
+  selector.innerHTML = '';
+
+  if (!Array.isArray(worlds) || worlds.length === 0) {
+    ensureDefaultLoadOption(selector, 'No saved worlds yet');
+    return;
+  }
+
+  ensureDefaultLoadOption(selector);
+
+  const fragment = document.createDocumentFragment();
+  worlds.forEach((world) => {
+    const id = normalizeWorldIdentifier(world);
+    const name = typeof world?.name === 'string' ? world.name.trim() : '';
+    if (!id || !name) return;
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = name;
+    fragment.appendChild(option);
+  });
+
+  selector.appendChild(fragment);
+};
 
 /**
  * Save current world to backend
@@ -64,10 +158,9 @@ export async function saveWorld(world) {
 
   const trimmedName = worldName.trim();
   const currentSnapshot = getWorldStateSnapshot(world);
-  const currentChecksum = computeChecksum(currentSnapshot);
   const cachedMeta = worldMetaCache[trimmedName];
-  if (cachedMeta && cachedMeta.checksum === currentChecksum) {
-    showMessage(`World "${trimmedName}" is already saved with the current layout.`, 'warning');
+  if (cachedMeta) {
+    showMessage(`World name "${trimmedName}" is already in use. Please choose a different name.`, 'error');
     return;
   }
 
@@ -81,14 +174,33 @@ export async function saveWorld(world) {
         blocks: world.getCurrentBlocks(),
         stacks: currentSnapshot.stacks,
         colours: currentSnapshot.colours,
-        checksum: currentChecksum
+        timeline: currentSnapshot.timeline
       })
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(errorData.message || `Failed to save world: ${response.statusText}`);
+    let responseData = null;
+    try {
+      responseData = await response.json();
+    } catch (error) {
+      responseData = null;
     }
+
+    if (!response.ok) {
+      const message = responseData?.message || response.statusText;
+      throw new Error(message || `Failed to save world: ${response.statusText}`);
+    }
+
+    if (responseData) {
+      upsertLoadOption(responseData);
+    }
+
+    const savedColours = responseData && responseData.colours && typeof responseData.colours === 'object'
+      ? responseData.colours
+      : currentSnapshot.colours;
+
+    const savedTimeline = responseData && Object.prototype.hasOwnProperty.call(responseData, 'timeline')
+      ? responseData.timeline
+      : currentSnapshot.timeline;
 
     showMessage(`World "${trimmedName}" saved successfully!`, 'success');
     
@@ -96,8 +208,8 @@ export async function saveWorld(world) {
     logAction(`Saved world "${trimmedName}" (${world.getCurrentBlocks().length} blocks)`, 'user');
 
     worldMetaCache[trimmedName] = {
-      checksum: currentChecksum,
-      colours: currentSnapshot.colours,
+      colours: savedColours,
+      timeline: savedTimeline,
       updatedAt: Date.now()
     };
     persistMetaCache();
@@ -143,19 +255,14 @@ export async function loadSelectedWorld(world) {
     const savedMeta = data?.name ? worldMetaCache[data.name] : null;
     const targetColours = data.colours || data.colors || savedMeta?.colours || {};
     const targetStacks = Array.isArray(data.stacks) ? data.stacks : [];
-    const targetChecksum = computeChecksum({ stacks: targetStacks, colours: targetColours });
-
-    const currentChecksum = computeChecksum(getWorldStateSnapshot(world));
-    if (currentChecksum === targetChecksum) {
-      showMessage(`World "${data.name}" already matches this saved state.`, 'warning');
-      return;
-    }
+    const targetTimeline = data.timeline || savedMeta?.timeline || null;
 
     rebuildWorldFrom(world, targetStacks, data.on, targetColours);
-    const refreshedChecksum = computeChecksum(getWorldStateSnapshot(world));
+    restoreTimelineFromSnapshot(targetTimeline);
+    const refreshedSnapshot = getWorldStateSnapshot(world);
     worldMetaCache[data.name] = {
-      checksum: refreshedChecksum,
-      colours: world.getCurrentColours(),
+      colours: refreshedSnapshot.colours,
+      timeline: refreshedSnapshot.timeline,
       updatedAt: Date.now()
     };
     persistMetaCache();
@@ -179,7 +286,10 @@ export async function refreshLoadList() {
   const user = getCurrentUser();
 
   if (!user) {
-    selector.innerHTML = '<option value="">Log in to see saved worlds</option>';
+    if (selector) {
+      selector.innerHTML = '';
+      ensureDefaultLoadOption(selector, 'Log in to see saved worlds');
+    }
     return;
   }
 
@@ -191,32 +301,21 @@ export async function refreshLoadList() {
     });
 
     if (!response.ok) {
-      selector.innerHTML = '<option value="">Failed to fetch worlds</option>';
+      if (selector) {
+        selector.innerHTML = '';
+        ensureDefaultLoadOption(selector, 'Failed to fetch worlds');
+      }
       return;
     }
 
     const worlds = await response.json();
-    selector.innerHTML = '';
-
-    if (!Array.isArray(worlds) || worlds.length === 0) {
-      selector.innerHTML = '<option value="">No saved worlds yet</option>';
-      return;
-    }
-
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = 'Select a saved world';
-    selector.appendChild(defaultOption);
-
-    worlds.forEach(w => {
-      const option = document.createElement('option');
-      option.value = w._id;
-      option.textContent = w.name;
-      selector.appendChild(option);
-    });
+    rebuildLoadOptions(worlds);
   } catch (error) {
     handleError(error, 'refreshing world list');
-    selector.innerHTML = '<option value="">Error loading worlds</option>';
+    if (selector) {
+      selector.innerHTML = '';
+      ensureDefaultLoadOption(selector, 'Error loading worlds');
+    }
   }
 }
 

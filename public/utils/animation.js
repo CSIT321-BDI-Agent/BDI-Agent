@@ -145,7 +145,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
       markTimelineStep({ type: 'DROP', block: blockName, at: dest, stepNumber: 4 });
     }
     
-    // Log complete move to Action Tower
+    // Log complete move to Action Log
     const destination = dest === 'Table' ? 'Table' : dest;
     logMove(`Move ${blockName} → ${destination}`);
     
@@ -157,3 +157,4 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     callback();
   }
 }
+

@@ -25,6 +25,9 @@ const TIMELINE_EMPTY_CLASS = 'border border-dashed border-slate-300 bg-slate-50 
 let intentionTimelineState = null;
 let plannerClockInterval = null;
 let plannerClockStart = null;
+let lastRenderedLog = null;
+let lastRenderedAgentCount = 0;
+let lastRenderedOptions = {};
 
 const applyClasses = (element, classes, shouldApply) => {
   classes.forEach(cls => element.classList.toggle(cls, Boolean(shouldApply)));
@@ -94,6 +97,9 @@ export function startPlannerClock() {
  */
 export function resetIntentionTimeline(message = 'No planner data yet.') {
   intentionTimelineState = null;
+  lastRenderedLog = null;
+  lastRenderedAgentCount = 0;
+  lastRenderedOptions = {};
   const container = DOM.intentionTimeline();
   if (!container) return;
   container.innerHTML = '';
@@ -115,7 +121,13 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
   if (!container) return;
   container.innerHTML = '';
 
-  const emptyMessage = options.emptyMessage || 'Planner has not produced any cycles yet.';
+  const optionsCopy = { ...(options || {}) };
+  const durationsFromOptions = Array.isArray(optionsCopy.prefillDurations)
+    ? [...optionsCopy.prefillDurations]
+    : null;
+  delete optionsCopy.prefillDurations;
+
+  const emptyMessage = optionsCopy.emptyMessage || 'Planner has not produced any cycles yet.';
 
   if (!Array.isArray(intentionLog) || intentionLog.length === 0) {
     const empty = document.createElement('div');
@@ -214,6 +226,14 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
     }
 
     setEntryVisualState(entry, cycleState.visual);
+
+    if (durationsFromOptions && (typeof durationsFromOptions[idx] === 'string' || typeof durationsFromOptions[idx] === 'number')) {
+      const rawDuration = durationsFromOptions[idx];
+      const formattedDuration =
+        typeof rawDuration === 'number' ? formatPlannerDuration(rawDuration) : String(rawDuration);
+      cycleState.timeElement.textContent = formattedDuration;
+    }
+
     state.cycles.push(cycleState);
   });
 
@@ -222,6 +242,14 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
   if (firstActionIndex >= 0) {
     setActiveTimelineCycle(firstActionIndex);
   }
+
+  try {
+    lastRenderedLog = JSON.parse(JSON.stringify(intentionLog));
+  } catch (error) {
+    lastRenderedLog = Array.isArray(intentionLog) ? [...intentionLog] : null;
+  }
+  lastRenderedAgentCount = agentCount;
+  lastRenderedOptions = { ...optionsCopy };
 }
 
 /**
@@ -309,4 +337,54 @@ export function finalizeTimeline() {
       }
     }
   });
+}
+
+export function getIntentionTimelineSnapshot() {
+  if (!lastRenderedLog || !Array.isArray(lastRenderedLog)) {
+    return null;
+  }
+  let durations = null;
+  if (intentionTimelineState && Array.isArray(intentionTimelineState.cycles)) {
+    durations = intentionTimelineState.cycles.map(cycle => {
+      const text = cycle?.timeElement?.textContent;
+      return typeof text === 'string' && text.trim().length > 0 ? text : '--:--';
+    });
+  } else if (Array.isArray(lastRenderedLog)) {
+    durations = lastRenderedLog.map(() => '--:--');
+  }
+
+  const clockDisplay = (() => {
+    const clockElem = DOM.plannerClock();
+    return clockElem && typeof clockElem.textContent === 'string'
+      ? clockElem.textContent
+      : '--:--';
+  })();
+
+  return {
+    log: lastRenderedLog,
+    agentCount: lastRenderedAgentCount,
+    options: lastRenderedOptions,
+    durations,
+    clockDisplay
+  };
+}
+
+export function restoreTimelineFromSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') {
+    resetIntentionTimeline();
+    return;
+  }
+  const { log, agentCount = 0, options = {} } = snapshot;
+  if (!Array.isArray(log) || log.length === 0) {
+    resetIntentionTimeline(options.emptyMessage);
+    return;
+  }
+  const { durations = null, clockDisplay } = snapshot;
+  const renderOptions = durations && Array.isArray(durations) && durations.length > 0
+    ? { ...options, prefillDurations: durations }
+    : options;
+  renderIntentionTimeline(log, agentCount, renderOptions);
+  if (typeof clockDisplay === 'string' && clockDisplay.trim().length > 0) {
+    updatePlannerClockDisplay(clockDisplay);
+  }
 }

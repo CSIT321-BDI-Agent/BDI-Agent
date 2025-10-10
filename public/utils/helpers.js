@@ -16,42 +16,6 @@ export function randomColour() {
 }
 
 /**
- * Compute a deterministic checksum for a data structure.
- * Uses djb2 (XOR variant) hashing for a quick 32-bit fingerprint.
- * @param {any} value - Serializable data
- * @returns {string} hex checksum
- */
-export function computeChecksum(value) {
-  const normalize = (input) => {
-    if (input === null || typeof input !== 'object') {
-      return input;
-    }
-    if (Array.isArray(input)) {
-      return input.map(normalize);
-    }
-    return Object.keys(input)
-      .sort()
-      .reduce((acc, key) => {
-        acc[key] = normalize(input[key]);
-        return acc;
-      }, {});
-  };
-
-  let str;
-  try {
-    str = typeof value === 'string' ? value : JSON.stringify(normalize(value));
-  } catch (e) {
-    str = String(value);
-  }
-
-  let hash = 5381;
-  for (let i = 0; i < str.length; i += 1) {
-    hash = ((hash * 33) ^ str.charCodeAt(i)) >>> 0;
-  }
-  return hash.toString(16);
-}
-
-/**
  * Show a message to the user
  * @param {string} text - Message text
  * @param {string} type - Message type ('info', 'success', 'error')
