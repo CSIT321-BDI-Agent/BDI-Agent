@@ -10,12 +10,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/app.css" />
 </head>
-<body class="min-h-screen bg-brand-light text-brand-dark">
+<body class="min-h-screen bg-brand-light font-sans text-brand-dark antialiased">
   <main class="flex min-h-screen items-center justify-center px-4 py-12">
-  <section class="w-full max-w-lg border border-slate-200/70 bg-white/95 p-8 shadow-card backdrop-blur">
+    <section class="w-full max-w-lg border border-slate-200/70 bg-white/95 p-8 shadow-card backdrop-blur">
       <div class="mb-6 text-center">
-  <span class="inline-flex h-12 w-12 items-center justify-center bg-brand-primary/10 text-brand-primary">
-          <img src="img/logo.svg" alt="BDI Blocks World logo" class="h-8 w-8" />
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-primary/10">
+          <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-8 w-8" />
         </span>
         <h1 class="auth-title mt-4 text-3xl font-semibold text-brand-dark">Create Account</h1>
         <p class="auth-subtitle mt-2 text-sm text-slate-600">Join the community to build, save, and share block worlds.</p>
@@ -37,7 +37,12 @@
           <input type="password" id="password" name="password" required autocomplete="new-password" class="mt-2 w-full border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-primary focus:ring-brand-primary" />
         </div>
 
-  <button type="submit" class="mt-6 w-full bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">Create Account</button>
+        <button
+          type="submit"
+          class="mt-6 w-full bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+        >
+          Create Account
+        </button>
       </form>
 
       <div id="messages" class="messages hidden"></div>
@@ -65,7 +70,8 @@
 
     function setMessage(text = '', type = 'info') {
       if (!messages) return;
-  const BASE = 'messages block mt-4 w-full border px-4 py-3 text-sm font-medium transition-all duration-200';
+
+      const BASE = 'messages block mt-4 w-full border px-4 py-3 text-sm font-medium transition-all duration-200';
       const TYPE_MAP = {
         info: `${BASE} border-brand-primary/30 bg-brand-primary/10 text-brand-dark`,
         success: `${BASE} border-green-300 bg-green-50 text-green-700`,

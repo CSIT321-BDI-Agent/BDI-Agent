@@ -46,17 +46,18 @@
     class="fixed inset-y-0 left-0 z-40 flex w-72 max-w-full -translate-x-full flex-col bg-brand-dark text-white shadow-xl transition-transform duration-300 md:hidden"
   >
     <div class="flex items-center justify-between px-4 pb-2 pt-5">
-  <div class="sidebar__header flex items-center gap-3">
-  <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-10 w-10 bg-white/10 p-2" />
+      <div class="sidebar__header flex items-center gap-3">
+        <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-10 w-10 bg-white/10 p-2" />
         <span id="mobileMenuBrandText" class="text-base font-semibold text-white">BDI Blocks World</span>
       </div>
       <button id="mobileMenuClose" aria-label="Close menu" class="text-2xl leading-none">&times;</button>
     </div>
+
     <nav class="mt-4 flex flex-col gap-1 px-4 pb-6" aria-label="Primary">
       <a
         href="index.html"
         data-route="dashboard"
-  class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
         aria-label="Dashboard"
       >
         <span class="material-icons text-lg" aria-hidden="true">dashboard</span>
@@ -65,7 +66,7 @@
       <a
         href="admin.html"
         data-route="admin"
-  class="mobile-menu-link admin-nav-link hidden items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+        class="mobile-menu-link admin-nav-link hidden items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
         aria-label="Admin Dashboard"
       >
         <span class="material-icons text-lg" aria-hidden="true">admin_panel_settings</span>
@@ -75,7 +76,7 @@
         href="#"
         data-route="agent-logs"
         data-disabled="true"
-  class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50"
         title="Coming soon"
         aria-label="Agent Logs"
       >
@@ -86,7 +87,7 @@
         href="#"
         data-route="import-export"
         data-disabled="true"
-  class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50"
         title="Coming soon"
         aria-label="Import/Export"
       >
@@ -94,6 +95,7 @@
         <span>Import/Export</span>
       </a>
     </nav>
+
     <div class="mt-auto space-y-3 border-t border-white/10 px-4 py-5 text-sm text-white/80">
       <div class="flex items-center gap-2 font-semibold">
         <span class="material-icons text-base" aria-hidden="true">help_outline</span>
@@ -204,7 +206,7 @@
                 Configure blocks, define a goal stack, and watch the Belief-Desire-Intention planner animate every move in real time.
               </p>
             </div>
-            <div class="relative w-56">
+            <div class="relative w-30">
               <button
                 id="profileBtn"
                 type="button"
