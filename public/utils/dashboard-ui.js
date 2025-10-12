@@ -67,20 +67,26 @@ function bindWorldInfoUpdates() {
   document.addEventListener('world:blocks-changed', updateWorldInfo);
 }
 
-function updateWorldInfo() {
+export function updateWorldInfoFromStacks(stacks) {
   const infoCurrent = DOM.infoCurrent();
-  if (!infoCurrent || !boundWorld || !Array.isArray(boundWorld.stacks)) {
-    if (infoCurrent) infoCurrent.textContent = '( - )';
-    return;
-  }
+  if (!infoCurrent) return;
 
-  if (boundWorld.stacks.length === 0) {
+  if (!Array.isArray(stacks) || stacks.length === 0) {
     infoCurrent.textContent = '( - )';
     return;
   }
 
-  const formatted = boundWorld.stacks
-    .map(stack => (stack.length ? stack.join(' → ') : 'Table'))
+  const formatted = stacks
+    .map(stack => (Array.isArray(stack) && stack.length ? stack.join(' -> ') : 'Table'))
     .join(' | ');
   infoCurrent.textContent = `(${formatted})`;
+}
+
+function updateWorldInfo() {
+  if (!boundWorld || !Array.isArray(boundWorld.stacks)) {
+    updateWorldInfoFromStacks(null);
+    return;
+  }
+
+  updateWorldInfoFromStacks(boundWorld.stacks);
 }

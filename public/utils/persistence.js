@@ -9,6 +9,8 @@ import { showMessage, handleError } from './helpers.js';
 import { getCurrentUser, authenticatedFetch } from './auth.js';
 import { logAction } from './logger.js';
 import { getIntentionTimelineSnapshot, restoreTimelineFromSnapshot } from './timeline.js';
+import { updateWorldInfoFromStacks } from './dashboard-ui.js';
+import { resetStats } from './stats.js';
 
 const META_STORAGE_KEY = 'bdiWorldMeta';
 
@@ -281,6 +283,8 @@ export async function loadSelectedWorld(world) {
 
     rebuildWorldFrom(world, targetStacks, data.on, targetColours);
     restoreTimelineFromSnapshot(targetTimeline);
+    updateWorldInfoFromStacks(targetStacks);
+    resetStats();
     const refreshedSnapshot = getWorldStateSnapshot(world);
     if (metaKey) {
       worldMetaCache[metaKey] = {
