@@ -40,13 +40,23 @@ const persistMetaCache = () => {
   }
 };
 
+const buildMetaKey = (userId, worldName) => {
+  if (!userId || !worldName) return null;
+  return `${userId}::${worldName}`;
+};
+
 const getWorldStateSnapshot = (world) => ({
   stacks: world.getCurrentStacks(),
   colours: world.getCurrentColours(),
   timeline: getIntentionTimelineSnapshot()
 });
-
-const getLoadSelect = () => DOM.loadSelect();
+const LOAD_SELECT_MESSAGES = {
+  default: 'Select a saved world',
+  empty: 'No saved worlds yet',
+  login: 'Log in to see saved worlds',
+  error: 'Error loading worlds',
+  failed: 'Failed to fetch worlds'
+};
 
 const normalizeWorldIdentifier = (doc) => {
   const raw = doc?._id ?? doc?.id ?? null;
@@ -64,78 +74,91 @@ const normalizeWorldIdentifier = (doc) => {
   return null;
 };
 
-const ensureDefaultLoadOption = (selector, text = 'Select a saved world') => {
-  if (!selector) return;
-  const existing = selector.querySelector('option[value=""]');
-  if (existing) {
-    existing.textContent = text;
-    return;
-  }
-  const option = document.createElement('option');
-  option.value = '';
-  option.textContent = text;
-  selector.appendChild(option);
-};
+const loadSelectManager = {
+  get() {
+    return DOM.loadSelect() || null;
+  },
 
-const upsertLoadOption = (worldDoc) => {
-  const selector = getLoadSelect();
-  if (!selector || !worldDoc) return;
-
-  const id = normalizeWorldIdentifier(worldDoc);
-  const name = typeof worldDoc.name === 'string' ? worldDoc.name.trim() : '';
-
-  if (!id || !name) return;
-
-  ensureDefaultLoadOption(selector);
-
-  const escapeValue = (value) => {
-    if (typeof value !== 'string') return value;
-    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-      return CSS.escape(value);
+  ensureDefault(selector, message = LOAD_SELECT_MESSAGES.default) {
+    if (!selector) return;
+    if (selector.options.length > 0 && selector.options[0].value === '') {
+      selector.options[0].textContent = message;
+      return;
     }
-    return value.replace(/"/g, '\\"');
-  };
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = message;
+    selector.insertBefore(option, selector.firstChild);
+  },
 
-  let option = selector.querySelector(`option[value="${escapeValue(id)}"]`);
-  if (!option) {
-    option = document.createElement('option');
-    const defaultOption = selector.querySelector('option[value=""]');
-    if (defaultOption) {
-      selector.insertBefore(option, defaultOption.nextSibling);
-    } else {
-      selector.appendChild(option);
-    }
-  }
+  setStatus(messageKey) {
+    const selector = this.get();
+    if (!selector) return;
+    const message = LOAD_SELECT_MESSAGES[messageKey] || messageKey || LOAD_SELECT_MESSAGES.default;
 
-  option.value = id;
-  option.textContent = name;
-};
+    selector.innerHTML = '';
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = message;
+    selector.appendChild(option);
+  },
 
-const rebuildLoadOptions = (worlds) => {
-  const selector = getLoadSelect();
-  if (!selector) return;
+  upsert(worldDoc) {
+    const selector = this.get();
+    if (!selector || !worldDoc) return;
 
-  selector.innerHTML = '';
-
-  if (!Array.isArray(worlds) || worlds.length === 0) {
-    ensureDefaultLoadOption(selector, 'No saved worlds yet');
-    return;
-  }
-
-  ensureDefaultLoadOption(selector);
-
-  const fragment = document.createDocumentFragment();
-  worlds.forEach((world) => {
-    const id = normalizeWorldIdentifier(world);
-    const name = typeof world?.name === 'string' ? world.name.trim() : '';
+    const id = normalizeWorldIdentifier(worldDoc);
+    const name = typeof worldDoc?.name === 'string' ? worldDoc.name.trim() : '';
     if (!id || !name) return;
+
+    this.ensureDefault(selector);
+
+    const existing = Array.from(selector.options).find(option => option.value === id);
+    if (existing) {
+      existing.textContent = name;
+      return;
+    }
+
     const option = document.createElement('option');
     option.value = id;
     option.textContent = name;
-    fragment.appendChild(option);
-  });
 
-  selector.appendChild(fragment);
+    if (selector.options.length > 1) {
+      selector.insertBefore(option, selector.options[1]);
+    } else {
+      selector.appendChild(option);
+    }
+  },
+
+  rebuild(worlds) {
+    const selector = this.get();
+    if (!selector) return;
+
+    if (!Array.isArray(worlds) || worlds.length === 0) {
+      this.setStatus('empty');
+      return;
+    }
+
+    selector.innerHTML = '';
+
+    const fragment = document.createDocumentFragment();
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = LOAD_SELECT_MESSAGES.default;
+    fragment.appendChild(defaultOption);
+
+    worlds.forEach((world) => {
+      const id = normalizeWorldIdentifier(world);
+      const name = typeof world?.name === 'string' ? world.name.trim() : '';
+      if (!id || !name) return;
+      const option = document.createElement('option');
+      option.value = id;
+      option.textContent = name;
+      fragment.appendChild(option);
+    });
+
+    selector.appendChild(fragment);
+  }
 };
 
 /**
@@ -158,11 +181,7 @@ export async function saveWorld(world) {
 
   const trimmedName = worldName.trim();
   const currentSnapshot = getWorldStateSnapshot(world);
-  const cachedMeta = worldMetaCache[trimmedName];
-  if (cachedMeta) {
-    showMessage(`World name "${trimmedName}" is already in use. Please choose a different name.`, 'error');
-    return;
-  }
+  const metaKey = buildMetaKey(user.userId, trimmedName);
 
   const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
 
@@ -191,7 +210,7 @@ export async function saveWorld(world) {
     }
 
     if (responseData) {
-      upsertLoadOption(responseData);
+      loadSelectManager.upsert(responseData);
     }
 
     const savedColours = responseData && responseData.colours && typeof responseData.colours === 'object'
@@ -207,12 +226,14 @@ export async function saveWorld(world) {
     // Log save action
     logAction(`Saved world "${trimmedName}" (${world.getCurrentBlocks().length} blocks)`, 'user');
 
-    worldMetaCache[trimmedName] = {
-      colours: savedColours,
-      timeline: savedTimeline,
-      updatedAt: Date.now()
-    };
-    persistMetaCache();
+    if (metaKey) {
+      worldMetaCache[metaKey] = {
+        colours: savedColours,
+        timeline: savedTimeline,
+        updatedAt: Date.now()
+      };
+      persistMetaCache();
+    }
     
     await refreshLoadList();
   } catch (error) {
@@ -252,7 +273,8 @@ export async function loadSelectedWorld(world) {
     }
 
     const data = await response.json();
-    const savedMeta = data?.name ? worldMetaCache[data.name] : null;
+    const metaKey = buildMetaKey(user.userId, data?.name);
+    const savedMeta = metaKey ? worldMetaCache[metaKey] : null;
     const targetColours = data.colours || data.colors || savedMeta?.colours || {};
     const targetStacks = Array.isArray(data.stacks) ? data.stacks : [];
     const targetTimeline = data.timeline || savedMeta?.timeline || null;
@@ -260,12 +282,14 @@ export async function loadSelectedWorld(world) {
     rebuildWorldFrom(world, targetStacks, data.on, targetColours);
     restoreTimelineFromSnapshot(targetTimeline);
     const refreshedSnapshot = getWorldStateSnapshot(world);
-    worldMetaCache[data.name] = {
-      colours: refreshedSnapshot.colours,
-      timeline: refreshedSnapshot.timeline,
-      updatedAt: Date.now()
-    };
-    persistMetaCache();
+    if (metaKey) {
+      worldMetaCache[metaKey] = {
+        colours: refreshedSnapshot.colours,
+        timeline: refreshedSnapshot.timeline,
+        updatedAt: Date.now()
+      };
+      persistMetaCache();
+    }
 
     showMessage(`World "${data.name}" loaded successfully!`, 'success');
     
@@ -282,14 +306,10 @@ export async function loadSelectedWorld(world) {
  * @returns {Promise<void>}
  */
 export async function refreshLoadList() {
-  const selector = DOM.loadSelect();
   const user = getCurrentUser();
 
   if (!user) {
-    if (selector) {
-      selector.innerHTML = '';
-      ensureDefaultLoadOption(selector, 'Log in to see saved worlds');
-    }
+    loadSelectManager.setStatus('login');
     return;
   }
 
@@ -301,21 +321,15 @@ export async function refreshLoadList() {
     });
 
     if (!response.ok) {
-      if (selector) {
-        selector.innerHTML = '';
-        ensureDefaultLoadOption(selector, 'Failed to fetch worlds');
-      }
+      loadSelectManager.setStatus('failed');
       return;
     }
 
     const worlds = await response.json();
-    rebuildLoadOptions(worlds);
+    loadSelectManager.rebuild(worlds);
   } catch (error) {
     handleError(error, 'refreshing world list');
-    if (selector) {
-      selector.innerHTML = '';
-      ensureDefaultLoadOption(selector, 'Error loading worlds');
-    }
+    loadSelectManager.setStatus('error');
   }
 }
 

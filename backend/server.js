@@ -64,6 +64,29 @@ const normalizeBlocksList = (blocks) => {
   });
 };
 
+const sanitizeWorldPayload = (raw = {}) => {
+  const {
+    name,
+    blocks,
+    stacks,
+    colours,
+    colors,
+    timeline
+  } = raw;
+
+  const normalizedName = ensureNonEmptyString(name, 'Valid world name');
+  const blocksArray = ensureArray(blocks, 'Blocks');
+  const stacksArray = ensureArray(stacks, 'Stacks');
+
+  return {
+    name: normalizedName,
+    blocks: normalizeBlocksList(blocksArray),
+    stacks: validateStacksPayload(stacksArray).map(stack => [...stack]),
+    colours: sanitizeColourMap(colours ?? colors),
+    timeline: sanitizeTimelineSnapshot(timeline)
+  };
+};
+
 const validateStacksPayload = (stacks) => {
   if (!Array.isArray(stacks)) {
     throw new HttpError(400, 'Stacks must be an array of arrays.');
@@ -133,43 +156,23 @@ connectDB(MONGODB_URI);
 
 // ------------------ Worlds Routes ------------------
 app.post('/worlds', requireAuth, withRoute(async (req, res) => {
-  const {
-    name,
-    blocks,
-    stacks,
-    colours,
-    colors,
-    timeline
-  } = req.body || {};
+  const sanitizedPayload = sanitizeWorldPayload(req.body || {});
 
-  const normalizedName = ensureNonEmptyString(name, 'Valid world name');
-  const blocksArray = ensureArray(blocks, 'Blocks');
-  const stacksArray = ensureArray(stacks, 'Stacks');
-
-  const normalizedBlocks = normalizeBlocksList(blocksArray);
-  const validatedStacks = validateStacksPayload(stacksArray).map(stack => [...stack]);
-  const sanitizedColours = sanitizeColourMap(colours ?? colors);
-  const sanitizedTimeline = sanitizeTimelineSnapshot(timeline);
-
-  const existing = await World.findOne({ user: req.user._id, name: normalizedName });
+  const existing = await World.findOne({ user: req.user._id, name: sanitizedPayload.name });
   if (existing) {
-    throw new HttpError(409, `World name "${normalizedName}" already exists. Choose a different name.`);
+    throw new HttpError(409, `World name "${sanitizedPayload.name}" already exists. Choose a different name.`);
   }
 
   try {
     const world = await World.create({
-      name: normalizedName,
-      blocks: normalizedBlocks,
-      stacks: validatedStacks,
-      colours: sanitizedColours,
-      timeline: sanitizedTimeline,
+      ...sanitizedPayload,
       user: req.user._id
     });
 
     res.status(201).json(world);
   } catch (error) {
     if (error && error.code === 11000) {
-      throw new HttpError(409, `World name "${normalizedName}" already exists. Choose a different name.`);
+      throw new HttpError(409, `World name "${sanitizedPayload.name}" already exists. Choose a different name.`);
     }
     throw error;
   }

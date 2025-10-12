@@ -114,7 +114,7 @@
       data-collapsed="false"
       class="sidebar hidden bg-brand-dark text-white transition-all duration-300 ease-in-out md:fixed md:inset-y-0 md:flex md:w-72 md:flex-col md:shadow-lg"
     >
-      <div class="flex h-full flex-col md:overflow-y-auto md:px-6 md:py-6 scrollbar-hidden" data-sidebar-content>
+      <div class="flex h-full flex-col md:overflow-y-auto md:px-6 md:py-6 md:scrollbar-hide" data-sidebar-content>
         <div class="flex items-center justify-center gap-3 md:justify-start" data-sidebar-brand>
           <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-10 w-10" />
           <span id="sidebarTitle" data-sidebar-collapsible="text" class="text-lg font-semibold text-white">BDI Blocks World</span>
@@ -202,13 +202,13 @@
                 Manage users, promote admins, and keep your BDI Blocks World organization secure.
               </p>
             </div>
-            <div class="relative">
+            <div class="relative w-30">
               <button
                 id="profileBtn"
                 type="button"
                 aria-haspopup="true"
                 aria-expanded="false"
-                class="flex items-center gap-3 border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-brand-dark shadow-card transition hover:border-brand-primary hover:text-brand-dark"
+                class="flex w-full items-center justify-between gap-3 border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-brand-dark shadow-card transition hover:border-brand-primary hover:text-brand-dark"
               >
                 <span class="material-icons text-lg text-brand-primary" aria-hidden="true">account_circle</span>
                 <span id="profileName" class="text-sm font-semibold">Guest</span>
@@ -216,7 +216,7 @@
               </button>
               <div
                 id="profileMenu"
-                class="absolute right-0 z-30 mt-3 w-56 origin-top-right border border-slate-200 bg-white p-2 shadow-card hidden"
+                class="absolute right-0 z-30 mt-3 w-full origin-top-right border border-slate-200 bg-white p-2 shadow-card hidden"
               >
                 <div id="profileMenuLoggedIn" class="hidden flex-col gap-1">
                   <a href="#" id="viewProfile" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
@@ -380,4 +380,3 @@
   </script>
 </body>
 </html>
-
