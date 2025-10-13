@@ -21,6 +21,13 @@ let simulationStartTime = null;
 let statsUpdateInterval = null;
 let initialized = false;
 
+const getCurrentTimeDisplay = () => {
+  if (!statTimeElem) return '--';
+  return typeof statTimeElem.textContent === 'string' && statTimeElem.textContent.trim().length > 0
+    ? statTimeElem.textContent
+    : '--';
+};
+
 /**
  * Initialize statistics UI bindings
  */
@@ -136,4 +143,56 @@ function applyStatusTone(tone = 'default') {
   Object.values(STATUS_TONE_CLASSES).forEach(cls => statStatusElem.classList.remove(cls));
   const applied = STATUS_TONE_CLASSES[tone] || STATUS_TONE_CLASSES.default;
   statStatusElem.classList.add(applied);
+}
+
+/**
+ * Return a lightweight snapshot of the current statistics panel
+ * @returns {{steps:number,timeElapsed:string,status:string}|null}
+ */
+export function getStatsSnapshot() {
+  if (!initialized) return null;
+  return {
+    steps: totalSteps,
+    timeElapsed: getCurrentTimeDisplay(),
+    status: typeof statStatusElem?.textContent === 'string' ? statStatusElem.textContent : '--'
+  };
+}
+
+/**
+ * Restore statistics panel from a saved snapshot
+ * @param {{steps?:number,timeElapsed?:string,status?:string}|null} snapshot
+ */
+export function restoreStatsFromSnapshot(snapshot) {
+  if (!initialized) return;
+  if (!snapshot || typeof snapshot !== 'object') {
+    resetStats();
+    return;
+  }
+
+  stopStatsTimer();
+  simulationStartTime = null;
+
+  const steps = Number(snapshot.steps);
+  if (Number.isFinite(steps) && steps >= 0) {
+    totalSteps = Math.floor(steps);
+    statStepsElem.textContent = String(totalSteps);
+  } else {
+    totalSteps = 0;
+    statStepsElem.textContent = '--';
+  }
+
+  if (typeof snapshot.timeElapsed === 'string' && snapshot.timeElapsed.trim().length > 0) {
+    statTimeElem.textContent = snapshot.timeElapsed;
+  } else {
+    statTimeElem.textContent = '--';
+  }
+
+  if (typeof snapshot.status === 'string' && snapshot.status.trim().length > 0) {
+    const normalized = snapshot.status.trim();
+    statStatusElem.textContent = normalized;
+    applyStatusTone(resolveStatusTone(normalized));
+  } else {
+    statStatusElem.textContent = '--';
+    applyStatusTone('default');
+  }
 }

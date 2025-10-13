@@ -41,6 +41,41 @@ const sanitizeColourMap = (input) => {
   }, {});
 };
 
+const sanitizeTimelineSnapshot = (snapshot) => {
+  if (!snapshot || typeof snapshot !== 'object') {
+    return null;
+  }
+
+  if (!Array.isArray(snapshot.log)) {
+    return null;
+  }
+
+  return snapshot;
+};
+
+const sanitizeStatsSnapshot = (stats) => {
+  if (!stats || typeof stats !== 'object') {
+    return null;
+  }
+
+  const steps =
+    typeof stats.steps === 'number' && Number.isFinite(stats.steps)
+      ? Math.max(0, Math.floor(stats.steps))
+      : null;
+  const timeElapsed = typeof stats.timeElapsed === 'string' ? stats.timeElapsed : null;
+  const status = typeof stats.status === 'string' ? stats.status : null;
+
+  if (steps === null && timeElapsed === null && status === null) {
+    return null;
+  }
+
+  return {
+    steps: steps ?? 0,
+    timeElapsed: timeElapsed ?? '--',
+    status: status ?? '--'
+  };
+};
+
 const normalizeBlocksList = (blocks) => {
   return blocks.map((block, index) => {
     const normalized = ensureNonEmptyString(block, `Block at index ${index}`);
@@ -58,7 +93,9 @@ const sanitizeWorldPayload = (raw = {}) => {
     blocks,
     stacks,
     colours,
-    colors
+    colors,
+    timeline,
+    stats
   } = raw;
 
   const normalizedName = ensureNonEmptyString(name, 'Valid world name');
@@ -69,7 +106,9 @@ const sanitizeWorldPayload = (raw = {}) => {
     name: normalizedName,
     blocks: normalizeBlocksList(blocksArray),
     stacks: validateStacksPayload(stacksArray).map(stack => [...stack]),
-    colours: sanitizeColourMap(colours ?? colors)
+    colours: sanitizeColourMap(colours ?? colors),
+    timeline: sanitizeTimelineSnapshot(timeline),
+    stats: sanitizeStatsSnapshot(stats)
   };
 };
 

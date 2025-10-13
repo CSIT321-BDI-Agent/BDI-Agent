@@ -8,9 +8,9 @@ import { DOM } from './constants.js';
 import { showMessage, handleError } from './helpers.js';
 import { getCurrentUser, authenticatedFetch } from './auth.js';
 import { logAction } from './logger.js';
-import { resetIntentionTimeline } from './timeline.js';
+import { getIntentionTimelineSnapshot, restoreTimelineFromSnapshot, resetIntentionTimeline } from './timeline.js';
 import { updateWorldInfoFromStacks } from './dashboard-ui.js';
-import { resetStats } from './stats.js';
+import { getStatsSnapshot, restoreStatsFromSnapshot, resetStats } from './stats.js';
 
 const META_STORAGE_KEY = 'bdiWorldMeta';
 
@@ -31,13 +31,6 @@ const loadMetaCache = () => {
 
 const worldMetaCache = loadMetaCache();
 
-Object.keys(worldMetaCache).forEach((key) => {
-  const entry = worldMetaCache[key];
-  if (entry && typeof entry === 'object' && Object.prototype.hasOwnProperty.call(entry, 'timeline')) {
-    delete entry.timeline;
-  }
-});
-
 const persistMetaCache = () => {
   if (typeof window === 'undefined' || !window.localStorage) {
     return;
@@ -56,7 +49,9 @@ const buildMetaKey = (userId, worldName) => {
 
 const getWorldStateSnapshot = (world) => ({
   stacks: world.getCurrentStacks(),
-  colours: world.getCurrentColours()
+  colours: world.getCurrentColours(),
+  timeline: getIntentionTimelineSnapshot(),
+  stats: getStatsSnapshot()
 });
 const LOAD_SELECT_MESSAGES = {
   default: 'Select a saved world',
@@ -200,7 +195,8 @@ export async function saveWorld(world) {
         name: trimmedName,
         blocks: world.getCurrentBlocks(),
         stacks: currentSnapshot.stacks,
-        colours: currentSnapshot.colours
+        colours: currentSnapshot.colours,
+        timeline: currentSnapshot.timeline
       })
     });
 
@@ -223,6 +219,12 @@ export async function saveWorld(world) {
     const savedColours = responseData && responseData.colours && typeof responseData.colours === 'object'
       ? responseData.colours
       : currentSnapshot.colours;
+    const savedTimeline = responseData && Object.prototype.hasOwnProperty.call(responseData, 'timeline')
+      ? responseData.timeline
+      : currentSnapshot.timeline;
+    const savedStats = responseData && Object.prototype.hasOwnProperty.call(responseData, 'stats')
+      ? responseData.stats
+      : currentSnapshot.stats;
 
     showMessage(`World "${trimmedName}" saved successfully!`, 'success');
     
@@ -232,6 +234,8 @@ export async function saveWorld(world) {
     if (metaKey) {
       worldMetaCache[metaKey] = {
         colours: savedColours,
+        timeline: savedTimeline,
+        stats: savedStats,
         updatedAt: Date.now()
       };
       persistMetaCache();
@@ -279,15 +283,31 @@ export async function loadSelectedWorld(world) {
     const savedMeta = metaKey ? worldMetaCache[metaKey] : null;
     const targetColours = data.colours || data.colors || savedMeta?.colours || {};
     const targetStacks = Array.isArray(data.stacks) ? data.stacks : [];
+    const targetTimeline = Object.prototype.hasOwnProperty.call(data, 'timeline')
+      ? data.timeline
+      : savedMeta?.timeline ?? null;
+    const targetStats = Object.prototype.hasOwnProperty.call(data, 'stats')
+      ? data.stats
+      : savedMeta?.stats ?? null;
 
     rebuildWorldFrom(world, targetStacks, data.on, targetColours);
-    resetIntentionTimeline('Timeline reset after loading a saved world.');
+    if (targetTimeline) {
+      restoreTimelineFromSnapshot(targetTimeline);
+    } else {
+      resetIntentionTimeline();
+    }
     updateWorldInfoFromStacks(targetStacks);
-    resetStats();
+    if (targetStats) {
+      restoreStatsFromSnapshot(targetStats);
+    } else {
+      resetStats();
+    }
     const refreshedSnapshot = getWorldStateSnapshot(world);
     if (metaKey) {
       worldMetaCache[metaKey] = {
         colours: refreshedSnapshot.colours,
+        timeline: refreshedSnapshot.timeline,
+        stats: refreshedSnapshot.stats,
         updatedAt: Date.now()
       };
       persistMetaCache();

@@ -8,7 +8,7 @@ This directory hosts the server-side portion of the Blocks World simulator: an E
 
 - JWT-authenticated API with per-user world storage and admin-only management routes.
 - Planner endpoint (`POST /plan`) wraps the JS-son agent and enforces sane iteration caps.
-- Saved worlds persist the latest stacks along with any assigned colours.
+- Saved worlds persist the latest stacks, colour assignments, and intention timeline snapshots.
 - Structured error handling via `utils/routeHandler.js` and validation helpers.
 
 ---
@@ -49,7 +49,7 @@ backend/
 │   └── utils/blocks.js      # Planning helpers
 ├── models/
 │   ├── User.js           # Auth model
-│   └── World.js          # Saved world schema (stacks, colours)
+│   └── World.js          # Saved world schema (stacks, colours, timeline)
 ├── utils/
 │   ├── auth.js           # JWT middleware
 │   ├── adminRoutes.js    # Admin-only endpoints
@@ -68,7 +68,7 @@ backend/
 |--------|------|-------------|
 | `POST` | `/users/signup` | Create a new user |
 | `POST` | `/login` | Obtain JWT (7-day expiry) |
-| `POST` | `/worlds` | Save world (requires JWT) – expects `name`, `blocks`, `stacks`, optional `colours` |
+| `POST` | `/worlds` | Save world (requires JWT) – expects `name`, `blocks`, `stacks`, optional `colours`, `timeline` |
 | `GET`  | `/worlds` | List current user's saved worlds |
 | `GET`  | `/worlds/:id` | Retrieve a specific saved world |
 | `POST` | `/plan` | Run the BDI planner on provided stacks/goal (requires JWT) |
@@ -88,6 +88,8 @@ Saved world documents now resemble:
   "blocks": ["A", "B", "C"],
   "stacks": [["C", "B", "A"]],
   "colours": { "A": "hsl(...)", "B": "hsl(...)" },
+  "timeline": { "log": [...], "clockDisplay": "00:14.52", ... },
+  "stats": { "steps": 12, "timeElapsed": "14.52s", "status": "Completed" },
   "user": "64f...",
   "createdAt": "..."
 }
@@ -122,6 +124,12 @@ Saved world documents now resemble:
 - When evolving the saved world schema, update both `models/World.js` and the frontend persistence helper to keep persistence logic in sync.
 
 For broader project information or frontend details, refer back to the [root README](../README.md) and [`public/README.md`](../public/README.md).
+
+
+
+
+
+
 
 
 
