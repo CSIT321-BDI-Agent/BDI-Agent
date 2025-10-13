@@ -955,6 +955,9 @@ select {
 .mb-2 {
   margin-bottom: 0.5rem;
 }
+.mb-3 {
+  margin-bottom: 0.75rem;
+}
 .mb-6 {
   margin-bottom: 1.5rem;
 }
@@ -1012,6 +1015,12 @@ select {
 .h-12 {
   height: 3rem;
 }
+.h-48 {
+  height: 12rem;
+}
+.h-64 {
+  height: 16rem;
+}
 .h-8 {
   height: 2rem;
 }
@@ -1053,9 +1062,6 @@ select {
 }
 .w-12 {
   width: 3rem;
-}
-.w-56 {
-  width: 14rem;
 }
 .w-6 {
   width: 1.5rem;
@@ -1128,6 +1134,9 @@ select {
 }
 .resize {
   resize: both;
+}
+.list-inside {
+  list-style-position: inside;
 }
 .list-disc {
   list-style-type: disc;
@@ -1376,6 +1385,10 @@ select {
 .bg-slate-900\/40 {
   background-color: rgb(15 23 42 / 0.4);
 }
+.bg-slate-950 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(2 6 23 / var(--tw-bg-opacity));
+}
 .bg-slate-950\/95 {
   background-color: rgb(2 6 23 / 0.95);
 }
@@ -1410,6 +1423,10 @@ select {
 .p-8 {
   padding: 2rem;
 }
+.px-1 {
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
 .px-2 {
   padding-left: 0.5rem;
   padding-right: 0.5rem;
@@ -1425,6 +1442,10 @@ select {
 .px-6 {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
+}
+.py-0\.5 {
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
 }
 .py-1 {
   padding-top: 0.25rem;
@@ -1472,6 +1493,9 @@ select {
 }
 .pl-2 {
   padding-left: 0.5rem;
+}
+.pl-4 {
+  padding-left: 1rem;
 }
 .pl-5 {
   padding-left: 1.25rem;
@@ -1615,6 +1639,10 @@ select {
 .text-red-600 {
   --tw-text-opacity: 1;
   color: rgb(220 38 38 / var(--tw-text-opacity));
+}
+.text-red-700 {
+  --tw-text-opacity: 1;
+  color: rgb(185 28 28 / var(--tw-text-opacity));
 }
 .text-sky-300 {
   --tw-text-opacity: 1;

@@ -8,7 +8,9 @@ Browser-facing portion of the Blocks World simulator. The dashboard UI now serve
 
 - `index.html` – main simulator dashboard (planner controls, saved worlds, stats, timeline)
 - `admin.html` – admin panel shell using the same responsive sidebar & profile menu
-- `profile.html` � authenticated account overview with editable credentials
+- `profile.html` – authenticated account overview with editable credentials
+- `agent-logs.html` – agent execution logs and statistics viewer
+- `import-export.html` – JSON import/export for world configurations (backup, sharing, migration)
 - `login.html` / `signup.html` – compact auth cards with shared message styling
 - `debug.html` – lightweight developer utilities for manual API checks
 
@@ -28,6 +30,8 @@ Each page depends on the generated Tailwind bundle (`assets/app.css`) and the ru
 | `auth.js` | Login/signup helpers, JWT storage, admin guard |
 | `navigation.js` | Mobile menu & collapsible sidebar |
 | `profile.js` | Shared profile button/menu logic |
+| `import-export.js` | World JSON export/import with validation and file handling |
+| `agent-logs.js` | Agent log retrieval and display |
 | `helpers.js` | Message helpers, checksum utility, etc. |
 
 ---

@@ -194,6 +194,9 @@ export function initializeSidebarNavigation({
   if (path.endsWith('agent-logs.html')) {
     return 'agent-logs';
   }
+  if (path.endsWith('import-export.html')) {
+    return 'import-export';
+  }
   return null;
 };
 
