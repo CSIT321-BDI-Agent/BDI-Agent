@@ -200,7 +200,7 @@ function initializePage() {
   requireAuth();
 
   initializeMobileNavigation();
-  initializeSidebarNavigation({ activeRoute: 'agent-logs', storageKey: 'bdiAgentLogsSidebarCollapsed' });
+  initializeSidebarNavigation({ activeRoute: 'agent-logs', storageKey: 'bdiSidebarCollapsed' });
   initializeProfileMenu();
 
   updateUIWithUserInfo({

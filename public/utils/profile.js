@@ -25,7 +25,7 @@ export function initializeProfilePage() {
   requireAuth();
 
   initializeMobileNavigation();
-  initializeSidebarNavigation({ activeRoute: 'profile', storageKey: 'bdiProfileSidebarCollapsed' });
+  initializeSidebarNavigation({ activeRoute: 'profile', storageKey: 'bdiSidebarCollapsed' });
   initializeProfileMenu();
 
   updateUIWithUserInfo({

@@ -27,7 +27,7 @@ async function init() {
   initializeMobileNavigation();
   initializeSidebarNavigation({ 
     activeRoute: 'import-export', 
-    storageKey: 'bdiImportExportSidebarCollapsed' 
+    storageKey: 'bdiSidebarCollapsed' 
   });
   initializeProfileMenu();
 
