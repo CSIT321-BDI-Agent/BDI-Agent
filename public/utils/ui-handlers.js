@@ -1,203 +1,259 @@
 /**
- * UI Event Handlers
- * 
- * Manages all user interface interactions and orchestrates planner execution
+ * Simulation UI controller
+ *
+ * Centralises dashboard interactions: block management, planner requests,
+ * persistence shortcuts, and control state synchronisation.
  */
 
 import { DOM, resetClawToDefault } from './constants.js';
 import { showMessage, handleError } from './helpers.js';
-import { resetIntentionTimeline, renderIntentionTimeline, startPlannerClock, stopPlannerClock, finalizeTimeline, markTimelineStep } from './timeline.js';
+import {
+  resetIntentionTimeline,
+  renderIntentionTimeline,
+  startPlannerClock,
+  stopPlannerClock,
+  finalizeTimeline,
+  markTimelineStep
+} from './timeline.js';
 import { requestBDIPlan } from './planner.js';
 import { simulateMove } from './animation.js';
 import { saveWorld, loadSelectedWorld, refreshLoadList } from './persistence.js';
-import { startStatsTimer, stopStatsTimer, updateStats } from './stats.js';
+import { startStatsTimer, stopStatsTimer, updateStats, resetStats } from './stats.js';
 import { logAction } from './logger.js';
 
-const LETTER_A_CODE = 'A'.charCodeAt(0);
 const LETTER_Z_CODE = 'Z'.charCodeAt(0);
+const MOVE_CYCLE_BUFFER = 600; // buffer to let the claw settle between moves
 
-let worldRef = null;
-let controlsDisabled = false;
-
-function getBlockCount() {
-  return worldRef ? worldRef.getCurrentBlocks().length : 0;
-}
-
-function getNextBlockLetter() {
-  if (!worldRef) return null;
-  const blocks = worldRef.getCurrentBlocks();
-  const maxBlocks = window.APP_CONFIG?.MAX_BLOCKS || 26;
-  if (blocks.length >= maxBlocks) return null;
-
-  if (blocks.length === 0) return 'A';
-  const sorted = [...blocks].sort();
-  const highest = sorted[sorted.length - 1];
-  const nextCode = highest.charCodeAt(0) + 1;
-  if (nextCode > LETTER_Z_CODE) return null;
-  return String.fromCharCode(nextCode);
-}
-
-function getTopmostBlock() {
-  if (!worldRef) return null;
-  const blocks = worldRef.getCurrentBlocks();
-  if (!blocks.length) return null;
-  return blocks[blocks.length - 1];
-}
-
-function refreshStepperAvailability(forceDisabled = controlsDisabled) {
-  const addBtn = DOM.addBlockBtn();
-  const removeBtn = DOM.removeBlockBtn();
-  if (!addBtn || !removeBtn) return;
-
-  if (forceDisabled) {
-    addBtn.disabled = true;
-    removeBtn.disabled = true;
-    return;
+class SimulationController {
+  constructor(world) {
+    this.world = world;
+    this.maxBlocks = window.APP_CONFIG?.MAX_BLOCKS || 26;
+    this.animationDuration = window.APP_CONFIG?.ANIMATION_DURATION || 550;
+    this.controlsDisabled = false;
+    this.elements = {};
   }
 
-  const nextLetter = getNextBlockLetter();
-  addBtn.disabled = !nextLetter;
-  removeBtn.disabled = getBlockCount() === 0;
-}
-
-function updateBlockControls() {
-  if (!worldRef) return;
-
-  const countLabel = DOM.blockCountLabel();
-  const nextLabel = DOM.nextBlockLabel();
-
-  if (countLabel) {
-    countLabel.textContent = getBlockCount().toString().padStart(2, '0');
+  initialize() {
+    this.cacheDom();
+    this.bindEvents();
+    this.syncBlockControls();
+    resetStats();
+    refreshLoadList();
   }
 
-  if (nextLabel) {
-    const nextLetter = getNextBlockLetter();
-    nextLabel.textContent = nextLetter || '--';
+  cacheDom() {
+    this.elements = {
+      world: DOM.world(),
+      addBtn: DOM.addBlockBtn(),
+      removeBtn: DOM.removeBlockBtn(),
+      blockCountLabel: DOM.blockCountLabel(),
+      nextBlockLabel: DOM.nextBlockLabel(),
+      startBtn: DOM.startBtn(),
+      goalInput: DOM.goalInput(),
+      saveBtn: DOM.saveBtn(),
+      loadBtn: DOM.loadBtn(),
+      loadSelect: DOM.loadSelect()
+    };
   }
 
-  refreshStepperAvailability();
-}
+  bindEvents() {
+    this.elements.addBtn?.addEventListener('click', () => this.handleBlockAddition());
+    this.elements.removeBtn?.addEventListener('click', () => this.handleBlockRemoval());
+    this.elements.startBtn?.addEventListener('click', () => this.runSimulation());
 
-function handleBlockAddition() {
-  if (!worldRef || controlsDisabled) return;
-  const nextLetter = getNextBlockLetter();
-  if (!nextLetter) {
-    const maxBlocks = window.APP_CONFIG?.MAX_BLOCKS || 26;
-    showMessage(`Maximum number of blocks (${maxBlocks}) reached.`, 'warning');
-    refreshStepperAvailability();
-    return;
+    this.elements.goalInput?.addEventListener('keypress', (evt) => {
+      if (evt.key === 'Enter') {
+        evt.preventDefault();
+        this.runSimulation();
+      }
+    });
+
+    this.elements.saveBtn?.addEventListener('click', () => saveWorld(this.world));
+    this.elements.loadBtn?.addEventListener('click', () => loadSelectedWorld(this.world));
+
+    document.addEventListener('world:blocks-changed', () => this.syncBlockControls());
   }
 
-  const added = worldRef.addBlock(nextLetter);
-  if (added) {
-    logAction(`Added block "${nextLetter}" to workspace`, 'user');
+  get blockCount() {
+    return this.world ? this.world.getCurrentBlocks().length : 0;
   }
 
-  refreshStepperAvailability();
-}
+  getNextBlockLetter() {
+    if (!this.world) return null;
+    const blocks = this.world.getCurrentBlocks();
+    if (blocks.length >= this.maxBlocks) return null;
 
-function handleBlockRemoval() {
-  if (!worldRef || controlsDisabled) return;
-  const targetBlock = getTopmostBlock();
-  if (!targetBlock) {
-    showMessage('No blocks to remove.', 'info');
-    refreshStepperAvailability();
-    return;
+    if (blocks.length === 0) return 'A';
+    const sorted = [...blocks].sort();
+    const lastBlock = sorted[sorted.length - 1];
+    const nextCode = lastBlock.charCodeAt(0) + 1;
+    if (nextCode > LETTER_Z_CODE) return null;
+    return String.fromCharCode(nextCode);
   }
 
-  const removed = worldRef.removeBlock(targetBlock);
-  if (removed) {
-    logAction(`Removed block "${targetBlock}" from workspace`, 'user');
+  getTopmostBlock() {
+    if (!this.world) return null;
+    const stacks = this.world.getCurrentStacks();
+    for (let i = stacks.length - 1; i >= 0; i -= 1) {
+      const stack = stacks[i];
+      if (Array.isArray(stack) && stack.length > 0) {
+        return stack[stack.length - 1];
+      }
+    }
+    return null;
   }
 
-  refreshStepperAvailability();
-}
+  syncBlockControls(forceDisabled = this.controlsDisabled) {
+    const { blockCountLabel, nextBlockLabel } = this.elements;
 
-/**
- * Enable/disable control buttons and inputs
- * @param {boolean} disabled - Whether controls should be disabled
- */
-export function setControlsDisabled(disabled) {
-  controlsDisabled = disabled;
+    if (blockCountLabel) {
+      blockCountLabel.textContent = String(this.blockCount).padStart(2, '0');
+    }
 
-  const toggle = (element) => {
-    if (element) element.disabled = disabled;
-  };
+    if (nextBlockLabel) {
+      const nextLetter = this.getNextBlockLetter();
+      nextBlockLabel.textContent = nextLetter || '--';
+    }
 
-  toggle(DOM.startBtn());
-  toggle(DOM.saveBtn());
-  toggle(DOM.loadBtn());
-  toggle(DOM.goalInput());
-
-  refreshStepperAvailability(disabled);
-}
-
-/**
- * Run the planner simulation
- * @param {Object} world - World instance
- */
-export async function runSimulation(world) {
-  const goalInput = DOM.goalInput().value.trim();
-  if (!goalInput) {
-    showMessage('Please enter a goal (e.g., "A on B on C").', 'error');
-    return;
+    this.refreshStepperAvailability(forceDisabled);
   }
 
-  // Parse goal chain
-  const goalTokens = goalInput
-    .split(/\s*on\s*/i)
-    .map(t => t.trim().toUpperCase())
-    .filter(Boolean);
+  refreshStepperAvailability(forceDisabled = this.controlsDisabled) {
+    const { addBtn, removeBtn } = this.elements;
+    if (!addBtn || !removeBtn) return;
 
-  if (goalTokens.length === 0) {
-    showMessage('Goal input is empty or invalid.', 'error');
-    return;
-  }
-
-  const currentBlocks = world.getCurrentBlocks();
-  const unknownBlocks = goalTokens.filter(t => t !== 'TABLE' && !currentBlocks.includes(t));
-  
-  if (unknownBlocks.length > 0) {
-    showMessage(`Unknown blocks in goal: ${unknownBlocks.join(', ')}`, 'error');
-    return;
-  }
-
-  setControlsDisabled(true);
-  resetIntentionTimeline('Requesting plan from BDI agent...');
-  startPlannerClock();
-
-  // Start stats tracking
-  startStatsTimer();
-  updateStats(0, 'Planning...');
-
-  // Log simulation start
-  logAction(`Started planning for goal: ${goalTokens.join(' on ')}`, 'user');
-
-  try {
-    const plannerResponse = await requestBDIPlan(
-      world.getCurrentStacks(),
-      goalTokens,
-      { maxIterations: window.APP_CONFIG?.PLANNER?.MAX_ITERATIONS || 2500 }
-    );
-
-    if (!plannerResponse.goalAchieved) {
-      showMessage('Planner could not achieve the goal within the iteration limit.', 'warning');
-      renderIntentionTimeline(
-        plannerResponse.intentionLog || [],
-        plannerResponse.agentCount || 1,
-        { emptyMessage: 'Planner did not complete successfully.' }
-      );
-      stopPlannerClock(true);
-      
-      // Update stats with failure status
-      stopStatsTimer();
-      const actualCycles = (plannerResponse.intentionLog || []).length;
-      updateStats(actualCycles, 'Failure');
-
-      setControlsDisabled(false);
+    if (forceDisabled) {
+      addBtn.disabled = true;
+      removeBtn.disabled = true;
       return;
     }
 
+    addBtn.disabled = !this.getNextBlockLetter();
+    removeBtn.disabled = this.blockCount === 0;
+  }
+
+  handleBlockAddition() {
+    if (this.controlsDisabled) return;
+    const nextLetter = this.getNextBlockLetter();
+
+    if (!nextLetter) {
+      showMessage(`Maximum number of blocks (${this.maxBlocks}) reached.`, 'warning');
+      this.refreshStepperAvailability();
+      return;
+    }
+
+    const added = this.world.addBlock(nextLetter);
+    if (added) {
+      logAction(`Added block "${nextLetter}" to the workspace`, 'user');
+      this.syncBlockControls();
+    }
+  }
+
+  handleBlockRemoval() {
+    if (this.controlsDisabled) return;
+    const targetBlock = this.getTopmostBlock();
+
+    if (!targetBlock) {
+      showMessage('No blocks available to remove.', 'info');
+      this.refreshStepperAvailability();
+      return;
+    }
+
+    const removed = this.world.removeBlock(targetBlock);
+    if (removed) {
+      logAction(`Removed block "${targetBlock}" from the workspace`, 'user');
+      this.syncBlockControls();
+    }
+  }
+
+  setControlsDisabled(disabled) {
+    this.controlsDisabled = disabled;
+    const { startBtn, saveBtn, loadBtn, goalInput } = this.elements;
+
+    [startBtn, saveBtn, loadBtn, goalInput].forEach((element) => {
+      if (element) element.disabled = disabled;
+    });
+
+    if (disabled) {
+      showMessage('Simulation running...', 'info');
+    }
+
+    this.refreshStepperAvailability(disabled);
+  }
+
+  async runSimulation() {
+    if (!this.world || this.controlsDisabled) return;
+
+    const goalInput = (this.elements.goalInput?.value || '').trim();
+    if (!goalInput) {
+      showMessage('Please enter a goal (e.g., "A on B on C").', 'error');
+      return;
+    }
+
+    const goalTokens = goalInput
+      .split(/\s*on\s*/i)
+      .map((token) => token.trim().toUpperCase())
+      .filter(Boolean);
+
+    if (goalTokens.length === 0) {
+      showMessage('Goal input is empty or invalid.', 'error');
+      return;
+    }
+
+    const currentBlocks = this.world.getCurrentBlocks();
+    const unknownBlocks = goalTokens.filter((token) => token !== 'TABLE' && !currentBlocks.includes(token));
+    if (unknownBlocks.length > 0) {
+      showMessage(`Unknown blocks in goal: ${unknownBlocks.join(', ')}.`, 'error');
+      return;
+    }
+
+    this.setControlsDisabled(true);
+    resetIntentionTimeline('Requesting plan from BDI agent...');
+    startPlannerClock();
+
+    startStatsTimer();
+    updateStats(undefined, 'Planning');
+    logAction(`Started planning for goal: ${goalTokens.join(' on ')}`, 'user');
+
+    try {
+      const plannerResponse = await requestBDIPlan(
+        this.world.getCurrentStacks(),
+        goalTokens,
+        { maxIterations: window.APP_CONFIG?.PLANNER?.MAX_ITERATIONS || 2500 }
+      );
+
+      if (!plannerResponse.goalAchieved) {
+        this.handlePlannerFailure(plannerResponse);
+        return;
+      }
+
+      this.handlePlannerSuccess(plannerResponse);
+    } catch (error) {
+      handleError(error, 'planning');
+      stopPlannerClock(false);
+      resetIntentionTimeline('Planner request failed.');
+      stopStatsTimer(false);
+      updateStats(undefined, 'Unexpected Error');
+      this.setControlsDisabled(false);
+    }
+  }
+
+  handlePlannerFailure(plannerResponse) {
+    showMessage('Planner could not achieve the goal within the iteration limit.', 'warning');
+    renderIntentionTimeline(
+      plannerResponse.intentionLog || [],
+      plannerResponse.agentCount || 1,
+      { emptyMessage: 'Planner did not complete successfully.' }
+    );
+
+    stopPlannerClock(true);
+    stopStatsTimer(true);
+    const actualCycles = (plannerResponse.intentionLog || []).length;
+    updateStats(actualCycles, 'Failure');
+    this.setControlsDisabled(false);
+  }
+
+  async handlePlannerSuccess(plannerResponse) {
     const moves = plannerResponse.moves || [];
     renderIntentionTimeline(
       plannerResponse.intentionLog || [],
@@ -205,128 +261,80 @@ export async function runSimulation(world) {
     );
 
     if (moves.length === 0) {
-      showMessage('Goal is already satisfied!', 'info');
+      showMessage('Goal already satisfied - no moves required.', 'info');
       finalizeTimeline();
       stopPlannerClock(true);
-      
-      // Update stats for already satisfied goal
-      stopStatsTimer();
+      stopStatsTimer(true);
       updateStats(0, 'Success');
-
-      setControlsDisabled(false);
+      this.setControlsDisabled(false);
       return;
     }
 
-    // Update status to Running
-    updateStats(0, 'Running...');
-    
-    // Execute moves sequentially
-    await executeMoves(world, moves);
-    
+    updateStats(undefined, 'Running');
+    await this.executeMoves(moves);
+
     finalizeTimeline();
     stopPlannerClock(true);
-    
-    // Calculate actual cycle count (4 cycles per move: move to source, pick up, move to dest, drop)
+
     const actualCycles = (plannerResponse.intentionLog || []).length;
     const moveCount = moves.length;
-    showMessage(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)!`, 'success');
-    
-    // Update stats with success status
-    stopStatsTimer();
+    stopStatsTimer(true);
     updateStats(actualCycles, 'Success');
-    
-    // Log completion
-    logAction(`✓ Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)`, 'system');
-    
-    setControlsDisabled(false);
+    showMessage(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles).`, 'success');
+    logAction(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)`, 'system');
 
-  } catch (error) {
-    handleError(error, 'planning');
-    stopPlannerClock(false);
-    resetIntentionTimeline('Planner request failed.');
-    
-    // Update stats with unexpected error
-    stopStatsTimer();
-    updateStats(0, 'Unexpected (Error)');
-    
-    setControlsDisabled(false);
+    this.setControlsDisabled(false);
+  }
+
+  async executeMoves(moves) {
+    const claw = document.getElementById('claw');
+
+    if (claw && moves.length > 0) {
+      resetClawToDefault(claw);
+      await this.wait(this.animationDuration + MOVE_CYCLE_BUFFER);
+    }
+
+    for (const move of moves) {
+      await new Promise((resolve) => {
+        simulateMove(
+          move,
+          this.world,
+          this.elements.world,
+          claw,
+          markTimelineStep,
+          resolve
+        );
+      });
+    }
+
+    if (claw && moves.length > 0) {
+      await this.wait(200);
+      resetClawToDefault(claw);
+      await this.wait(this.animationDuration + MOVE_CYCLE_BUFFER);
+    }
+  }
+
+  wait(duration) {
+    return new Promise((resolve) => window.setTimeout(resolve, duration));
   }
 }
 
-/**
- * Execute a sequence of moves with animation
- * @param {Object} world - World instance
- * @param {Array} moves - Array of moves to execute
- * @returns {Promise<void>}
- */
-async function executeMoves(world, moves) {
-  const worldElem = DOM.world();
-  const claw = document.getElementById('claw');
-  
-  // Return claw to home position at the START of move sequence
-  if (claw && moves.length > 0) {
-    resetClawToDefault(claw);
-    // Wait for claw to reach home position before starting moves
-    await new Promise(resolve => setTimeout(resolve, 600));
-  }
-  
-  // Execute all moves sequentially with 4-step claw animation
-  // Each claw action (move/pick/move/drop) counts as a separate cycle
-  for (let i = 0; i < moves.length; i++) {
-    const move = moves[i];
-    
-    // simulateMove handles 4 steps internally, marking each in timeline:
-    // 1. Move claw to source (Cycle 1)
-    // 2. Pick up block (Cycle 2)
-    // 3. Move claw to destination (Cycle 3)
-    // 4. Drop block (Cycle 4)
-    await new Promise(resolve => {
-      simulateMove(move, world, worldElem, claw, markTimelineStep, resolve);
-    });
-  }
-  
-  // Return claw to home position at the END of move sequence
-  if (claw && moves.length > 0) {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    resetClawToDefault(claw);
-    // Wait for claw to return to home
-    await new Promise(resolve => setTimeout(resolve, 600));
-  }
-}
+let controllerInstance = null;
 
-/**
- * Initialize all UI event handlers
- * @param {Object} world - World instance
- */
 export function initializeHandlers(world) {
-  worldRef = world;
-  updateBlockControls();
+  controllerInstance = new SimulationController(world);
+  controllerInstance.initialize();
+  return controllerInstance;
+}
 
-  const addBtn = DOM.addBlockBtn();
-  const removeBtn = DOM.removeBlockBtn();
-  if (addBtn) addBtn.addEventListener('click', handleBlockAddition);
-  if (removeBtn) removeBtn.addEventListener('click', handleBlockRemoval);
+export function setControlsDisabled(disabled) {
+  controllerInstance?.setControlsDisabled(disabled);
+}
 
-  const startBtn = DOM.startBtn();
-  if (startBtn) startBtn.addEventListener('click', () => runSimulation(world));
+export function runSimulation() {
+  return controllerInstance?.runSimulation();
+}
 
-  const goalInput = DOM.goalInput();
-  if (goalInput) {
-    goalInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        runSimulation(world);
-      }
-    });
-  }
-
-  const saveBtn = DOM.saveBtn();
-  if (saveBtn) saveBtn.addEventListener('click', () => saveWorld(world));
-
-  const loadBtn = DOM.loadBtn();
-  if (loadBtn) loadBtn.addEventListener('click', () => loadSelectedWorld(world));
-
-  document.addEventListener('world:blocks-changed', updateBlockControls);
-
-  refreshLoadList();
+export function getSimulationController() {
+  return controllerInstance;
 }

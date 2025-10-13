@@ -40,6 +40,7 @@ coverage/
 
 # Dependency directories
 jspm_packages/
+node_modules/
 
 # Optional npm cache directory
 .npm
@@ -116,3 +117,4 @@ tmp/
 
 # Debug files
 debug.html
+node_modules/

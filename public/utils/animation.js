@@ -11,6 +11,8 @@ import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, CLAW_HEIGHT, CLAW_OFFSET, STAC
 import { handleError } from './helpers.js';
 import { logMove } from './logger.js';
 
+const MOVING_CLASSES = ['shadow-[0_0_12px_rgba(79,209,197,0.45)]', 'ring-2', 'ring-brand-primary/50', 'scale-[1.02]'];
+
 /**
  * Calculate the position of a block in the world
  * @param {Object} world - World instance
@@ -96,7 +98,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     }
     
     // === STEP 2: Pick up block (attach to claw) ===
-    blockDiv.classList.add('moving');
+    MOVING_CLASSES.forEach(cls => blockDiv.classList.add(cls));
     await new Promise(resolve => setTimeout(resolve, 150)); // Brief pause for "grab"
     
     // Mark step 2 complete in timeline
@@ -134,7 +136,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     // === STEP 4: Drop block (detach from claw) ===
     await new Promise(resolve => setTimeout(resolve, 150)); // Brief pause for "release"
     
-    blockDiv.classList.remove('moving');
+    MOVING_CLASSES.forEach(cls => blockDiv.classList.remove(cls));
     blockDiv.style.transition = '';
     world.updatePositions();
     
@@ -143,7 +145,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
       markTimelineStep({ type: 'DROP', block: blockName, at: dest, stepNumber: 4 });
     }
     
-    // Log complete move to Action Tower
+    // Log complete move to Action Log
     const destination = dest === 'Table' ? 'Table' : dest;
     logMove(`Move ${blockName} → ${destination}`);
     
@@ -151,7 +153,8 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     
   } catch (error) {
     handleError(error, 'simulateMove');
-    blockDiv?.classList.remove('moving');
+    MOVING_CLASSES.forEach(cls => blockDiv?.classList.remove(cls));
     callback();
   }
 }
+

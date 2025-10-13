@@ -5,64 +5,101 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BDI Blocks World</title>
-  <link rel="icon" type="image/x-icon" href="/img/logo.svg">
+  <link rel="icon" type="image/x-icon" href="/img/BDI.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="assets/app.css" />
 </head>
-
-<body>
+<body class="min-h-screen bg-brand-light font-sans text-brand-dark antialiased">
   <!-- Mobile Header -->
-  <div class="mobile-header">
-    <button class="hamburger" id="mobileMenuToggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobileMenu">
-      <span aria-hidden="true"></span>
-      <span aria-hidden="true"></span>
-      <span aria-hidden="true"></span>
+  <header class="fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-white/40 bg-white/90 px-4 py-3 shadow md:hidden">
+    <button
+      id="mobileMenuToggle"
+      type="button"
+      aria-label="Toggle navigation menu"
+      aria-expanded="false"
+      aria-controls="mobileMenu"
+      class="btn inline-flex h-10 w-10 items-center justify-center border border-slate-200 bg-white text-brand-dark shadow-sm"
+    >
+      <span class="sr-only">Toggle navigation menu</span>
+      <span aria-hidden="true" class="flex flex-col items-center gap-1.5">
+        <span class="block h-0.5 w-6 rounded bg-brand-dark"></span>
+        <span class="block h-0.5 w-6 rounded bg-brand-dark"></span>
+        <span class="block h-0.5 w-6 rounded bg-brand-dark"></span>
+      </span>
     </button>
-    <div class="mobile-brand">
-      <img src="img/logo.svg" alt="BDI Blocks World logo" class="mobile-brand-logo" />
-      <span class="mobile-brand-text" id="mobileBrandText">BDI Blocks World</span>
+    <div class="flex items-center gap-2">
+      <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-8 w-8" />
+      <span id="mobileBrandText" class="text-sm font-semibold text-brand-dark">BDI Blocks World</span>
     </div>
-    <div class="mobile-header-spacer" aria-hidden="true"></div>
-  </div>
+    <div class="w-10" aria-hidden="true"></div>
+  </header>
 
   <!-- Mobile Overlay -->
-  <div class="mobile-overlay" id="mobileOverlay"></div>
+  <div id="mobileOverlay" class="fixed inset-0 z-30 hidden bg-slate-900/40 transition-opacity duration-200 md:hidden"></div>
 
   <!-- Mobile Menu -->
-  <div class="mobile-menu" id="mobileMenu">
-    <div class="mobile-menu-header">
-      <div class="mobile-menu-brand">
-        <img src="img/logo.svg" alt="BDI Blocks World logo" class="mobile-menu-brand-logo" />
-        <span class="mobile-menu-brand-text" id="mobileMenuBrandText">BDI Blocks World</span>
+  <div
+    id="mobileMenu"
+    class="fixed inset-y-0 left-0 z-40 flex w-72 max-w-full -translate-x-full flex-col bg-brand-dark text-white shadow-xl transition-transform duration-300 md:hidden"
+  >
+    <div class="flex items-center justify-between px-4 pb-2 pt-5">
+      <div class="sidebar__header flex items-center gap-3">
+        <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-10 w-10 bg-white/10 p-2" />
+        <span id="mobileMenuBrandText" class="text-base font-semibold text-white">BDI Blocks World</span>
       </div>
-      <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">&times;</button>
+      <button id="mobileMenuClose" aria-label="Close menu" class="text-2xl leading-none">&times;</button>
     </div>
 
-    <nav class="mobile-menu-nav" aria-label="Primary">
-      <a class="mobile-menu-link" data-route="dashboard" href="index.html" aria-label="Dashboard">
-        <span class="material-icons mobile-menu-icon" aria-hidden="true">dashboard</span>
-        <span class="mobile-menu-label">Dashboard</span>
+    <nav class="mt-4 flex flex-col gap-1 px-4 pb-6" aria-label="Primary">
+      <a
+        href="index.html"
+        data-route="dashboard"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+        aria-label="Dashboard"
+      >
+        <span class="material-icons text-lg" aria-hidden="true">dashboard</span>
+        <span>Dashboard</span>
       </a>
-      <a class="mobile-menu-link admin-nav-link is-hidden" data-route="admin" href="admin.html" aria-label="Admin Dashboard">
-        <span class="material-icons mobile-menu-icon" aria-hidden="true">admin_panel_settings</span>
-        <span class="mobile-menu-label">Admin Dashboard</span>
+      <a
+        href="admin.html"
+        data-route="admin"
+        class="mobile-menu-link admin-nav-link hidden items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+        aria-label="Admin Dashboard"
+      >
+        <span class="material-icons text-lg" aria-hidden="true">admin_panel_settings</span>
+        <span>Admin Dashboard</span>
       </a>
-      <a class="mobile-menu-link" data-route="agent-logs" data-disabled="true" href="#" title="Coming soon" aria-label="Agent Logs">
-        <span class="material-icons mobile-menu-icon" aria-hidden="true">receipt_long</span>
-        <span class="mobile-menu-label">Agent Logs</span>
+      <a
+        href="agent-logs.html"
+        data-route="agent-logs"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+        aria-label="Agent Logs"
+      >
+        <span class="material-icons text-lg" aria-hidden="true">receipt_long</span>
+        <span>Agent Logs</span>
       </a>
-      <a class="mobile-menu-link" data-route="import-export" data-disabled="true" href="#" title="Coming soon" aria-label="Import/Export">
-        <span class="material-icons mobile-menu-icon" aria-hidden="true">import_export</span>
-        <span class="mobile-menu-label">Import/Export</span>
+      <a
+        href="#"
+        data-route="import-export"
+        data-disabled="true"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50"
+        title="Coming soon"
+        aria-label="Import/Export"
+      >
+        <span class="material-icons text-lg" aria-hidden="true">import_export</span>
+        <span>Import/Export</span>
       </a>
     </nav>
 
-    <div class="mobile-menu-help">
-      <div class="mobile-menu-help-header">
-        <span class="material-icons" aria-hidden="true">help_outline</span>
-        <strong>Quick Help</strong>
+    <div class="mt-auto space-y-3 border-t border-white/10 px-4 py-5 text-sm text-white/80">
+      <div class="flex items-center gap-2 font-semibold">
+        <span class="material-icons text-base" aria-hidden="true">help_outline</span>
+        <span>Quick Help</span>
       </div>
-      <ul class="mobile-menu-help-list">
+      <ul class="list-disc space-y-1 pl-5 text-white/70">
         <li>Drag blocks to move them</li>
         <li>Set goals like "on(A,B)"</li>
         <li>Run BDI to see planning in action</li>
@@ -71,201 +108,305 @@
     </div>
   </div>
 
-  <div class="app">
-    <aside class="sidebar" id="sidebar" data-collapsed="false">
-      <div class="sidebar__inner">
-        <div class="sidebar__header">
-          <img src="img/logo.svg" alt="BDI Blocks World logo" class="sidebar__logo" />
-          <span class="sidebar__title" id="sidebarTitle">BDI Blocks World</span>
+  <div class="app flex min-h-screen flex-col md:flex-row">
+    <!-- Sidebar -->
+    <aside
+      id="sidebar"
+      data-collapsed="false"
+      class="sidebar hidden bg-brand-dark text-white transition-[width] duration-300 ease-in-out md:fixed md:inset-y-0 md:flex md:w-72 md:flex-col md:shadow-lg"
+    >
+      <div class="flex h-full flex-col md:overflow-y-auto md:px-6 md:py-6 scrollbar-hide" data-sidebar-content>
+        <div class="flex items-center justify-center gap-3 md:justify-start" data-sidebar-brand>
+          <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-10 w-10" />
+          <span id="sidebarTitle" data-sidebar-collapsible="text" class="text-lg font-semibold text-white">BDI Blocks World</span>
         </div>
 
-        <nav class="sidebar__nav" aria-label="Primary">
-          <a class="sidebar__link" data-route="dashboard" href="index.html" title="Dashboard" aria-label="Dashboard">
-            <span class="material-icons sidebar__icon" aria-hidden="true">dashboard</span>
-            <span class="sidebar__label">Dashboard</span>
-          </a>
-          <a class="sidebar__link admin-nav-link is-hidden" data-route="admin" href="admin.html" title="Admin Dashboard" aria-label="Admin Dashboard">
-            <span class="material-icons sidebar__icon" aria-hidden="true">admin_panel_settings</span>
-            <span class="sidebar__label">Admin Dashboard</span>
-          </a>
-          <a class="sidebar__link" data-route="agent-logs" data-disabled="true" href="#" title="Agent logs coming soon" aria-label="Agent Logs">
-            <span class="material-icons sidebar__icon" aria-hidden="true">receipt_long</span>
-            <span class="sidebar__label">Agent Logs</span>
-          </a>
-          <a class="sidebar__link" data-route="import-export" data-disabled="true" href="#" title="Import/export coming soon" aria-label="Import/Export">
-            <span class="material-icons sidebar__icon" aria-hidden="true">import_export</span>
-            <span class="sidebar__label">Import/Export</span>
+        <nav class="mt-8 flex flex-col gap-1" aria-label="Primary">
+          <a
+            href="index.html"
+            data-route="dashboard"
+            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            title="Dashboard"
+          aria-label="Dashboard"
+        >
+          <span class="material-icons text-lg" aria-hidden="true">dashboard</span>
+          <span class="sidebar__label" data-sidebar-collapsible="text">Dashboard</span>
+        </a>
+        <a
+          href="admin.html"
+          data-route="admin"
+          class="sidebar__link admin-nav-link hidden flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+          title="Admin Dashboard"
+          aria-label="Admin Dashboard"
+        >
+          <span class="material-icons text-lg" aria-hidden="true">admin_panel_settings</span>
+          <span class="sidebar__label" data-sidebar-collapsible="text">Admin Dashboard</span>
+        </a>
+        <a
+          href="agent-logs.html"
+          data-route="agent-logs"
+          class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+          title="Agent Logs"
+          aria-label="Agent Logs"
+        >
+          <span class="material-icons text-lg" aria-hidden="true">receipt_long</span>
+          <span class="sidebar__label" data-sidebar-collapsible="text">Agent Logs</span>
+        </a>
+        <a
+          href="#"
+          data-route="import-export"
+          data-disabled="true"
+          class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50 transition pointer-events-none opacity-40"
+          title="Import/export coming soon"
+          aria-label="Import/Export"
+        >
+          <span class="material-icons text-lg" aria-hidden="true">import_export</span>
+            <span class="sidebar__label" data-sidebar-collapsible="text">Import/Export</span>
           </a>
         </nav>
 
-        <div class="sidebar__help">
-          <span class="material-icons sidebar__help-icon" aria-hidden="true">help_outline</span>
-          <div class="sidebar__help-content">
-            <strong class="sidebar__help-title">Quick Help</strong>
-            <ul class="sidebar__help-list">
-              <li>Drag blocks to move them</li>
-              <li>Set goals like "on(A,B)"</li>
-              <li>Run BDI to see planning in action</li>
-              <li>Save or load different worlds</li>
-            </ul>
+        <div class="mt-8 space-y-3 bg-white/10 p-4 text-sm text-white/80" data-sidebar-collapsible="expanded">
+          <div class="flex items-center gap-2 font-semibold">
+            <span class="material-icons text-base" aria-hidden="true">lightbulb</span>
+            <span data-sidebar-collapsible="text">Quick Help</span>
           </div>
+          <ul class="space-y-2 text-white/70" data-sidebar-collapsible="text">
+            <li>Drag blocks directly within the world.</li>
+            <li>Use goal syntax like on(A,B) to stack blocks.</li>
+            <li>Start the BDI planner to animate the claw.</li>
+            <li>Save interesting worlds and load them later.</li>
+          </ul>
         </div>
-      </div>
 
-      <button class="sidebar__toggle" id="sidebarToggle" type="button" aria-label="Collapse navigation" aria-expanded="true">
-        <span class="material-icons sidebar__toggle-icon" id="sidebarToggleIcon" aria-hidden="true">chevron_left</span>
-        <span class="sidebar__toggle-text">Collapse</span>
-      </button>
+        <button
+          id="sidebarToggle"
+          type="button"
+          aria-label="Collapse navigation"
+          aria-expanded="true"
+          class="sidebar__toggle mt-auto inline-flex items-center justify-center gap-2 border border-white/20 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:text-white"
+        >
+          <span class="material-icons text-base" id="sidebarToggleIcon" aria-hidden="true">chevron_left</span>
+          <span class="sidebar__toggle-text" data-sidebar-collapsible="text">Collapse</span>
+        </button>
+      </div>
     </aside>
 
-    <main class="main">
-      <section class="hero">
-        <div class="hero-header">
-          <h2 class="hero-title">Simulation</h2>
-          <div class="profile-dropdown">
-            <button class="profile-btn" id="profileBtn" aria-label="Profile menu" aria-expanded="false">
-              <span class="material-icons profile-icon">account_circle</span>
-              <span class="profile-name" id="profileName">Guest</span>
-              <span class="material-icons profile-arrow">expand_more</span>
-            </button>
-            <div class="profile-menu" id="profileMenu">
-              <!-- Logged in state -->
-              <div id="profileMenuLoggedIn" style="display:none;">
-                <a href="#" class="profile-menu-item" id="viewProfile">
-                  <span class="material-icons">person</span>
-                  <span>Profile</span>
-                </a>
-                <a href="admin.html" class="profile-menu-item" id="adminMenuItem" style="display:none;">
-                  <span class="material-icons">admin_panel_settings</span>
-                  <span>Admin Dashboard</span>
-                </a>
-                <a href="#" class="profile-menu-item" onclick="logout(); return false;">
-                  <span class="material-icons">logout</span>
-                  <span>Logout</span>
-                </a>
-              </div>
-              <!-- Logged out state -->
-              <div id="profileMenuLoggedOut">
-                <a href="login.html" class="profile-menu-item">
-                  <span class="material-icons">login</span>
-                  <span>Sign In</span>
-                </a>
-                <a href="signup.html" class="profile-menu-item">
-                  <span class="material-icons">person_add</span>
-                  <span>Register</span>
-                </a>
+    <!-- Main Content -->
+  <main class="flex flex-1 flex-col bg-brand-light pt-20 transition-all duration-300 ease-in-out md:ml-72 md:pt-10">
+      <div class="px-4 pb-8 md:px-10">
+  <div class="border border-white/40 bg-white/70 p-6 shadow-card backdrop-blur">
+          <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div class="space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-brand-dark/70">BDI Planner</p>
+              <h1 class="text-2xl font-extrabold text-brand-dark md:text-3xl">Blocks World Simulation Dashboard</h1>
+              <p class="text-sm text-brand-dark/70 md:max-w-xl">
+                Configure blocks, define a goal stack, and watch the Belief-Desire-Intention planner animate every move in real time.
+              </p>
+            </div>
+            <div class="relative w-30">
+              <button
+                id="profileBtn"
+                type="button"
+                aria-haspopup="true"
+                aria-expanded="false"
+                class="flex w-full items-center justify-between gap-3 border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-brand-dark shadow-card transition hover:border-brand-primary hover:text-brand-dark"
+              >
+                <span class="material-icons text-lg text-brand-primary" aria-hidden="true">account_circle</span>
+                <span id="profileName" class="text-sm font-semibold">Guest</span>
+                <span class="material-icons text-base text-brand-dark/60" aria-hidden="true">expand_more</span>
+              </button>
+              <div
+                id="profileMenu"
+                class="absolute right-0 z-30 w-full origin-top-right border border-slate-200 bg-white p-2 shadow-card hidden"
+              >
+                <div id="profileMenuLoggedIn" class="hidden flex-col gap-1">
+                  <a href="profile.html" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">person</span>
+                    <span>Profile</span>
+                  </a>
+                  <a href="admin.html" id="adminMenuItem" class="profile-menu-item hidden items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">admin_panel_settings</span>
+                    <span>Admin Dashboard</span>
+                  </a>
+                  <a href="#" onclick="logout(); return false;" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">logout</span>
+                    <span>Logout</span>
+                  </a>
+                </div>
+                <div id="profileMenuLoggedOut" class="flex flex-col gap-1">
+                  <a href="login.html" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">login</span>
+                    <span>Sign In</span>
+                  </a>
+                  <a href="signup.html" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">person_add</span>
+                    <span>Register</span>
+                  </a>
+                </div>
               </div>
             </div>
+          </div>
+
+          <div id="adminNav" class="mt-6 hidden items-center gap-2 border border-brand-primary/60 bg-brand-primary/10 px-4 py-3 text-sm font-semibold text-brand-dark">
+            <span class="material-icons text-base text-brand-primary" aria-hidden="true">verified</span>
+            <span>Administrator tools available. Use the profile menu to open the admin dashboard.</span>
           </div>
         </div>
-      </section>
 
-      <div class="grid">
-        <section class="card">
-          <h3>Simulation Environment</h3>
-          <div class="simwrap">
-            <div id="world-wrapper" class="card-body world-wrapper-no-padding">
-              <div id="world"></div>
+  <div class="mt-8 grid gap-6 lg:grid-cols-[1.5fr_1fr] xl:grid-cols-[1.8fr_1fr]">
+          <section class="border border-slate-200 bg-white shadow-card">
+            <div class="border-b border-slate-200 px-6 py-4">
+              <h3 class="text-lg font-semibold text-brand-dark">Simulation Environment</h3>
             </div>
-            <div id="messages" class="messages"></div>
-          </div>
-        </section>
+            <div class="space-y-4 px-6 pb-6 pt-4">
+              <div
+                id="world-wrapper"
+                class="relative overflow-x-auto border border-dashed border-brand-dark/30 bg-white p-4 min-h-[320px]"
+              >
+                <div id="world" class="relative mx-auto min-h-[260px] w-full max-w-[760px]"></div>
+              </div>
+              <div id="messages" class="messages hidden"></div>
+            </div>
+          </section>
 
-        <section class="card">
-          <h3>Control Panel</h3>
-          <div class="card-body">
-            <div class="controls-grid">
-              <div class="control-card control-card--blocks">
-                <div class="control-card__header">
-                  <span class="control-card__title">Blocks</span>
-                  <span class="control-card__meta">Next: <span id="nextBlockLabel">A</span></span>
-                </div>
-                <div class="block-stepper">
-                  <button id="removeBlockBtn" type="button" class="control-round-btn" aria-label="Remove last block">−</button>
-                  <span class="block-stepper__count"><span id="blockCountLabel">0</span> active</span>
-                  <button id="addBlockBtn" type="button" class="control-round-btn" aria-label="Add next block">+</button>
+          <section class="border border-slate-200 bg-white shadow-card">
+            <div class="border-b border-slate-200 px-6 py-4">
+              <h3 class="text-lg font-semibold text-brand-dark">Control Panel</h3>
+            </div>
+            <div class="space-y-6 px-6 pb-6 pt-4">
+              <div class="border border-slate-200 bg-brand-dark/5 p-4">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <p class="text-sm font-semibold text-brand-dark">Blocks</p>
+                    <p class="text-xs text-brand-dark/70">Next: <span id="nextBlockLabel">A</span></p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button
+                      id="removeBlockBtn"
+                      type="button"
+                      class="inline-flex h-9 w-9 items-center justify-center border border-slate-200 bg-white text-lg font-semibold text-brand-dark shadow-sm transition hover:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="Remove last block"
+                    >-</button>
+                    <span class="text-sm font-semibold text-brand-dark"><span id="blockCountLabel">0</span> active</span>
+                    <button
+                      id="addBlockBtn"
+                      type="button"
+                      class="inline-flex h-9 w-9 items-center justify-center border border-brand-primary bg-brand-primary text-lg font-semibold text-brand-dark shadow-sm transition hover:bg-brand-primary/90 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="Add next block"
+                    >+</button>
+                  </div>
                 </div>
               </div>
 
-              <div class="control-card control-card--goal">
-                <label for="goalInput" class="control-card__title">Goal stack</label>
-                <div class="goal-row">
-                  <input type="text" id="goalInput" placeholder="e.g. A on C on D" />
-                  <button id="startBtn" type="button">Start Simulation</button>
+              <div class="border border-slate-200 bg-brand-dark/5 p-4">
+                <label for="goalInput" class="text-sm font-semibold text-brand-dark">Goal stack</label>
+                <div class="mt-3 flex flex-col gap-3 sm:flex-row">
+                  <input
+                    type="text"
+                    id="goalInput"
+                    placeholder="e.g. A on C on D"
+                    class="w-full flex-1 border border-slate-300 bg-white px-3 py-2 text-sm text-brand-dark shadow-sm transition placeholder:text-brand-dark/50 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  />
+                  <button
+                    id="startBtn"
+                    type="button"
+                    class="inline-flex items-center justify-center bg-brand-primary px-4 py-2 text-sm font-semibold text-brand-dark shadow-card transition hover:bg-brand-primary/90 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Start Simulation
+                  </button>
                 </div>
               </div>
 
-              <div class="control-card control-card--actions">
-                <div class="control-card__header">
-                  <span class="control-card__title">Saved worlds</span>
-                  <span class="control-card__meta">Manage configurations</span>
+              <div class="border border-slate-200 bg-brand-dark/5 p-4">
+                <div class="flex flex-col gap-1">
+                  <p class="text-sm font-semibold text-brand-dark">Saved worlds</p>
                 </div>
-                <div class="control-actions">
-                  <button id="saveBtn" type="button">Save Current</button>
-                  <select id="loadSelect" title="Saved worlds"></select>
-                  <button id="loadBtn" type="button">Load Selected</button>
+                <div class="mt-3 flex flex-col gap-3 sm:flex-row">
+                  <button
+                    id="saveBtn"
+                    type="button"
+                    class="inline-flex items-center justify-center bg-brand-primary px-4 py-2 text-sm font-semibold text-brand-dark shadow-card transition hover:bg-brand-primary/90 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                  <select
+                    id="loadSelect"
+                    title="Saved worlds"
+                    class="w-full flex-1 border border-slate-300 bg-white px-3 py-2 text-sm text-brand-dark shadow-sm transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  ></select>
+                  <button
+                    id="loadBtn"
+                    type="button"
+                    class="inline-flex items-center justify-center border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-brand-dark shadow-card transition hover:border-brand-primary hover:text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Load
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
-        </section>
-      </div>
+          </section>
+        </div>
 
-      <div class="row-below">
-        <section class="card">
-          <h3>Information Panel</h3>
-          <div class="card-body">
-            <div class="info-grid">
-              <div class="info-tile">
-                <div class="info-label">Goal State</div>
-                <div id="info-goal" class="info-content">—</div>
+        <div class="mt-8 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          <section class="border border-slate-200 bg-white shadow-card">
+            <div class="border-b border-slate-200 px-6 py-4">
+              <h3 class="text-lg font-semibold text-brand-dark">Information Panel</h3>
+            </div>
+            <div class="grid gap-6 px-6 py-6 sm:grid-cols-2 xl:grid-cols-1">
+              <div class="border border-slate-200 bg-brand-dark/10 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-brand-dark/70">Goal State</p>
+                <div id="info-goal" class="mt-3 text-sm font-semibold text-brand-dark">Not set</div>
               </div>
-              <div class="info-tile">
-                <div class="info-label">Current Configuration</div>
-                <div id="info-current" class="info-content">—</div>
+              <div class="border border-slate-200 bg-brand-dark/10 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-brand-dark/70">Current Configuration</p>
+                <div id="info-current" class="mt-3 text-sm font-semibold text-brand-dark">No blocks</div>
               </div>
-              <div class="info-tile">
-                <div class="info-label">Stats</div>
-                <div id="info-stats" class="info-content">
-                  <div class="stat-line"><strong>Total Steps:</strong> <span id="stat-steps">--</span></div>
-                  <div class="stat-line"><strong>Time Elapsed:</strong> <span id="stat-time">--</span></div>
-                  <div class="stat-line"><strong>Status:</strong> <span id="stat-status">--</span></div>
+              <div class="border border-slate-200 bg-brand-dark/10 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-brand-dark/70">Stats</p>
+                <div id="info-stats" class="mt-3 space-y-2 text-sm text-brand-dark">
+                  <div class="flex justify-between"><strong>Total Steps:</strong> <span id="stat-steps">--</span></div>
+                  <div class="flex justify-between"><strong>Time Elapsed:</strong> <span id="stat-time">--</span></div>
+                  <div class="flex justify-between"><strong>Status:</strong> <span id="stat-status">--</span></div>
                 </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section class="card">
-          <h3>Action Tower</h3>
-          <div class="card-body">
-            <div id="actionLog" class="log"></div>
-          </div>
-        </section>
-
-        <section class="card">
-          <h3>Intention Timeline</h3>
-          <div class="card-body">
-            <div class="timeline-clock">
-              <span class="timeline-clock-label">Elapsed</span>
-              <span id="plannerClock" class="clock-display">--:--</span>
+          <section class="flex flex-col border border-slate-200 bg-white shadow-card xl:col-span-1">
+            <div class="border-b border-slate-200 px-6 py-4">
+              <h3 class="text-lg font-semibold text-brand-dark">Action Log</h3>
             </div>
-            <div id="intentionTimeline" class="timeline"></div>
-          </div>
-        </section>
+            <div class="flex-1 px-6 py-6">
+              <div
+                id="actionLog"
+                class="h-full min-h-[18rem] max-h-[450px] space-y-2 overflow-y-auto bg-slate-950/95 p-4 font-mono text-[13px] text-emerald-300 scrollbar-hide"
+              ></div>
+            </div>
+          </section>
+
+          <section class="flex flex-col border border-slate-200 bg-white shadow-card xl:col-span-1">
+            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <h3 class="text-lg font-semibold text-brand-dark">Intention Timeline</h3>
+              <div class="flex items-center gap-2 rounded-full border border-slate-200 bg-brand-soft/60 px-3 py-1 text-xs font-semibold text-brand-dark">
+                <span id="plannerClock" class="clock-display font-mono">--:--</span>
+              </div>
+            </div>
+            <div class="flex-1 px-6 py-6">
+              <div id="intentionTimeline" class="flex h-full min-h-[18rem] max-h-[450px] flex-col gap-3 overflow-y-auto scrollbar-hide"></div>
+            </div>
+          </section>
+        </div>
       </div>
     </main>
   </div>
 
   <script src="config.js"></script>
   <script type="module">
-    // Authentication guard
     import { requireAuth, logout as authLogout, updateUIWithUserInfo } from './utils/auth.js';
     requireAuth();
-    
-    // Expose logout globally for onclick handlers
+
     window.logout = authLogout;
-    
+
     window.addEventListener('load', () => {
       updateUIWithUserInfo({
         adminNav: '.admin-nav-link'
@@ -273,6 +414,6 @@
     });
   </script>
   <script type="module" src="utils/main.js"></script>
-  
 </body>
 </html>
+

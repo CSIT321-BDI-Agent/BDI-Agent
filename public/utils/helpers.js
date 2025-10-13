@@ -5,14 +5,14 @@
  */
 
 /**
- * Generate a random pastel color for blocks
- * @returns {string} RGB color string
- */
+ * Generate a vibrant colour for blocks
+ * @returns {string} HSL color string
+*/
 export function randomColour() {
-  const r = Math.floor((Math.random() * 127) + 128);
-  const g = Math.floor((Math.random() * 127) + 128);
-  const b = Math.floor((Math.random() * 127) + 128);
-  return `rgb(${r}, ${g}, ${b})`;
+  const hue = Math.floor(Math.random() * 360);
+  const saturation = Math.floor(Math.random() * 21) + 70; // 70-90%
+  const lightness = Math.floor(Math.random() * 16) + 45; // 45-60%
+  return `hsl(${hue}deg ${saturation}% ${lightness}%)`;
 }
 
 /**
@@ -23,15 +23,28 @@ export function randomColour() {
 export function showMessage(text, type = 'info') {
   const messagesElem = document.getElementById('messages');
   if (messagesElem) {
+  const BASE = 'messages block mt-4 w-full border px-4 py-3 text-sm font-medium transition-all duration-200';
+    const TYPE_MAP = {
+      info: `${BASE} border-brand-primary/30 bg-brand-primary/10 text-brand-dark`,
+      success: `${BASE} border-emerald-300 bg-emerald-50 text-emerald-700`,
+      warning: `${BASE} border-amber-300 bg-amber-50 text-amber-700`,
+      error: `${BASE} border-red-300 bg-red-50 text-red-600`
+    };
+
+    if (!text) {
+      messagesElem.textContent = '';
+      messagesElem.className = 'messages hidden';
+      return;
+    }
+
     messagesElem.textContent = text;
-    messagesElem.className = `messages ${type}`;
-    
-    // Clear message after 5 seconds for non-error messages
+    messagesElem.className = TYPE_MAP[type] || TYPE_MAP.info;
+
     if (type !== 'error') {
-      setTimeout(() => {
+      window.setTimeout(() => {
         if (messagesElem.textContent === text) {
           messagesElem.textContent = '';
-          messagesElem.className = 'messages';
+          messagesElem.className = 'messages hidden';
         }
       }, 5000);
     }
@@ -83,12 +96,13 @@ export function formatBeliefSnapshot(beliefs) {
   }
 
   const pending = beliefs.pendingRelation
-    ? `${beliefs.pendingRelation.block} → ${beliefs.pendingRelation.destination}`
+    ? `${beliefs.pendingRelation.block} -> ${beliefs.pendingRelation.destination}`
     : 'none';
 
   const clear = Array.isArray(beliefs.clearBlocks) && beliefs.clearBlocks.length > 0
     ? beliefs.clearBlocks.join(', ')
     : 'none';
 
-  return `Pending relation: ${pending} • Clear blocks: ${clear}`;
+  return `Pending relation: ${pending} | Clear blocks: ${clear}`;
 }
+

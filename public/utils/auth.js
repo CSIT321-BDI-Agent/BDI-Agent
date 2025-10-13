@@ -10,7 +10,8 @@ const STORAGE_KEYS = {
   USER_ID: 'userId',
   USERNAME: 'username',
   TOKEN: 'token',
-  ROLE: 'role'
+  ROLE: 'role',
+  EMAIL: 'email'
 };
 
 /**
@@ -29,7 +30,8 @@ export function getCurrentUser() {
     userId,
     username: localStorage.getItem(STORAGE_KEYS.USERNAME),
     token,
-    role: localStorage.getItem(STORAGE_KEYS.ROLE) || 'user'
+    role: localStorage.getItem(STORAGE_KEYS.ROLE) || 'user',
+    email: localStorage.getItem(STORAGE_KEYS.EMAIL)
   };
 }
 
@@ -67,6 +69,13 @@ export function storeAuthData(data) {
   localStorage.setItem(STORAGE_KEYS.USERNAME, data.username || '');
   localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
   localStorage.setItem(STORAGE_KEYS.ROLE, data.role || 'user');
+  if (Object.prototype.hasOwnProperty.call(data, 'email')) {
+    if (data.email) {
+      localStorage.setItem(STORAGE_KEYS.EMAIL, data.email);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.EMAIL);
+    }
+  }
 }
 
 /**
@@ -77,6 +86,7 @@ export function clearAuthData() {
   localStorage.removeItem(STORAGE_KEYS.USERNAME);
   localStorage.removeItem(STORAGE_KEYS.TOKEN);
   localStorage.removeItem(STORAGE_KEYS.ROLE);
+  localStorage.removeItem(STORAGE_KEYS.EMAIL);
 }
 
 /**
@@ -176,6 +186,9 @@ export async function login(username, password) {
   
   // Ensure username is included in response
   data.username = data.username || username;
+  if (!Object.prototype.hasOwnProperty.call(data, 'email')) {
+    data.email = null;
+  }
   
   storeAuthData(data);
   return data;
@@ -220,6 +233,7 @@ export async function signup(email, username, password) {
   
   // Ensure username is included
   data.username = data.username || username;
+  data.email = data.email || email;
   
   storeAuthData(data);
   return data;
@@ -266,12 +280,12 @@ export function updateUIWithUserInfo(selectors = {}) {
     if (selectors.adminNav) {
       const adminNavElems = document.querySelectorAll(selectors.adminNav);
       adminNavElems.forEach(elem => {
-        elem.classList.remove('is-hidden');
+        elem.classList.remove('hidden');
         elem.removeAttribute('hidden');
         elem.style.display = '';
       });
     }
-    
+
     if (selectors.adminLinks) {
       const adminLinkElems = document.querySelectorAll(selectors.adminLinks);
       adminLinkElems.forEach(elem => {

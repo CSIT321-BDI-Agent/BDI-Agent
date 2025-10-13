@@ -1,20 +1,54 @@
 /**
  * Timeline Management System
- * 
- * Manages the planner timeline visualization including:
- * - Rendering intention logs
- * - Tracking cycle progress
- * - Planner clock display
+ *
+ * Handles planner timeline rendering, state transitions, and clock display.
  */
 
-import { formatPlannerDuration, formatBeliefSnapshot } from './helpers.js';
 import { DOM } from './constants.js';
 import { incrementStep } from './stats.js';
+import { formatPlannerDuration } from './helpers.js';
+
+const ENTRY_BASE_CLASS = 'border border-slate-200 bg-white/95 p-4 shadow-card transition-all duration-200';
+const ENTRY_ACTIVE_CLASSES = ['border-brand-primary', 'ring-2', 'ring-brand-primary/40'];
+const ENTRY_COMPLETED_CLASSES = ['border-green-300', 'bg-green-50'];
+const ENTRY_NO_ACTION_CLASSES = ['border-dashed', 'border-slate-300', 'bg-slate-100'];
+
+const MOVE_BASE_CLASS = 'border-l-2 border-transparent pl-2 text-xs leading-5 text-slate-600 transition-colors duration-150';
+const MOVE_PENDING_CLASSES = ['border-slate-200', 'text-slate-600'];
+const MOVE_DONE_CLASSES = ['border-brand-primary', 'text-brand-dark', 'font-semibold'];
+const MOVE_SKIP_CLASSES = ['border-slate-300', 'text-slate-400', 'italic'];
+const MOVE_INFO_CLASSES = ['text-slate-400'];
+
+const TIMELINE_EMPTY_CLASS = 'border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs font-medium text-slate-500';
 
 // Timeline state
 let intentionTimelineState = null;
 let plannerClockInterval = null;
 let plannerClockStart = null;
+let lastRenderedLog = null;
+let lastRenderedAgentCount = 0;
+let lastRenderedOptions = {};
+
+const applyClasses = (element, classes, shouldApply) => {
+  classes.forEach(cls => element.classList.toggle(cls, Boolean(shouldApply)));
+};
+
+const setEntryVisualState = (entry, visual = {}) => {
+  const { active = false, completed = false, noActions = false } = visual;
+  applyClasses(entry, ENTRY_ACTIVE_CLASSES, active && !completed);
+  applyClasses(entry, ENTRY_COMPLETED_CLASSES, completed);
+  applyClasses(entry, ENTRY_NO_ACTION_CLASSES, noActions);
+  entry.dataset.state = completed ? 'completed' : active ? 'active' : 'pending';
+  entry.dataset.noActions = noActions ? 'true' : 'false';
+};
+
+const setMoveVisualState = (element, state = 'pending') => {
+  applyClasses(element, MOVE_PENDING_CLASSES, state === 'pending');
+  applyClasses(element, MOVE_DONE_CLASSES, state === 'done');
+  applyClasses(element, MOVE_SKIP_CLASSES, state === 'skip');
+  applyClasses(element, MOVE_INFO_CLASSES, state === 'informational');
+  element.dataset.state = state;
+};
 
 /**
  * Update planner clock display
@@ -63,11 +97,14 @@ export function startPlannerClock() {
  */
 export function resetIntentionTimeline(message = 'No planner data yet.') {
   intentionTimelineState = null;
+  lastRenderedLog = null;
+  lastRenderedAgentCount = 0;
+  lastRenderedOptions = {};
   const container = DOM.intentionTimeline();
   if (!container) return;
   container.innerHTML = '';
   const empty = document.createElement('div');
-  empty.className = 'timeline-empty';
+  empty.className = TIMELINE_EMPTY_CLASS;
   empty.textContent = message;
   container.appendChild(empty);
 }
@@ -84,11 +121,17 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
   if (!container) return;
   container.innerHTML = '';
 
-  const emptyMessage = options.emptyMessage || 'Planner has not produced any cycles yet.';
+  const optionsCopy = { ...(options || {}) };
+  const durationsFromOptions = Array.isArray(optionsCopy.prefillDurations)
+    ? [...optionsCopy.prefillDurations]
+    : null;
+  delete optionsCopy.prefillDurations;
+
+  const emptyMessage = optionsCopy.emptyMessage || 'Planner has not produced any cycles yet.';
 
   if (!Array.isArray(intentionLog) || intentionLog.length === 0) {
     const empty = document.createElement('div');
-    empty.className = 'timeline-empty';
+    empty.className = TIMELINE_EMPTY_CLASS;
     empty.textContent = emptyMessage;
     container.appendChild(empty);
     return;
@@ -102,18 +145,18 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
 
   intentionLog.forEach((cycle, idx) => {
     const entry = document.createElement('div');
-    entry.className = 'timeline-entry pending';
+    entry.className = ENTRY_BASE_CLASS;
     entry.dataset.cycleIndex = String(idx);
 
     const header = document.createElement('div');
-    header.className = 'timeline-header';
+    header.className = 'flex items-center justify-between gap-3';
 
     const title = document.createElement('span');
-    title.className = 'timeline-cycle';
+    title.className = 'text-sm font-semibold text-brand-dark';
     title.textContent = `Cycle ${idx + 1}`;
 
     const time = document.createElement('span');
-    time.className = 'timeline-time';
+    time.className = 'text-xs font-mono text-brand-dark/60';
     time.textContent = '--:--';
 
     header.appendChild(title);
@@ -121,7 +164,7 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
     entry.appendChild(header);
 
     const list = document.createElement('ul');
-    list.className = 'timeline-moves';
+    list.className = 'mt-3 flex flex-col gap-2';
 
     const moves = Array.isArray(cycle?.moves) ? cycle.moves : [];
     const moveStates = [];
@@ -129,33 +172,34 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
 
     moves.forEach((move, moveIdx) => {
       const item = document.createElement('li');
-      item.className = 'timeline-move pending';
-      let description = '';
+      item.className = MOVE_BASE_CLASS;
+
+      let description = 'No planner actions recorded.';
+      let moveState = 'informational';
+
       if (move && move.block) {
         totalActionMoves += 1;
         const actor = move.actor || `Agent ${moveIdx + 1}`;
         const destination = move.to || 'Table';
         const reason = move.reason || 'move';
-        description = `${actor}: ${move.block} → ${destination} (${reason})`;
+        description = `${actor}: ${move.block} -> ${destination} (${reason})`;
+        moveState = 'pending';
       } else if (move && move.skipped) {
         const actor = move.actor || `Agent ${moveIdx + 1}`;
         const reason = move.reason || 'no action';
-        item.classList.add('skip');
-        item.classList.remove('pending');
         description = `${actor}: skipped (${reason})`;
-      } else {
-        item.classList.add('informational');
-        item.classList.remove('pending');
-        description = '—';
+        moveState = 'skip';
       }
 
       item.textContent = description;
+      setMoveVisualState(item, moveState);
+
       list.appendChild(item);
 
       moveStates.push({
         meta: move,
         element: item,
-        completed: Boolean(move && move.skipped && !move.block),
+        completed: moveState !== 'pending',
         isAction: Boolean(move && move.block)
       });
     });
@@ -163,25 +207,49 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
     entry.appendChild(list);
     container.appendChild(entry);
 
-    state.cycles.push({
+    const cycleState = {
       index: idx,
       entryElement: entry,
       timeElement: time,
       moveStates,
       totalMoves: totalActionMoves,
-      processedMoves: 0
-    });
-  });
+      processedMoves: 0,
+      visual: {
+        active: false,
+        completed: false,
+        noActions: totalActionMoves === 0
+      }
+    };
 
-  state.cycles.forEach(cycleState => {
-    if (cycleState.totalMoves === 0) {
-      cycleState.entryElement.classList.add('no-actions', 'completed');
-      cycleState.entryElement.classList.remove('pending');
+    if (cycleState.visual.noActions) {
+      cycleState.visual.completed = true;
     }
+
+    setEntryVisualState(entry, cycleState.visual);
+
+    if (durationsFromOptions && (typeof durationsFromOptions[idx] === 'string' || typeof durationsFromOptions[idx] === 'number')) {
+      const rawDuration = durationsFromOptions[idx];
+      const formattedDuration =
+        typeof rawDuration === 'number' ? formatPlannerDuration(rawDuration) : String(rawDuration);
+      cycleState.timeElement.textContent = formattedDuration;
+    }
+
+    state.cycles.push(cycleState);
   });
 
   intentionTimelineState = state;
-  setActiveTimelineCycle(state.cycles.findIndex(cycle => cycle.totalMoves > 0));
+  const firstActionIndex = state.cycles.findIndex(cycle => cycle.totalMoves > 0);
+  if (firstActionIndex >= 0) {
+    setActiveTimelineCycle(firstActionIndex);
+  }
+
+  try {
+    lastRenderedLog = JSON.parse(JSON.stringify(intentionLog));
+  } catch (error) {
+    lastRenderedLog = Array.isArray(intentionLog) ? [...intentionLog] : null;
+  }
+  lastRenderedAgentCount = agentCount;
+  lastRenderedOptions = { ...optionsCopy };
 }
 
 /**
@@ -190,14 +258,11 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
  */
 function setActiveTimelineCycle(index) {
   if (!intentionTimelineState || !Array.isArray(intentionTimelineState.cycles)) return;
-  intentionTimelineState.cycles.forEach(cycle => {
-    cycle.entryElement.classList.remove('active');
+  intentionTimelineState.cycles.forEach((cycle, idx) => {
+    const shouldBeActive = idx === index && cycle.totalMoves > 0 && !cycle.visual.completed;
+    cycle.visual.active = shouldBeActive;
+    setEntryVisualState(cycle.entryElement, cycle.visual);
   });
-  if (index == null || index < 0) return;
-  const target = intentionTimelineState.cycles[index];
-  if (target && target.totalMoves > 0) {
-    target.entryElement.classList.add('active');
-  }
 }
 
 /**
@@ -206,9 +271,9 @@ function setActiveTimelineCycle(index) {
  */
 function completeTimelineCycle(cycleState) {
   if (!cycleState) return;
-  cycleState.entryElement.classList.remove('pending');
-  cycleState.entryElement.classList.remove('active');
-  cycleState.entryElement.classList.add('completed');
+  cycleState.visual.completed = true;
+  cycleState.visual.active = false;
+  setEntryVisualState(cycleState.entryElement, cycleState.visual);
   if (plannerClockStart) {
     cycleState.timeElement.textContent = formatPlannerDuration(Date.now() - plannerClockStart);
   }
@@ -221,33 +286,29 @@ function completeTimelineCycle(cycleState) {
  */
 export function markTimelineStep(step) {
   if (!step || !intentionTimelineState) return;
-  
-  // Increment step counter in stats
+
   incrementStep();
-  
-  // Find the next pending cycle to mark as complete
+
   for (const cycleState of intentionTimelineState.cycles) {
     if (cycleState.totalMoves === 0) continue;
     if (cycleState.processedMoves >= cycleState.totalMoves) continue;
 
-    // Find any pending move state in this cycle
-    const matcher = cycleState.moveStates.find(ms => 
-      ms.isAction && !ms.completed
-    );
-    
+    const matcher = cycleState.moveStates.find(ms => ms.isAction && !ms.completed);
+
     if (matcher) {
       matcher.completed = true;
-      matcher.element.classList.remove('pending');
-      matcher.element.classList.add('done');
+      setMoveVisualState(matcher.element, 'done');
       cycleState.processedMoves += 1;
 
       if (cycleState.processedMoves >= cycleState.totalMoves) {
         completeTimelineCycle(cycleState);
         const nextIndex = cycleState.index + 1;
-        const nextActionIndex = intentionTimelineState.cycles.findIndex((c, idx) => 
+        const nextActionIndex = intentionTimelineState.cycles.findIndex((c, idx) =>
           idx >= nextIndex && c.totalMoves > 0 && c.processedMoves < c.totalMoves
         );
-        setActiveTimelineCycle(nextActionIndex);
+        if (nextActionIndex >= 0) {
+          setActiveTimelineCycle(nextActionIndex);
+        }
       } else {
         setActiveTimelineCycle(cycleState.index);
       }
@@ -263,15 +324,71 @@ export function finalizeTimeline() {
   if (!intentionTimelineState) return;
   intentionTimelineState.cycles.forEach(cycle => {
     if (cycle.totalMoves === 0) {
-      cycle.timeElement.textContent = cycle.timeElement.textContent === '--:--' && plannerClockStart
-        ? formatPlannerDuration(Date.now() - plannerClockStart)
-        : cycle.timeElement.textContent;
+      cycle.timeElement.textContent =
+        cycle.timeElement.textContent === '--:--' && plannerClockStart
+          ? formatPlannerDuration(Date.now() - plannerClockStart)
+          : cycle.timeElement.textContent;
       return;
     }
+
     if (cycle.processedMoves >= cycle.totalMoves) {
-      if (!cycle.entryElement.classList.contains('completed')) {
+      if (!cycle.visual.completed) {
         completeTimelineCycle(cycle);
       }
     }
   });
+}
+
+export function getIntentionTimelineSnapshot() {
+  if (!lastRenderedLog || !Array.isArray(lastRenderedLog)) {
+    return null;
+  }
+
+  let durations = null;
+  if (intentionTimelineState && Array.isArray(intentionTimelineState.cycles)) {
+    durations = intentionTimelineState.cycles.map(cycle => {
+      const text = cycle?.timeElement?.textContent;
+      return typeof text === 'string' && text.trim().length > 0 ? text : '--:--';
+    });
+  } else {
+    durations = lastRenderedLog.map(() => '--:--');
+  }
+
+  const clockDisplay = (() => {
+    const clockElem = DOM.plannerClock();
+    return clockElem && typeof clockElem.textContent === 'string'
+      ? clockElem.textContent
+      : '--:--';
+  })();
+
+  return {
+    log: lastRenderedLog,
+    agentCount: lastRenderedAgentCount,
+    options: lastRenderedOptions,
+    durations,
+    clockDisplay
+  };
+}
+
+export function restoreTimelineFromSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') {
+    resetIntentionTimeline();
+    return;
+  }
+
+  const { log, agentCount = 0, options = {} } = snapshot;
+  if (!Array.isArray(log) || log.length === 0) {
+    resetIntentionTimeline(options.emptyMessage);
+    return;
+  }
+
+  const { durations = null, clockDisplay } = snapshot;
+  const renderOptions = durations && Array.isArray(durations) && durations.length > 0
+    ? { ...options, prefillDurations: durations }
+    : options;
+
+  renderIntentionTimeline(log, agentCount, renderOptions);
+  if (typeof clockDisplay === 'string' && clockDisplay.trim().length > 0) {
+    updatePlannerClockDisplay(clockDisplay);
+  }
 }

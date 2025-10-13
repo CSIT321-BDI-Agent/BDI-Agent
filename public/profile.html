@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="pageTitle">Profile - BDI Blocks World</title>
+  <link rel="icon" type="image/x-icon" href="/img/BDI.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+  <link rel="stylesheet" href="assets/app.css" />
+</head>
+<body class="min-h-screen bg-brand-light font-sans text-brand-dark antialiased">
+  <!-- Mobile Header -->
+  <header class="fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-white/40 bg-white/90 px-4 py-3 shadow md:hidden">
+    <button
+      id="mobileMenuToggle"
+      type="button"
+      aria-label="Toggle navigation menu"
+      aria-expanded="false"
+      aria-controls="mobileMenu"
+      class="inline-flex h-10 w-10 items-center justify-center border border-slate-200 bg-white text-brand-dark shadow-sm"
+    >
+      <span class="sr-only">Toggle navigation menu</span>
+      <span aria-hidden="true" class="flex flex-col items-center gap-1.5">
+        <span class="block h-0.5 w-6 rounded bg-brand-dark"></span>
+        <span class="block h-0.5 w-6 rounded bg-brand-dark"></span>
+        <span class="block h-0.5 w-6 rounded bg-brand-dark"></span>
+      </span>
+    </button>
+    <div class="flex items-center gap-2">
+      <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-8 w-8" />
+      <span id="mobileBrandText" class="text-sm font-semibold text-brand-dark">BDI Blocks World</span>
+    </div>
+    <div class="w-10" aria-hidden="true"></div>
+  </header>
+
+  <!-- Mobile Overlay -->
+  <div id="mobileOverlay" class="fixed inset-0 z-30 hidden bg-slate-900/40 transition-opacity duration-200 md:hidden"></div>
+
+  <!-- Mobile Menu -->
+  <div
+    id="mobileMenu"
+    class="fixed inset-y-0 left-0 z-40 flex w-72 max-w-full -translate-x-full flex-col bg-brand-dark text-white shadow-xl transition-transform duration-300 md:hidden"
+  >
+    <div class="flex items-center justify-between px-4 pb-2 pt-5">
+      <div class="sidebar__header flex items-center gap-3">
+        <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-10 w-10 bg-white/10 p-2" />
+        <span id="mobileMenuBrandText" class="text-base font-semibold text-white">BDI Blocks World</span>
+      </div>
+      <button id="mobileMenuClose" aria-label="Close menu" class="text-2xl leading-none">&times;</button>
+    </div>
+
+    <nav class="mt-4 flex flex-col gap-1 px-4 pb-6" aria-label="Primary">
+      <a
+        href="index.html"
+        data-route="dashboard"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+        aria-label="Dashboard"
+      >
+        <span class="material-icons text-lg" aria-hidden="true">dashboard</span>
+        <span>Dashboard</span>
+      </a>
+      <a
+        href="admin.html"
+        data-route="admin"
+        class="mobile-menu-link admin-nav-link hidden items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+        aria-label="Admin Dashboard"
+      >
+        <span class="material-icons text-lg" aria-hidden="true">admin_panel_settings</span>
+        <span>Admin Dashboard</span>
+      </a>
+      <a
+        href="agent-logs.html"
+        data-route="agent-logs"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+        aria-label="Agent Logs"
+      >
+        <span class="material-icons text-lg" aria-hidden="true">receipt_long</span>
+        <span>Agent Logs</span>
+      </a>
+      <a
+        href="#"
+        data-route="import-export"
+        data-disabled="true"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50"
+        title="Coming soon"
+        aria-label="Import/Export"
+      >
+        <span class="material-icons text-lg" aria-hidden="true">import_export</span>
+        <span>Import/Export</span>
+      </a>
+    </nav>
+
+    <div class="mt-auto space-y-3 border-t border-white/10 px-4 py-5 text-sm text-white/80">
+      <div class="flex items-center gap-2 font-semibold">
+        <span class="material-icons text-base" aria-hidden="true">help_outline</span>
+        <span>Quick Help</span>
+      </div>
+      <ul class="list-disc space-y-1 pl-5 text-white/70">
+        <li>Run a planner cycle, then save to refresh your profile data.</li>
+        <li>Admins can access management tools directly from here.</li>
+        <li>Use the forms below to update your username or password.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="app flex min-h-screen flex-col md:flex-row">
+    <aside
+      id="sidebar"
+      data-collapsed="false"
+      class="sidebar hidden bg-brand-dark text-white transition-[width] duration-300 ease-in-out md:fixed md:inset-y-0 md:flex md:w-72 md:flex-col md:shadow-lg"
+    >
+      <div class="flex h-full flex-col md:overflow-y-auto md:px-6 md:py-6 scrollbar-hide" data-sidebar-content>
+        <div class="flex items-center justify-center gap-3 md:justify-start" data-sidebar-brand>
+          <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-10 w-10" />
+          <span id="sidebarTitle" data-sidebar-collapsible="text" class="text-lg font-semibold text-white">BDI Blocks World</span>
+        </div>
+
+        <nav class="mt-8 flex flex-col gap-1" aria-label="Primary">
+          <a
+            href="index.html"
+            data-route="dashboard"
+            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            title="Dashboard"
+            aria-label="Dashboard"
+          >
+            <span class="material-icons text-lg" aria-hidden="true">dashboard</span>
+            <span class="sidebar__label" data-sidebar-collapsible="text">Dashboard</span>
+          </a>
+          <a
+            href="admin.html"
+            data-route="admin"
+            class="sidebar__link admin-nav-link hidden flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            title="Admin Dashboard"
+            aria-label="Admin Dashboard"
+          >
+            <span class="material-icons text-lg" aria-hidden="true">admin_panel_settings</span>
+            <span class="sidebar__label" data-sidebar-collapsible="text">Admin Dashboard</span>
+          </a>
+          <a
+            href="agent-logs.html"
+            data-route="agent-logs"
+            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            title="Agent Logs"
+            aria-label="Agent Logs"
+          >
+            <span class="material-icons text-lg" aria-hidden="true">receipt_long</span>
+            <span class="sidebar__label" data-sidebar-collapsible="text">Agent Logs</span>
+          </a>
+          <a
+            href="#"
+            data-route="import-export"
+            data-disabled="true"
+            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50 transition pointer-events-none opacity-40"
+            title="Import/export coming soon"
+            aria-label="Import/Export"
+          >
+            <span class="material-icons text-lg" aria-hidden="true">import_export</span>
+            <span class="sidebar__label" data-sidebar-collapsible="text">Import/Export</span>
+          </a>
+        </nav>
+
+        <div class="mt-8 space-y-3 bg-white/10 p-4 text-sm text-white/80" data-sidebar-collapsible="expanded">
+          <div class="flex items-center gap-2 font-semibold">
+            <span class="material-icons text-base" aria-hidden="true">info</span>
+            <span data-sidebar-collapsible="text">Profile Tips</span>
+          </div>
+          <ul class="space-y-2 text-white/70" data-sidebar-collapsible="text">
+            <li>Changes require your current password for verification.</li>
+            <li>Saved worlds are counted per account for quick reference.</li>
+            <li>Admins retain access to the management console.</li>
+          </ul>
+        </div>
+
+        <button
+          id="sidebarToggle"
+          type="button"
+          aria-label="Collapse navigation"
+          aria-expanded="true"
+          class="sidebar__toggle mt-auto inline-flex items-center justify-center gap-2 border border-white/20 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:text-white"
+        >
+          <span class="material-icons text-base" id="sidebarToggleIcon" aria-hidden="true">chevron_left</span>
+          <span class="sidebar__toggle-text" data-sidebar-collapsible="text">Collapse</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="flex flex-1 flex-col bg-brand-light pt-20 transition-all duration-300 ease-in-out md:ml-72 md:pt-10">
+      <div class="px-4 pb-8 md:px-10">
+        <div class="border border-white/40 bg-white/70 p-6 shadow-card backdrop-blur">
+          <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div class="space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-brand-dark/70">Account Center</p>
+              <h1 class="text-2xl font-extrabold text-brand-dark md:text-3xl">Manage your profile</h1>
+              <p class="text-sm text-brand-dark/70 md:max-w-xl">
+                Review your account details, view saved-world totals, and update your username or password from one place.
+              </p>
+            </div>
+            <div class="relative w-30">
+              <button
+                id="profileBtn"
+                type="button"
+                aria-haspopup="true"
+                aria-expanded="false"
+                class="flex w-full items-center justify-between gap-3 border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-brand-dark shadow-card transition hover:border-brand-primary hover:text-brand-dark"
+              >
+                <span class="material-icons text-lg text-brand-primary" aria-hidden="true">account_circle</span>
+                <span id="profileName" class="text-sm font-semibold">Guest</span>
+                <span class="material-icons text-base text-brand-dark/60" aria-hidden="true">expand_more</span>
+              </button>
+              <div
+                id="profileMenu"
+                class="absolute right-0 z-30 mt-3 w-full origin-top-right border border-slate-200 bg-white p-2 shadow-card hidden"
+              >
+                <div id="profileMenuLoggedIn" class="hidden flex-col gap-1">
+                  <a href="profile.html" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">person</span>
+                    <span>Profile</span>
+                  </a>
+                  <a href="admin.html" id="adminMenuItem" class="profile-menu-item hidden items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">admin_panel_settings</span>
+                    <span>Admin Dashboard</span>
+                  </a>
+                  <a href="#" onclick="logout(); return false;" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">logout</span>
+                    <span>Logout</span>
+                  </a>
+                </div>
+                <div id="profileMenuLoggedOut" class="flex flex-col gap-1">
+                  <a href="login.html" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">login</span>
+                    <span>Sign In</span>
+                  </a>
+                  <a href="signup.html" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
+                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">person_add</span>
+                    <span>Register</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="profileFlash" class="messages hidden"></div>
+        </div>
+
+        <div class="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <section class="space-y-6 border border-slate-200 bg-white p-6 shadow-card">
+            <header>
+              <h2 class="text-xl font-semibold text-brand-dark">Account Details</h2>
+              <p class="mt-1 text-sm text-slate-600">These values reflect the data currently stored on the server.</p>
+            </header>
+            <dl class="space-y-3 text-sm text-brand-dark">
+              <div class="flex items-center justify-between rounded border border-slate-200 bg-white px-4 py-3 shadow-inner">
+                <dt class="font-semibold">Username</dt>
+                <dd id="detailUsername" class="font-mono text-sm text-brand-primary">--</dd>
+              </div>
+              <div class="flex items-center justify-between rounded border border-slate-200 bg-white px-4 py-3 shadow-inner">
+                <dt class="font-semibold">Email</dt>
+                <dd id="detailEmail" class="text-sm text-brand-dark/80">--</dd>
+              </div>
+              <div class="flex items-center justify-between rounded border border-slate-200 bg-white px-4 py-3 shadow-inner">
+                <dt class="font-semibold">Password</dt>
+                <dd class="text-sm text-slate-500">Hidden (update below)</dd>
+              </div>
+              <div class="flex items-center justify-between rounded border border-slate-200 bg-white px-4 py-3 shadow-inner">
+                <dt class="font-semibold">Role</dt>
+                <dd id="detailRole" class="capitalize text-sm text-brand-dark/80">--</dd>
+              </div>
+              <div class="flex items-center justify-between rounded border border-slate-200 bg-white px-4 py-3 shadow-inner">
+                <dt class="font-semibold">User ID</dt>
+                <dd id="detailUserId" class="overflow-hidden text-ellipsis text-right font-mono text-xs text-slate-500">--</dd>
+              </div>
+              <div class="rounded border border-slate-200 bg-white px-4 py-3 shadow-inner">
+                <dt class="font-semibold">Saved worlds</dt>
+                <dd class="mt-2 flex flex-col gap-2 text-sm text-brand-dark">
+                  <span id="detailWorlds" class="font-semibold text-brand-dark">--</span>
+                  <ul id="detailWorldsList" class="hidden list-disc max-h-32 space-y-1 overflow-y-auto pl-5 text-xs font-medium text-slate-600"></ul>
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="space-y-6 border border-slate-200 bg-white p-6 shadow-card">
+            <header>
+              <h2 class="text-xl font-semibold text-brand-dark">Manage Credentials</h2>
+              <p class="mt-1 text-sm text-slate-600">Enter your current password to confirm any change.</p>
+            </header>
+
+            <form id="usernameForm" class="space-y-3">
+              <div>
+                <label for="newUsername" class="block text-sm font-semibold text-brand-dark">New username</label>
+                <input type="text" id="newUsername" name="newUsername" minlength="3" maxlength="20" autocomplete="username" class="mt-2 w-full border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-primary focus:ring-brand-primary" required />
+              </div>
+              <div>
+                <label for="usernameCurrentPassword" class="block text-sm font-semibold text-brand-dark">Current password</label>
+                <input type="password" id="usernameCurrentPassword" name="usernameCurrentPassword" autocomplete="current-password" class="mt-2 w-full border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-primary focus:ring-brand-primary" required />
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-y-2 gap-x-4">
+                <button type="submit" class="inline-flex items-center gap-2 rounded bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" id="usernameSubmit">
+                  <span class="material-icons text-sm" aria-hidden="true">save</span>
+                  Update Username
+                </button>
+                <span id="usernameMessage" class="hidden text-sm shrink-0 ml-auto" data-inline="true" aria-live="polite" role="status"></span>
+              </div>
+            </form>
+
+            <div class="border-t border-slate-200"></div>
+
+            <form id="passwordForm" class="space-y-3">
+              <div>
+                <label for="passwordCurrent" class="block text-sm font-semibold text-brand-dark">Current password</label>
+                <input type="password" id="passwordCurrent" name="passwordCurrent" autocomplete="current-password" class="mt-2 w-full border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-primary focus:ring-brand-primary" required />
+              </div>
+              <div>
+                <label for="newPassword" class="block text-sm font-semibold text-brand-dark">New password</label>
+                <input type="password" id="newPassword" name="newPassword" minlength="6" autocomplete="new-password" class="mt-2 w-full border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-primary focus:ring-brand-primary" required />
+              </div>
+              <div>
+                <label for="confirmPassword" class="block text-sm font-semibold text-brand-dark">Confirm new password</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" minlength="6" autocomplete="new-password" class="mt-2 w-full border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-primary focus:ring-brand-primary" required />
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-y-2 gap-x-4">
+                <button type="submit" class="inline-flex items-center gap-2 rounded bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" id="passwordSubmit">
+                  <span class="material-icons text-sm" aria-hidden="true">lock_open</span>
+                  Update Password
+                </button>
+                <span id="passwordMessage" class="hidden text-sm shrink-0 ml-auto" data-inline="true" aria-live="polite" role="status"></span>
+              </div>
+            </form>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="config.js"></script>
+  <script type="module">
+    import {
+      requireAuth,
+      getCurrentUser,
+      authenticatedFetch,
+      logout as authLogout,
+      updateUIWithUserInfo,
+      storeAuthData
+    } from './utils/auth.js';
+    import { initializeMobileNavigation, initializeSidebarNavigation } from './utils/navigation.js';
+    import { initializeProfileMenu } from './utils/profile.js';
+
+    requireAuth();
+
+    initializeMobileNavigation();
+    initializeSidebarNavigation({ activeRoute: 'profile', storageKey: 'bdiProfileSidebarCollapsed' });
+    initializeProfileMenu();
+
+    updateUIWithUserInfo({
+      adminNav: '.admin-nav-link'
+    });
+
+    window.logout = authLogout;
+
+    const apiBase = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
+
+    const profileNameDisplay = document.getElementById('profileName');
+    const usernameDisplay = document.getElementById('detailUsername');
+    const emailDisplay = document.getElementById('detailEmail');
+    const roleDisplay = document.getElementById('detailRole');
+    const userIdDisplay = document.getElementById('detailUserId');
+    const worldsDisplay = document.getElementById('detailWorlds');
+    const worldsList = document.getElementById('detailWorldsList');
+
+    const usernameForm = document.getElementById('usernameForm');
+    const newUsernameInput = document.getElementById('newUsername');
+    const usernamePasswordInput = document.getElementById('usernameCurrentPassword');
+    const usernameSubmit = document.getElementById('usernameSubmit');
+    const usernameMessage = document.getElementById('usernameMessage');
+
+    const passwordForm = document.getElementById('passwordForm');
+    const passwordCurrentInput = document.getElementById('passwordCurrent');
+    const newPasswordInput = document.getElementById('newPassword');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const passwordSubmit = document.getElementById('passwordSubmit');
+    const passwordMessage = document.getElementById('passwordMessage');
+
+    const dashboardBtn = document.getElementById('dashboardBtn');
+    const adminBtn = document.getElementById('adminConsoleBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const flashMessage = document.getElementById('profileFlash');
+
+    let currentProfile = null;
+
+    const setFeedback = (element, text = '', type = 'info') => {
+      if (!element) return;
+      if (element.dataset.timeoutId) {
+        window.clearTimeout(Number(element.dataset.timeoutId));
+        element.dataset.timeoutId = '';
+      }
+      if (!text) {
+        element.className = element.dataset.inline === 'true'
+          ? 'messages hidden'
+          : 'hidden text-sm';
+        element.textContent = '';
+        return;
+      }
+      if (element.dataset.inline === 'true') {
+        const BASE = 'messages inline-flex items-center gap-2 border px-3 py-2 text-sm font-medium transition-all duration-200 ml-auto whitespace-nowrap';
+        const TONE_MAP = {
+          success: `${BASE} border-emerald-300 bg-emerald-50 text-emerald-700`,
+          error: `${BASE} border-red-300 bg-red-50 text-red-600`,
+          info: `${BASE} border-brand-primary/30 bg-brand-primary/10 text-brand-dark`
+        };
+        element.className = TONE_MAP[type] || TONE_MAP.info;
+        const timeoutId = window.setTimeout(() => {
+          if (element.textContent === text) {
+            element.className = 'messages hidden';
+            element.textContent = '';
+          }
+          element.dataset.timeoutId = '';
+        }, 5000);
+        element.dataset.timeoutId = String(timeoutId);
+      } else {
+        const base = 'text-sm font-medium mt-2';
+        const tone = {
+          success: 'text-emerald-600',
+          error: 'text-red-600',
+          info: 'text-brand-primary'
+        }[type] || 'text-brand-primary';
+        element.className = `${base} ${tone}`;
+      }
+      element.textContent = text;
+    };
+
+    const setFlash = (text = '', type = 'info') => {
+      if (!flashMessage) return;
+      const BASE = 'messages block mt-6 border px-4 py-3 text-sm font-medium transition-all duration-200';
+      const map = {
+        info: `${BASE} border-brand-primary/30 bg-brand-primary/10 text-brand-dark`,
+        success: `${BASE} border-emerald-300 bg-emerald-50 text-emerald-700`,
+        error: `${BASE} border-red-300 bg-red-50 text-red-600`
+      };
+      if (!text) {
+        flashMessage.textContent = '';
+        flashMessage.className = 'messages hidden';
+        return;
+      }
+      flashMessage.textContent = text;
+      flashMessage.className = map[type] || map.info;
+    };
+
+    const populateProfile = (data) => {
+      currentProfile = data;
+      const session = getCurrentUser();
+      if (session && session.token) {
+        storeAuthData({
+          userId: session.userId,
+          username: data.username || session.username,
+          role: data.role || session.role,
+          token: session.token,
+          email: data.email || session.email
+        });
+      }
+      usernameDisplay.textContent = data.username || 'Unknown';
+      emailDisplay.textContent = data.email || '--';
+      roleDisplay.textContent = (data.role || 'user').toLowerCase();
+      userIdDisplay.textContent = data.userId || '--';
+      const savedWorlds = Array.isArray(data.savedWorlds) ? data.savedWorlds : [];
+      const savedWorldCount = Number.isFinite(data.savedWorldCount) ? data.savedWorldCount : savedWorlds.length;
+      const countLabel = savedWorldCount === 0
+        ? 'No worlds saved yet'
+        : `${savedWorldCount} ${savedWorldCount === 1 ? 'world' : 'worlds'}`;
+      worldsDisplay.textContent = countLabel;
+
+      if (worldsList) {
+        worldsList.innerHTML = '';
+        if (savedWorlds.length === 0) {
+          worldsList.classList.add('hidden');
+        } else {
+          worldsList.classList.remove('hidden');
+          savedWorlds.forEach((world) => {
+            const item = document.createElement('li');
+            const name = typeof world?.name === 'string' && world.name.trim().length > 0
+              ? world.name.trim()
+              : 'Untitled world';
+            const savedDate = world?.createdAt
+              ? new Date(world.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })
+              : null;
+            item.textContent = savedDate ? `${name} - saved ${savedDate}` : name;
+            worldsList.appendChild(item);
+          });
+        }
+      }
+      if (profileNameDisplay) {
+        profileNameDisplay.textContent = data.username || 'Guest';
+      }
+      if (data.role === 'admin') {
+        adminBtn.classList.remove('hidden');
+      } else {
+        adminBtn.classList.add('hidden');
+      }
+    };
+
+    const fetchProfile = async (options = {}) => {
+      const { preserveMessages = false } = options;
+      try {
+        const response = await authenticatedFetch(`${apiBase}/users/me`, { method: 'GET' });
+        if (!response.ok) {
+          throw new Error('Unable to load profile details');
+        }
+        const payload = await response.json();
+        populateProfile(payload);
+        if (!preserveMessages) {
+          setFeedback(usernameMessage);
+          setFeedback(passwordMessage);
+        }
+      } catch (error) {
+        console.error('Profile load error:', error);
+        setFlash(error.message || 'Unable to load profile details.', 'error');
+      }
+    };
+
+    usernameForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      setFeedback(usernameMessage);
+      setFlash();
+
+      const newUsername = newUsernameInput.value.trim();
+      const currentPassword = usernamePasswordInput.value.trim();
+
+      if (!newUsername) {
+        setFeedback(usernameMessage, 'Please enter a new username.', 'error');
+        return;
+      }
+      if (currentProfile && newUsername.toLowerCase() === (currentProfile.username || '').toLowerCase()) {
+        setFeedback(usernameMessage, 'You are already using that username.', 'error');
+        return;
+      }
+      if (!currentPassword) {
+        setFeedback(usernameMessage, 'Please provide your current password to confirm.', 'error');
+        return;
+      }
+
+      usernameSubmit.disabled = true;
+
+      try {
+        const response = await authenticatedFetch(`${apiBase}/users/me`, {
+          method: 'PATCH',
+          body: JSON.stringify({ oldPassword: currentPassword, username: newUsername })
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.message || 'Unable to update username');
+        }
+
+        storeAuthData({
+          userId: payload.user.userId,
+          username: payload.user.username,
+          role: payload.user.role,
+          token: payload.token,
+          email: payload.user.email
+        });
+
+        setFeedback(usernameMessage, 'Username updated successfully.', 'success');
+        newUsernameInput.value = '';
+        usernamePasswordInput.value = '';
+        await fetchProfile({ preserveMessages: true });
+        updateUIWithUserInfo({ adminNav: '.admin-nav-link' });
+      } catch (error) {
+        console.error('Username update error:', error);
+        setFeedback(usernameMessage, error.message || 'Unable to update username.', 'error');
+      } finally {
+        usernameSubmit.disabled = false;
+      }
+    });
+
+    passwordForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      setFeedback(passwordMessage);
+      setFlash();
+
+      const currentPassword = passwordCurrentInput.value.trim();
+      const newPassword = newPasswordInput.value.trim();
+      const confirmPassword = confirmPasswordInput.value.trim();
+
+      if (!currentPassword) {
+        setFeedback(passwordMessage, 'Please provide your current password.', 'error');
+        return;
+      }
+      if (!newPassword || newPassword.length < 6) {
+        setFeedback(passwordMessage, 'New password must be at least 6 characters.', 'error');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setFeedback(passwordMessage, 'New password and confirmation do not match.', 'error');
+        return;
+      }
+
+      passwordSubmit.disabled = true;
+
+      try {
+        const response = await authenticatedFetch(`${apiBase}/users/me`, {
+          method: 'PATCH',
+          body: JSON.stringify({ oldPassword: currentPassword, password: newPassword })
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.message || 'Unable to update password');
+        }
+
+        storeAuthData({
+          userId: payload.user.userId,
+          username: payload.user.username,
+          role: payload.user.role,
+          token: payload.token,
+          email: payload.user.email
+        });
+
+        setFeedback(passwordMessage, 'Password updated successfully.', 'success');
+        passwordCurrentInput.value = '';
+        newPasswordInput.value = '';
+        confirmPasswordInput.value = '';
+        await fetchProfile({ preserveMessages: true });
+        updateUIWithUserInfo({ adminNav: '.admin-nav-link' });
+      } catch (error) {
+        console.error('Password update error:', error);
+        setFeedback(passwordMessage, error.message || 'Unable to update password.', 'error');
+      } finally {
+        passwordSubmit.disabled = false;
+      }
+    });
+
+    dashboardBtn.addEventListener('click', () => {
+      window.location.href = 'index.html';
+    });
+
+    adminBtn.addEventListener('click', () => {
+      window.location.href = 'admin.html';
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      authLogout(false);
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const appName = window.APP_CONFIG?.APP_NAME || 'BDI Blocks World';
+      const pageTitle = document.getElementById('pageTitle');
+      if (pageTitle) pageTitle.textContent = `Profile - ${appName}`;
+    });
+
+    fetchProfile();
+  </script>
+</body>
+</html>
+
+
+

@@ -6,38 +6,31 @@ import { initializeStatsUI } from './stats.js';
 import { initializeLogger } from './logger.js';
 import { initializeMobileNavigation, initializeSidebarNavigation } from './navigation.js';
 import { initializeProfileMenu } from './profile.js';
+import { DOM } from './constants.js';
 
-let worldInfoIntervalId = null;
 let dashboardInitialized = false;
+let boundWorld = null;
 
 export function initializeDashboardUI(world) {
-  if (dashboardInitialized) {
-    // Ensure world info ticker uses latest world instance
-    if (world) {
-      startWorldInfoTicker(world);
-    }
-    return;
+  if (world) {
+    boundWorld = world;
   }
 
-  initializeStatsUI();
-  initializeLogger();
-  applyBrandingFromConfig();
-  bindGoalPreview();
-  startWorldInfoTicker(world);
+  if (!dashboardInitialized) {
+    initializeStatsUI();
+    initializeLogger();
+    applyBrandingFromConfig();
+    bindGoalPreview();
+    bindWorldInfoUpdates();
 
-  initializeMobileNavigation();
-  initializeSidebarNavigation();
-  initializeProfileMenu();
+    initializeMobileNavigation();
+    initializeSidebarNavigation({ activeRoute: 'dashboard' });
+    initializeProfileMenu();
 
-  // Clean up ticker on page unload to avoid stray timers
-  window.addEventListener('beforeunload', () => {
-    if (worldInfoIntervalId) {
-      clearInterval(worldInfoIntervalId);
-      worldInfoIntervalId = null;
-    }
-  }, { once: true });
+    dashboardInitialized = true;
+  }
 
-  dashboardInitialized = true;
+  updateWorldInfo();
 }
 
 function applyBrandingFromConfig() {
@@ -54,31 +47,46 @@ function applyBrandingFromConfig() {
 function bindGoalPreview() {
   const startBtn = document.getElementById('startBtn');
   const goalInput = document.getElementById('goalInput');
-  const infoGoal = document.getElementById('info-goal');
+  const infoGoal = DOM.infoGoal();
 
-  if (!startBtn || !goalInput || !infoGoal) return;
+  if (!goalInput || !infoGoal) return;
 
-  startBtn.addEventListener('click', () => {
+  const updateGoalText = () => {
     const goalText = goalInput.value.trim();
-    if (goalText) {
-      infoGoal.textContent = `(${goalText.split(/\s*on\s*/i).join(', ')})`;
-    }
-  });
+    infoGoal.textContent = goalText
+      ? `(${goalText.split(/\s*on\s*/i).join(', ')})`
+      : '( - )';
+  };
+
+  goalInput.addEventListener('input', updateGoalText);
+  startBtn?.addEventListener('click', updateGoalText);
+  updateGoalText();
 }
 
-function startWorldInfoTicker(world) {
-  const infoCurrent = document.getElementById('info-current');
-  if (!infoCurrent || !world) return;
+function bindWorldInfoUpdates() {
+  document.addEventListener('world:blocks-changed', updateWorldInfo);
+}
 
-  if (worldInfoIntervalId) {
-    clearInterval(worldInfoIntervalId);
+export function updateWorldInfoFromStacks(stacks) {
+  const infoCurrent = DOM.infoCurrent();
+  if (!infoCurrent) return;
+
+  if (!Array.isArray(stacks) || stacks.length === 0) {
+    infoCurrent.textContent = '( - )';
+    return;
   }
 
-  worldInfoIntervalId = window.setInterval(() => {
-    if (!world || !Array.isArray(world.stacks)) return;
-    const formatted = world.stacks
-      .map(stack => stack.join(', '))
-      .join(' | ');
-    infoCurrent.textContent = `(${formatted})`;
-  }, 500);
+  const formatted = stacks
+    .map(stack => (Array.isArray(stack) && stack.length ? stack.join(' -> ') : 'Table'))
+    .join(' | ');
+  infoCurrent.textContent = `(${formatted})`;
+}
+
+function updateWorldInfo() {
+  if (!boundWorld || !Array.isArray(boundWorld.stacks)) {
+    updateWorldInfoFromStacks(null);
+    return;
+  }
+
+  updateWorldInfoFromStacks(boundWorld.stacks);
 }

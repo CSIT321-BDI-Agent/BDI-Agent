@@ -4,29 +4,47 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title id="pageTitle">BDI Blocks World - Debug</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" type="image/x-icon" href="/img/BDI.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/app.css" />
 </head>
-<body>
-  <main class="auth-wrapper">
-    <section class="auth-card">
-      <h1 id="debugHeader">Debug Page</h1>
-      <p>This page is for testing backend endpoints.</p>
-      
-      <div class="debug-buttons">
-        <button onclick="testUserSignup()">Test User Signup</button>
-        <button onclick="testUserLogin()">Test User Login</button>
-        <button onclick="testWorldSave()">Test World Save</button>
-        <button onclick="testWorldLoad()">Test World Load</button>
-        <button onclick="checkLocalStorage()">Check LocalStorage</button>
+<body class="min-h-screen bg-brand-light font-sans text-brand-dark antialiased">
+  <main class="flex min-h-screen items-center justify-center px-4 py-12">
+    <section class="w-full max-w-3xl border border-slate-200/70 bg-white/95 p-8 shadow-card backdrop-blur">
+      <div class="mb-6 text-center">
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-primary/10">
+          <img src="img/BDI.svg" alt="BDI Blocks World logo" class="h-8 w-8" />
+        </span>
+        <h1 id="debugHeader" class="mt-4 text-3xl font-semibold text-brand-dark">Debug Page</h1>
+        <p class="mt-2 text-sm text-slate-600">Quick utilities for testing backend endpoints during development.</p>
       </div>
 
-      <div id="output" class="debug-output"></div>
+      <div class="debug-buttons grid gap-3 sm:grid-cols-2">
+  <button onclick="testUserSignup()" class="border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+          Test User Signup
+        </button>
+  <button onclick="testUserLogin()" class="border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+          Test User Login
+        </button>
+  <button onclick="testWorldSave()" class="border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+          Test World Save
+        </button>
+  <button onclick="testWorldLoad()" class="border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+          Test World Load
+        </button>
+  <button onclick="checkLocalStorage()" class="border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+          Check LocalStorage
+        </button>
+      </div>
+
+      <div id="output" class="debug-output mt-6 max-h-80 overflow-y-auto border border-slate-200/70 bg-slate-50/80 p-4 text-sm text-slate-700 shadow-inner"></div>
     </section>
   </main>
-  
+
   <script src="config.js"></script>
   <script>
-    // Set page title and header from config
     window.addEventListener('DOMContentLoaded', () => {
       const appName = window.APP_CONFIG?.APP_NAME || 'BDI Blocks World';
       const pageTitle = document.getElementById('pageTitle');
@@ -36,19 +54,20 @@
     });
 
     const output = document.getElementById('output');
-    
+
     function log(message) {
       console.log(message);
-      output.innerHTML += `<p>${message}</p>`;
+      output.innerHTML += `<p class="mb-2 bg-white/80 px-3 py-2">${message}</p>`;
+      output.scrollTop = output.scrollHeight;
     }
-    
+
     function checkLocalStorage() {
       log('=== LocalStorage Check ===');
       log('userId: ' + localStorage.getItem('userId'));
       log('username: ' + localStorage.getItem('username'));
       log('API_BASE: ' + (window.APP_CONFIG?.API_BASE || 'undefined'));
     }
-    
+
     async function testUserSignup() {
       log('=== Testing User Signup ===');
       const testUser = {
@@ -56,120 +75,119 @@
         username: 'testuser123',
         password: 'password123'
       };
-      
+
       try {
         const res = await fetch(`${window.APP_CONFIG.API_BASE}/users/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(testUser)
         });
-        
+
         const data = await res.json();
         log('Signup response: ' + JSON.stringify(data, null, 2));
-        
+
         if (res.ok && data.userId) {
           localStorage.setItem('userId', data.userId);
           localStorage.setItem('username', testUser.username);
           log('✅ Signup successful, stored in localStorage');
         } else {
-          log('❌ Signup failed: ' + data.message);
+          log('⚠️ Signup failed: ' + data.message);
         }
       } catch (e) {
-        log('❌ Signup error: ' + e.message);
+        log('⚠️ Signup error: ' + e.message);
       }
     }
-    
+
     async function testUserLogin() {
       log('=== Testing User Login ===');
       const testUser = {
         username: 'testuser123',
         password: 'password123'
       };
-      
+
       try {
         const res = await fetch(`${window.APP_CONFIG.API_BASE}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(testUser)
         });
-        
+
         const data = await res.json();
         log('Login response: ' + JSON.stringify(data, null, 2));
-        
+
         if (res.ok && data.userId) {
           localStorage.setItem('userId', data.userId);
           localStorage.setItem('username', data.username);
           log('✅ Login successful, stored in localStorage');
         } else {
-          log('❌ Login failed: ' + data.message);
+          log('⚠️ Login failed: ' + data.message);
         }
       } catch (e) {
-        log('❌ Login error: ' + e.message);
+        log('⚠️ Login error: ' + e.message);
       }
     }
-    
+
     async function testWorldSave() {
       log('=== Testing World Save ===');
       const userId = localStorage.getItem('userId');
       if (!userId) {
-        log('❌ No userId found, please login first');
+        log('⚠️ No userId found, please login first');
         return;
       }
-      
+
       const testWorld = {
         name: 'Debug Test World',
         blocks: ['A', 'B'],
         stacks: [['A'], ['B']],
         userId: userId
       };
-      
+
       try {
         const res = await fetch(`${window.APP_CONFIG.API_BASE}/worlds`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(testWorld)
         });
-        
+
         const data = await res.json();
         log('Save response status: ' + res.status);
         log('Save response: ' + JSON.stringify(data, null, 2));
-        
+
         if (res.ok) {
           log('✅ World saved successfully');
         } else {
-          log('❌ World save failed: ' + data.message);
+          log('⚠️ World save failed: ' + data.message);
         }
       } catch (e) {
-        log('❌ Save error: ' + e.message);
+        log('⚠️ Save error: ' + e.message);
       }
     }
-    
+
     async function testWorldLoad() {
       log('=== Testing World Load ===');
       const userId = localStorage.getItem('userId');
       if (!userId) {
-        log('❌ No userId found, please login first');
+        log('⚠️ No userId found, please login first');
         return;
       }
-      
+
       try {
         const res = await fetch(`${window.APP_CONFIG.API_BASE}/worlds?userId=${userId}`);
-        
+
         const data = await res.json();
         log('Load response status: ' + res.status);
         log('Load response: ' + JSON.stringify(data, null, 2));
-        
+
         if (res.ok) {
-          log('✅ Worlds loaded successfully, found: ' + data.length);
+          log(`✅ Worlds loaded successfully, found: ${data.length}`);
         } else {
-          log('❌ World load failed: ' + data.message);
+          log('⚠️ World load failed: ' + data.message);
         }
       } catch (e) {
-        log('❌ Load error: ' + e.message);
+        log('⚠️ Load error: ' + e.message);
       }
     }
-    
-    // Auto-check localStorage on load
+
     checkLocalStorage();
   </script>
 </body>

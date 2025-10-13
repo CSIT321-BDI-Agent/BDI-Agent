@@ -1,162 +1,136 @@
-# BDI-Agent Backend
+# Backend (Express API & BDI Planner)
 
-This directory contains the backend server for the BDI-Agent Blocks World Simulator.
+This directory hosts the server-side portion of the Blocks World simulator: an Express app, a JS-son powered BDI planner, and MongoDB persistence for saved worlds.
 
-## Structure
+---
+
+## Features at a Glance
+
+- JWT-authenticated API with per-user world storage and admin-only management routes.
+- Planner endpoint (`POST /plan`) wraps the JS-son agent and enforces sane iteration caps.
+- Saved worlds persist the latest stacks, colour assignments, and intention timeline snapshots.
+- Structured error handling via `utils/routeHandler.js` and validation helpers.
+
+---
+
+## Running the Backend
+
+### With Docker (preferred)
+
+From the repository root:
+
+```bash
+docker compose up --build -d          # production style
+# or
+docker compose -f docker-compose.dev.yml up --build  # watch mode
+```
+
+The app listens on port `3000` and connects to the bundled MongoDB instance. Environment variables from the project-level `.env` are automatically injected.
+
+### Manual setup
+
+```
+npm install
+cp .env.example .env   # provide MONGODB_URI + JWT_SECRET at minimum
+npm start
+```
+
+MongoDB must be reachable at the URI you configure (local instance or Atlas connection string).
+
+---
+
+## Directory Layout
 
 ```
 backend/
-├── server.js                    # Express server and API routes (175 lines)
-├── package.json                 # Node.js dependencies
-├── bdi/                         # BDI agent logic
-│   ├── blocksWorldAgent.js      # JS-son planner (370 lines)
-│   └── utils/
-│       └── blocks.js            # Block world validators/helpers (165 lines)
-├── models/                      # MongoDB schemas
-│   ├── User.js                  # User authentication model (30 lines)
-│   └── World.js                 # World persistence model (10 lines)
-├── utils/                       # Server utilities
-│   ├── database.js              # MongoDB connection with retry logic (25 lines)
-│   ├── auth.js                  # JWT authentication middleware (33 lines)
-│   ├── validators.js            # Input validation helpers (30 lines)
-│   ├── routeHandler.js          # Error handling wrapper (22 lines)
-│   ├── httpError.js             # Custom error class (9 lines)
-│   └── adminRoutes.js           # Admin panel routes (45 lines)
-├── mongo-init.js                # MongoDB initialization (12 lines)
-├── planner-debug.js             # Planner test suite (269 lines, 11 scenarios)
-├── README.md                    # This file
-└── .env.example                 # Environment variables template
+├── server.js             # Express app bootstrap and API routes
+├── bdi/
+│   ├── blocksWorldAgent.js  # JS-son planner wrapper
+│   └── utils/blocks.js      # Planning helpers
+├── models/
+│   ├── User.js           # Auth model
+│   └── World.js          # Saved world schema (stacks, colours, timeline)
+├── utils/
+│   ├── auth.js           # JWT middleware
+│   ├── adminRoutes.js    # Admin-only endpoints
+│   ├── database.js       # Mongo connection + retry logic
+│   ├── routeHandler.js   # Async error wrapper
+│   └── validators.js     # Input sanitizers
+├── planner-debug.js      # Regression scenarios for the planner
+└── README.md             # This file
 ```
 
-**Total**: ~700 lines of backend code (highly modular)
+---
 
-## Quick Start
+## API Summary
 
-### Local Development (Manual)
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/users/signup` | Create a new user |
+| `POST` | `/login` | Obtain JWT (7-day expiry) |
+| `POST` | `/worlds` | Save world (requires JWT) – expects `name`, `blocks`, `stacks`, optional `colours`, `timeline` |
+| `GET`  | `/worlds` | List current user's saved worlds |
+| `GET`  | `/worlds/:id` | Retrieve a specific saved world |
+| `DELETE` | `/worlds/:id` | Delete a saved world |
+| `POST` | `/plan` | Run the BDI planner on provided stacks/goal (requires JWT) |
+| `GET`  | `/admin/users` | Admin: list users |
+| `POST` | `/admin/users/:id/promote` | Admin: elevate user role |
+| `POST` | `/admin/users/:id/demote` | Admin: reduce user role |
+| `DELETE` | `/admin/users/:id` | Admin: remove user |
+| `GET` | `/health` | Service health for monitoring |
 
-1. **Install Dependencies**
-   ```bash
-   npm install
-   ```
+> Planner payload validation rejects invalid block identifiers and caps `maxIterations` at 5,000 to prevent runaway simulations.
 
-2. **Configure Environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your settings
-   ```
+Saved world documents now resemble:
 
-3. **Ensure MongoDB is Running**
-   - Local: `mongod` (default: `mongodb://localhost:27017`)
-   - Or use MongoDB Atlas connection string
-
-4. **Start Server**
-   ```bash
-   npm start
-   ```
-
-Server runs on `http://localhost:3000`
-
-### Docker Development (Recommended)
-
-From the **project root** directory:
-
-```bash
-# Development mode (with live reload)
-docker compose -f docker-compose.dev.yml up --build
-
-# Production mode
-docker compose up --build
+```jsonc
+{
+  "name": "Tower A",
+  "blocks": ["A", "B", "C"],
+  "stacks": [["C", "B", "A"]],
+  "colours": { "A": "hsl(...)", "B": "hsl(...)" },
+  "timeline": { "log": [...], "clockDisplay": "00:14.52", ... },
+  "stats": { "steps": 12, "timeElapsedMs": 14520, "timeElapsed": "14.52s", "status": "Completed" },
+  "user": "64f...",
+  "createdAt": "..."
+}
 ```
 
-## API Endpoints
-
-### Authentication
-- `POST /users/signup` - Create new user account
-- `POST /login` - Login and receive JWT token
-
-### World Persistence (JWT required)
-- `POST /worlds` - Save a world configuration for the authenticated user
-- `GET /worlds` - Get all worlds owned by the authenticated user
-- `GET /worlds/:id` - Get specific world owned by the authenticated user
-
-### Planning (JWT required)
-- `POST /plan` - Execute BDI planner on block configuration (input validated, maxIterations capped at 5,000)
-
-### Admin (Requires JWT with admin role)
-- `GET /admin/users` - List all users
-- `PUT /admin/users/:id/role` - Update user role
-- `DELETE /admin/users/:id` - Delete user
-
-### Utility
-- `GET /health` - Health check (Docker probe)
-
-## Testing
-
-Run planner regression tests:
-```bash
-npm run test:planner
-```
+---
 
 ## Environment Variables
 
-See `.env.example` for all available configuration options.
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `PORT` | Port for the API | `3000` |
+| `MONGODB_URI` | Mongo connection string | `mongodb://localhost:27017/blocks_world` |
+| `JWT_SECRET` | Signing secret for auth tokens | _required in production_ |
+| `ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Optional bootstrap admin |
+| `ALLOWED_ORIGINS` | Comma-separated CORS whitelist (prod) | Browser localhost hosts |
 
-**Required:**
-- `MONGODB_URI` - MongoDB connection string
-- `JWT_SECRET` - Secret for JWT token signing (production)
+---
 
--**Optional:**
-- `PORT` - Server port (default: 3000)
-- `NODE_ENV` - Environment mode (development/production)
-- `ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` - Default admin credentials (for Docker Compose you can place these in the project root `.env` file; note that `docker-compose.yml` requires `ADMIN_PASSWORD` to be provided)
+## Testing & Tooling
 
-## Architecture Notes
+- Planner regression suite: `npm run test:planner`
+- Logs are standard `console.log`/`console.error`; combine with `docker compose logs app` when running in containers.
+- Health endpoint (`/health`) reports uptime and MongoDB connection status for Compose or Kubernetes probes.
 
-- **Modular Design**: Utilities, models, and BDI logic are separated into focused modules
-- **Error Handling**: Centralized via `withRoute()` wrapper from `utils/routeHandler.js`
-- **Validation**: Reusable input validation via `validators.js` helpers (ensureNonEmptyString, ensureArray, ensureObjectId)
-- **Authentication**: JWT-based with role management (7-day token expiry)
-- **Database**: MongoDB with Mongoose ODM, connection retry logic (5 attempts, 5s delay)
-- **Static Files**: Frontend served from `../public` directory via `express.static()`
-- **Health Checks**: `/health` endpoint for Docker container monitoring
-- **Admin Features**: User management panel with role promotion/demotion
-- **Code Quality**: ~700 total lines, avg 40 lines per utility module
-- **BDI Planning**: 4-step cycle expansion (move to source, pick up, move to dest, drop)
-- **Telemetry**: Complete intention logs with beliefs, move reasons, and cycle tracking
+---
 
-## Common Tasks
+## Tips
 
-**Add New Route:**
-```javascript
-const withRoute = require('./utils/routeHandler');
-const { ensureNonEmptyString } = require('./utils/validators');
+- All route handlers should be wrapped with `withRoute` to ensure proper error propagation.
+- Use helpers in `validators.js` instead of hand-rolling request parsing.
+- When evolving the saved world schema, update both `models/World.js` and the frontend persistence helper to keep persistence logic in sync.
 
-app.post('/new-endpoint', withRoute(async (req, res) => {
-  const param = ensureNonEmptyString(req.body.param, 'Parameter');
-  // Your logic here
-  res.json({ result: 'success' });
-}));
-```
+For broader project information or frontend details, refer back to the [root README](../README.md) and [`public/README.md`](../public/README.md).
 
-**Modify Planner Behavior:**
-Edit `bdi/blocksWorldAgent.js` or `bdi/utils/blocks.js`, then run tests.
 
-**Add Database Model:**
-Create new schema in `models/` following the pattern of `User.js` and `World.js`.
 
-## Troubleshooting
 
-**MongoDB connection fails:**
-- Ensure MongoDB is running (local or Docker)
-- Check `MONGODB_URI` in `.env`
-- Docker: Connection auto-retries 5x
 
-**Port already in use:**
-- Change `PORT` in `.env`
-- Kill existing process: `lsof -ti:3000 | xargs kill` (Unix) or Task Manager (Windows)
 
-**JWT authentication fails:**
-- Ensure `JWT_SECRET` is set in production
-- Check token is sent in `Authorization: Bearer <token>` header
 
-For more details, see the main project README.
+
+

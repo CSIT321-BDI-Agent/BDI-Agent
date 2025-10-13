@@ -21,19 +21,23 @@ export function initializeMobileNavigation() {
   }
 
   const openMenu = () => {
-    menu.classList.add('active');
-    overlay.classList.add('active');
+    menu.classList.remove('-translate-x-full');
+    menu.classList.add('translate-x-0');
+    overlay.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+    overlay.classList.add('opacity-100');
     toggle.classList.add('active');
     toggle.setAttribute('aria-expanded', 'true');
-    document.body.style.overflow = 'hidden';
+    document.body.classList.add('overflow-hidden');
   };
 
   const closeMenu = () => {
-    menu.classList.remove('active');
-    overlay.classList.remove('active');
+    menu.classList.add('-translate-x-full');
+    menu.classList.remove('translate-x-0');
+    overlay.classList.add('hidden', 'opacity-0', 'pointer-events-none');
+    overlay.classList.remove('opacity-100');
     toggle.classList.remove('active');
     toggle.setAttribute('aria-expanded', 'false');
-    document.body.style.overflow = '';
+    document.body.classList.remove('overflow-hidden');
   };
 
   toggle.addEventListener('click', openMenu);
@@ -46,13 +50,13 @@ export function initializeMobileNavigation() {
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && menu.classList.contains('active')) {
+    if (event.key === 'Escape' && menu.classList.contains('translate-x-0')) {
       closeMenu();
     }
   });
 
   window.addEventListener('resize', () => {
-    if (window.innerWidth >= 768 && menu.classList.contains('active')) {
+    if (window.innerWidth >= 768 && menu.classList.contains('translate-x-0')) {
       closeMenu();
     }
   });
@@ -75,12 +79,34 @@ export function initializeSidebarNavigation({
   const toggleIcon = document.getElementById('sidebarToggleIcon');
   const toggleText = toggleButton?.querySelector('.sidebar__toggle-text');
   const appLayout = document.querySelector('.app');
+  const mainContent = document.querySelector('main');
   const navLinks = document.querySelectorAll('[data-route]');
+  const sidebarContent = sidebar?.querySelector('[data-sidebar-content]');
+  const brandContainer = sidebar?.querySelector('[data-sidebar-brand]');
+  const collapsibleTexts = sidebar?.querySelectorAll('[data-sidebar-collapsible="text"]') ?? [];
+  const collapsibleExpanded = sidebar?.querySelectorAll('[data-sidebar-collapsible="expanded"]') ?? [];
+
+  const applyLinkState = (link, isActive) => {
+    const isMobileLink = link.classList.contains('mobile-menu-link');
+    const activeClasses = isMobileLink
+      ? ['bg-white/10', 'text-white']
+      : ['bg-white/10', 'text-white'];
+    const inactiveClasses = isMobileLink
+      ? ['text-white/80']
+      : ['text-white/70'];
+
+    activeClasses.forEach(cls => link.classList.toggle(cls, isActive));
+    inactiveClasses.forEach(cls => link.classList.toggle(cls, !isActive));
+    if (!isMobileLink) {
+      const disabled = link.dataset.disabled === 'true';
+      link.classList.toggle('text-white/50', !isActive && disabled);
+    }
+  };
 
   const applyActiveRoute = (route) => {
     navLinks.forEach(link => {
       const isActive = Boolean(route) && link.dataset.route === route;
-      link.classList.toggle('is-active', isActive);
+      applyLinkState(link, isActive);
       if (isActive) {
         link.setAttribute('aria-current', 'page');
       } else {
@@ -92,7 +118,7 @@ export function initializeSidebarNavigation({
   const attachDisabledHandlers = () => {
     navLinks.forEach(link => {
       if (link.dataset.disabled === 'true' && !link.dataset.navDisabledBound) {
-        link.classList.add('is-disabled');
+        link.classList.add('pointer-events-none', 'opacity-40');
         link.setAttribute('aria-disabled', 'true');
         link.addEventListener('click', (event) => event.preventDefault());
         link.dataset.navDisabledBound = 'true';
@@ -101,9 +127,28 @@ export function initializeSidebarNavigation({
   };
 
   const applySidebarState = (collapsed) => {
-    if (!sidebar || !toggleButton || !appLayout) return;
+    if (!sidebar || !toggleButton || !appLayout || !mainContent) return;
     const isCollapsed = Boolean(collapsed);
     sidebar.setAttribute('data-collapsed', isCollapsed ? 'true' : 'false');
+  sidebar.classList.toggle('is-collapsed', isCollapsed);
+    sidebar.classList.toggle('md:w-72', !isCollapsed);
+    sidebar.classList.toggle('md:w-24', isCollapsed);
+    collapsibleTexts.forEach(elem => {
+      elem.classList.toggle('md:hidden', isCollapsed);
+    });
+    collapsibleExpanded.forEach(elem => {
+      elem.classList.toggle('md:hidden', isCollapsed);
+    });
+    if (sidebarContent) {
+      sidebarContent.classList.toggle('md:px-6', !isCollapsed);
+      sidebarContent.classList.toggle('md:px-3', isCollapsed);
+    }
+    if (brandContainer) {
+      brandContainer.classList.toggle('md:justify-start', !isCollapsed);
+      brandContainer.classList.toggle('md:justify-center', isCollapsed);
+    }
+    mainContent.classList.toggle('md:ml-72', !isCollapsed);
+    mainContent.classList.toggle('md:ml-24', isCollapsed);
     appLayout.classList.toggle('sidebar-collapsed', isCollapsed);
     toggleButton.setAttribute('aria-expanded', (!isCollapsed).toString());
     if (toggleIcon) toggleIcon.textContent = isCollapsed ? 'chevron_right' : 'chevron_left';
@@ -125,10 +170,11 @@ export function initializeSidebarNavigation({
   };
 
   const handleResize = () => {
-    if (!sidebar || !toggleButton || !window.localStorage) return;
+    if (!sidebar || !toggleButton || !window.localStorage || !mainContent) return;
     if (window.innerWidth < 768) {
       applySidebarState(false);
       window.localStorage.removeItem(storageKey);
+      mainContent.classList.remove('md:ml-72', 'md:ml-24');
     } else {
       restoreSidebarState();
     }
@@ -139,11 +185,17 @@ export function initializeSidebarNavigation({
     if (path.endsWith('index.html') || path === '/' || path === '') {
       return defaultRoute;
     }
-    if (path.endsWith('admin.html')) {
-      return 'admin';
-    }
-    return null;
-  };
+  if (path.endsWith('profile.html')) {
+    return 'profile';
+  }
+  if (path.endsWith('admin.html')) {
+    return 'admin';
+  }
+  if (path.endsWith('agent-logs.html')) {
+    return 'agent-logs';
+  }
+  return null;
+};
 
   attachDisabledHandlers();
 
