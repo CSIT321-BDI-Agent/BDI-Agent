@@ -1,6 +1,6 @@
 # Backend (Express API & BDI Planner)
 
-This directory hosts the server-side portion of the Blocks World simulator: an Express app, a JS-son powered BDI planner, and MongoDB persistence for saved worlds (including timeline + stat snapshots).
+This directory hosts the server-side portion of the Blocks World simulator: an Express app, a JS-son powered BDI planner, and MongoDB persistence for saved worlds.
 
 ---
 
@@ -8,7 +8,7 @@ This directory hosts the server-side portion of the Blocks World simulator: an E
 
 - JWT-authenticated API with per-user world storage and admin-only management routes.
 - Planner endpoint (`POST /plan`) wraps the JS-son agent and enforces sane iteration caps.
-- Saved worlds persist the latest stacks, colours, intention timeline, and the UI stats snapshot.
+- Saved worlds persist the latest stacks along with any assigned colours.
 - Structured error handling via `utils/routeHandler.js` and validation helpers.
 
 ---
@@ -49,7 +49,7 @@ backend/
 │   └── utils/blocks.js      # Planning helpers
 ├── models/
 │   ├── User.js           # Auth model
-│   └── World.js          # Saved world schema (stacks, colours, timeline, stats)
+│   └── World.js          # Saved world schema (stacks, colours)
 ├── utils/
 │   ├── auth.js           # JWT middleware
 │   ├── adminRoutes.js    # Admin-only endpoints
@@ -68,7 +68,7 @@ backend/
 |--------|------|-------------|
 | `POST` | `/users/signup` | Create a new user |
 | `POST` | `/login` | Obtain JWT (7-day expiry) |
-| `POST` | `/worlds` | Save world (requires JWT) – expects `name`, `blocks`, `stacks`, optional `colours`, `timeline`, `stats` |
+| `POST` | `/worlds` | Save world (requires JWT) – expects `name`, `blocks`, `stacks`, optional `colours` |
 | `GET`  | `/worlds` | List current user's saved worlds |
 | `GET`  | `/worlds/:id` | Retrieve a specific saved world |
 | `POST` | `/plan` | Run the BDI planner on provided stacks/goal (requires JWT) |
@@ -88,8 +88,6 @@ Saved world documents now resemble:
   "blocks": ["A", "B", "C"],
   "stacks": [["C", "B", "A"]],
   "colours": { "A": "hsl(...)", "B": "hsl(...)" },
-  "timeline": { "log": [...], "clockDisplay": "00:14.52", ... },
-  "stats": { "steps": 12, "time": "14.52s", "status": "Snapshot loaded" },
   "user": "64f...",
   "createdAt": "..."
 }
@@ -121,6 +119,9 @@ Saved world documents now resemble:
 
 - All route handlers should be wrapped with `withRoute` to ensure proper error propagation.
 - Use helpers in `validators.js` instead of hand-rolling request parsing.
-- When evolving the saved world schema, update both `models/World.js` and the frontend persistence helper to keep snapshots in sync.
+- When evolving the saved world schema, update both `models/World.js` and the frontend persistence helper to keep persistence logic in sync.
 
 For broader project information or frontend details, refer back to the [root README](../README.md) and [`public/README.md`](../public/README.md).
+
+
+

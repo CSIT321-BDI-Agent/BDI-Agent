@@ -104,62 +104,6 @@ export function resetStats() {
 }
 
 /**
- * Retrieve a snapshot of the current stats display
- * @returns {Object|null}
- */
-export function getStatsSnapshot() {
-  if (!initialized) return null;
-  return {
-    steps: totalSteps,
-    stepsDisplay: statStepsElem ? statStepsElem.textContent : null,
-    time: statTimeElem ? statTimeElem.textContent : null,
-    status: statStatusElem ? statStatusElem.textContent : null
-  };
-}
-
-/**
- * Apply a previously captured stats snapshot to the UI
- * @param {Object|null} snapshot
- */
-export function applyStatsSnapshot(snapshot) {
-  if (!initialized) return;
-  if (!snapshot || typeof snapshot !== 'object') {
-    resetStats();
-    return;
-  }
-
-  stopStatsTimer();
-  simulationStartTime = null;
-
-  totalSteps = Number.isFinite(snapshot.steps) ? snapshot.steps : 0;
-  if (!Number.isFinite(snapshot.steps) && typeof snapshot.stepsDisplay === 'string') {
-    const parsed = Number(snapshot.stepsDisplay);
-    if (Number.isFinite(parsed)) {
-      totalSteps = parsed;
-    }
-  }
-
-  const stepsDisplayRaw =
-    typeof snapshot.stepsDisplay === 'string' && snapshot.stepsDisplay.trim().length > 0
-      ? snapshot.stepsDisplay.trim()
-      : null;
-  const stepsDisplay = stepsDisplayRaw ?? String(totalSteps);
-  const timeDisplay =
-    typeof snapshot.time === 'string' && snapshot.time.trim().length > 0
-      ? snapshot.time
-      : '--';
-  const statusDisplay =
-    typeof snapshot.status === 'string' && snapshot.status.trim().length > 0
-      ? snapshot.status
-      : '--';
-
-  statStepsElem.textContent = stepsDisplay;
-  statTimeElem.textContent = timeDisplay;
-  statStatusElem.textContent = statusDisplay;
-  applyStatusTone(resolveStatusTone(statusDisplay));
-}
-
-/**
  * Increment the step counter by one
  */
 export function incrementStep() {

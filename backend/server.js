@@ -41,18 +41,6 @@ const sanitizeColourMap = (input) => {
   }, {});
 };
 
-const sanitizeTimelineSnapshot = (snapshot) => {
-  if (!snapshot || typeof snapshot !== 'object') {
-    return null;
-  }
-
-  if (!Array.isArray(snapshot.log)) {
-    return null;
-  }
-
-  return snapshot;
-};
-
 const normalizeBlocksList = (blocks) => {
   return blocks.map((block, index) => {
     const normalized = ensureNonEmptyString(block, `Block at index ${index}`);
@@ -64,46 +52,13 @@ const normalizeBlocksList = (blocks) => {
   });
 };
 
-const sanitizeStatsSnapshot = (snapshot) => {
-  if (!snapshot || typeof snapshot !== 'object') {
-    return null;
-  }
-
-  const result = {};
-  if (Number.isFinite(snapshot.steps)) {
-    result.steps = Number(snapshot.steps);
-  }
-  if (snapshot.stepsDisplay != null) {
-    const display = String(snapshot.stepsDisplay).trim();
-    if (display.length > 0 && display !== '--') {
-      result.stepsDisplay = display;
-    }
-  }
-  if (typeof snapshot.time === 'string') {
-    const timeValue = snapshot.time.trim();
-    if (timeValue.length > 0 && timeValue !== '--') {
-      result.time = timeValue;
-    }
-  }
-  if (typeof snapshot.status === 'string') {
-    const statusValue = snapshot.status.trim();
-    if (statusValue.length > 0 && statusValue !== '--') {
-      result.status = statusValue;
-    }
-  }
-
-  return Object.keys(result).length > 0 ? result : null;
-};
-
 const sanitizeWorldPayload = (raw = {}) => {
   const {
     name,
     blocks,
     stacks,
     colours,
-    colors,
-    timeline,
-    stats
+    colors
   } = raw;
 
   const normalizedName = ensureNonEmptyString(name, 'Valid world name');
@@ -114,9 +69,7 @@ const sanitizeWorldPayload = (raw = {}) => {
     name: normalizedName,
     blocks: normalizeBlocksList(blocksArray),
     stacks: validateStacksPayload(stacksArray).map(stack => [...stack]),
-    colours: sanitizeColourMap(colours ?? colors),
-    timeline: sanitizeTimelineSnapshot(timeline),
-    stats: sanitizeStatsSnapshot(stats)
+    colours: sanitizeColourMap(colours ?? colors)
   };
 };
 
@@ -262,6 +215,7 @@ app.post('/users/signup', withRoute(async (req, res) => {
   res.status(201).json({ 
     message: 'User created successfully', 
     userId: newUser._id,
+    email: newUser.email,
     username: newUser.username,
     role: newUser.role,
     token
@@ -289,12 +243,108 @@ app.post('/login', withRoute(async (req, res) => {
   res.json({
     message: 'Login successful!',
     userId: user._id,
+    email: user.email,
     username: user.username,
     role: user.role,
     token   // 👈 send this to frontend
   });
 }));
 
+// ------------------ User Profile ------------------
+app.get('/users/me', requireAuth, withRoute(async (req, res) => {
+  const user = await User.findById(req.user._id).lean();
+  if (!user) {
+    throw new HttpError(404, 'User not found');
+  }
+
+  const savedWorldDocs = await World.find({ user: req.user._id })
+    .select('name createdAt')
+    .sort({ createdAt: -1 });
+
+  const savedWorlds = savedWorldDocs.map(doc => ({
+    id: doc._id.toString(),
+    name: doc.name,
+    createdAt: doc.createdAt
+  }));
+
+  const savedWorldCount = savedWorlds.length;
+
+  res.json({
+    userId: user._id,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    savedWorldCount,
+    savedWorlds,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt
+  });
+}));
+
+app.patch('/users/me', requireAuth, withRoute(async (req, res) => {
+  const { oldPassword, username: nextUsername, password: nextPassword } = req.body || {};
+
+  const normalizedOldPassword = ensureNonEmptyString(oldPassword, 'Current password');
+
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    throw new HttpError(404, 'User not found');
+  }
+
+  const matches = await bcrypt.compare(normalizedOldPassword, user.password);
+  if (!matches) {
+    throw new HttpError(400, 'Current password is incorrect');
+  }
+
+  const updates = {};
+
+  if (nextUsername !== undefined) {
+    const normalizedUsername = ensureNonEmptyString(nextUsername, 'Username');
+    if (normalizedUsername.length < 3 || normalizedUsername.length > 20) {
+      throw new HttpError(400, 'Username must be between 3 and 20 characters');
+    }
+    if (normalizedUsername.toLowerCase() !== user.username.toLowerCase()) {
+      const exists = await User.findOne({ username: normalizedUsername, _id: { $ne: user._id } });
+      if (exists) {
+        throw new HttpError(400, 'Username already in use');
+      }
+      updates.username = normalizedUsername;
+    }
+  }
+
+  if (nextPassword !== undefined) {
+    const normalizedNewPassword = ensureNonEmptyString(nextPassword, 'New password');
+    if (normalizedNewPassword.length < 6) {
+      throw new HttpError(400, 'New password must be at least 6 characters long');
+    }
+    updates.password = await bcrypt.hash(normalizedNewPassword, 10);
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new HttpError(400, 'No changes requested');
+  }
+
+  Object.assign(user, updates);
+  await user.save();
+
+  const token = jwt.sign(
+    { sub: user._id.toString(), role: user.role, username: user.username },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  res.json({
+    message: 'Profile updated successfully',
+    token,
+    user: {
+      userId: user._id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      updatedAt: user.updatedAt
+    }
+  });
+}));
 // ------------------ Planning ------------------
 app.post('/plan', requireAuth, withRoute((req, res) => {
   const { stacks, goalChain, plannerOptions, options } = req.body || {};
@@ -363,3 +413,5 @@ const gracefulShutdown = (signal) => {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+

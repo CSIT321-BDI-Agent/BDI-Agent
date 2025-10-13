@@ -185,6 +185,9 @@ export function initializeSidebarNavigation({
     if (path.endsWith('index.html') || path === '/' || path === '') {
       return defaultRoute;
     }
+    if (path.endsWith('profile.html')) {
+      return 'profile';
+    }
     if (path.endsWith('admin.html')) {
       return 'admin';
     }

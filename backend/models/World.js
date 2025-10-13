@@ -6,8 +6,6 @@ const WorldSchema = new mongoose.Schema({
   blocks: { type: [String], required: true },
   stacks: { type: [[String]], required: true },
   colours: { type: Map, of: String, default: () => ({}) },
-  timeline: { type: mongoose.Schema.Types.Mixed, default: null },
-  stats: { type: mongoose.Schema.Types.Mixed, default: null },
   user:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
 }, { timestamps: true });
 

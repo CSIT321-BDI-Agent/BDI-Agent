@@ -6,8 +6,9 @@ Belief–Desire–Intention planning for the classic Blocks World, shipped as a 
 
 ## TL;DR
 
-- Interactive planner dashboard with live stats, timeline playback, and saved-world snapshots (including intention logs and elapsed time).
+- Interactive planner dashboard with live stats, timeline playback, and saved-world persistence (including intention logs).
 - Authenticated persistence per user; admins can promote/demote accounts from the in-app console.
+- Self-serve profile page summarises account details and supports credential updates.
 - Clean ES‑module frontend, Express/Mongo backend, both tailored to run together inside Docker.
 
 ---
@@ -79,10 +80,11 @@ BDI-Agent/
 
 Key frontend documents:
 
-- `public/index.html` – primary dashboard (reference layout for the app)
-- `public/admin.html` – admin console using the same responsive shell
-- `public/login.html` / `public/signup.html` – auth surfaces with shared styling
-- `public/utils/` – ES modules for animation, persistence, stats, timeline, etc.
+- `public/index.html` - primary dashboard (reference layout for the app)
+- `public/admin.html` - admin console using the same responsive shell
+- `public/profile.html` - account overview with editable credentials and saved-world count
+- `public/login.html` / `public/signup.html` - auth surfaces with shared styling
+- `public/utils/` - ES modules for animation, persistence, stats, timeline, etc.
 
 ---
 
@@ -91,6 +93,7 @@ Key frontend documents:
 - Run `npm run watch:css` while tweaking Tailwind utilities.
 - Linting is lightweight; focus on keeping modules pure and adding doc comments where behaviour is non-obvious.
 - Planner regression tests live in `backend/planner-debug.js` (`npm run test:planner`).
-- Saved worlds now capture blocks, colours, timelines, **and** stat snapshots. When editing persistence, update both the frontend helper and the `World` schema.
+- Saved worlds capture blocks, colours, and timelines. When editing persistence, update both the frontend helper and the `World` schema.
 
 Questions? Raise a GitHub issue or ping the project maintainers. Happy planning!
+
