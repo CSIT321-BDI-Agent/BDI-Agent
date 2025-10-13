@@ -385,28 +385,88 @@ export function initializeProfileMenu() {
     }
   };
 
-  const toggleMenu = (event) => {
-    event.stopPropagation();
-    const isOpen = !profileMenu.classList.contains('hidden');
-    profileMenu.classList.toggle('hidden');
-    profileBtn.setAttribute('aria-expanded', (!isOpen).toString());
+  let isAnimating = false;
+  let isMenuOpen = false;
+
+  const openMenu = () => {
+    if (isAnimating || isMenuOpen) return;
+    
+    isAnimating = true;
+    isMenuOpen = true;
+    
+    // Set initial collapsed state BEFORE removing hidden class
+    profileMenu.style.transformOrigin = 'top right';
+    profileMenu.style.transform = 'scaleY(0) translateY(-10px)';
+    profileMenu.style.opacity = '0';
+    profileMenu.style.transition = 'none'; // No transition for initial state
+    
+    // Remove hidden class to make it visible (but still collapsed)
+    profileMenu.classList.remove('hidden');
+    
+    // Force a reflow to ensure the element is rendered with collapsed state
+    void profileMenu.offsetHeight;
+    
+    // Now enable transitions
+    profileMenu.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease-out';
+    
+    // Trigger animation on next frame
+    requestAnimationFrame(() => {
+      profileMenu.style.transform = 'scaleY(1) translateY(0)';
+      profileMenu.style.opacity = '1';
+      
+      // Animation complete
+      setTimeout(() => {
+        isAnimating = false;
+      }, 300);
+    });
+    
+    profileBtn.setAttribute('aria-expanded', 'true');
   };
 
   const closeMenu = () => {
-    profileMenu.classList.add('hidden');
+    if (isAnimating || !isMenuOpen) return;
+    
+    isAnimating = true;
+    isMenuOpen = false;
+    
+    // Animate out with roll-up effect
+    profileMenu.style.transformOrigin = 'top right';
+    profileMenu.style.transform = 'scaleY(0) translateY(-10px)';
+    profileMenu.style.opacity = '0';
+    profileMenu.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease-in';
+    
+    // Hide after animation completes
+    setTimeout(() => {
+      profileMenu.classList.add('hidden');
+      profileMenu.style.transform = '';
+      profileMenu.style.opacity = '';
+      profileMenu.style.transition = '';
+      isAnimating = false;
+    }, 250);
+    
     profileBtn.setAttribute('aria-expanded', 'false');
+  };
+
+  const toggleMenu = (event) => {
+    event.stopPropagation();
+    
+    if (isMenuOpen) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
   };
 
   profileBtn.addEventListener('click', toggleMenu);
 
   document.addEventListener('click', (event) => {
-    if (!profileBtn.contains(event.target) && !profileMenu.contains(event.target)) {
+    if (isMenuOpen && !profileBtn.contains(event.target) && !profileMenu.contains(event.target)) {
       closeMenu();
     }
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !profileMenu.classList.contains('hidden')) {
+    if (event.key === 'Escape' && isMenuOpen) {
       closeMenu();
     }
   });

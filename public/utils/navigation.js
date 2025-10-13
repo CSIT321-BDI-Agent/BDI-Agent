@@ -154,6 +154,64 @@ export function initializeSidebarNavigation({
     if (activeLink) {
       updateSlidingIndicator(activeLink, skipTransition);
     }
+    
+    return activeLink;
+  };
+
+  const attachHoverHandlers = () => {
+    const indicator = document.getElementById('sidebarActiveIndicator');
+    const sidebarNav = document.getElementById('sidebarNav');
+    
+    if (!indicator || !sidebarNav) return;
+    
+    // Store the currently active link
+    let currentActiveLink = null;
+    
+    // Find the current active link
+    navLinks.forEach(link => {
+      if (link.getAttribute('aria-current') === 'page' && !link.classList.contains('mobile-menu-link')) {
+        currentActiveLink = link;
+      }
+    });
+    
+    navLinks.forEach(link => {
+      // Only add hover effects to sidebar links (not mobile menu)
+      if (link.classList.contains('mobile-menu-link')) return;
+      
+      // Skip disabled links
+      if (link.dataset.disabled === 'true') return;
+      
+      link.addEventListener('mouseenter', () => {
+        // Move indicator to hovered link with elastic easing
+        const navRect = sidebarNav.getBoundingClientRect();
+        const linkRect = link.getBoundingClientRect();
+        const offsetTop = linkRect.top - navRect.top;
+        
+        // Use a snappier transition for hover
+        indicator.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), height 0.3s ease-out';
+        indicator.style.transform = `translateY(${offsetTop}px)`;
+        indicator.style.height = `${linkRect.height}px`;
+      });
+      
+      link.addEventListener('mouseleave', () => {
+        // Rubber-band back to active link with bounce effect
+        if (currentActiveLink) {
+          const navRect = sidebarNav.getBoundingClientRect();
+          const linkRect = currentActiveLink.getBoundingClientRect();
+          const offsetTop = linkRect.top - navRect.top;
+          
+          // Use elastic easing for rubber-band effect
+          indicator.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), height 0.3s ease-out';
+          indicator.style.transform = `translateY(${offsetTop}px)`;
+          indicator.style.height = `${linkRect.height}px`;
+          
+          // Reset to default transition after animation completes
+          setTimeout(() => {
+            indicator.style.transition = '';
+          }, 500);
+        }
+      });
+    });
   };
 
   const attachDisabledHandlers = () => {
@@ -300,6 +358,9 @@ export function initializeSidebarNavigation({
     window.addEventListener('resize', handleResize);
     handleResize();
   }
+
+  // Attach hover handlers for sliding indicator effect
+  attachHoverHandlers();
 
   sidebarNavInitialized = true;
 }
