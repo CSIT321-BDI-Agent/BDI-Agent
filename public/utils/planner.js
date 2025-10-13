@@ -5,6 +5,7 @@
  */
 
 import { authenticatedFetch } from './auth.js';
+import { API_BASE } from './api.js';
 
 /**
  * Request a BDI plan from the backend
@@ -14,8 +15,6 @@ import { authenticatedFetch } from './auth.js';
  * @returns {Promise<Object>} Planner response
  */
 export async function requestBDIPlan(stacks, goalChain, options = {}) {
-  const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
-  
   const payload = {
     stacks,
     goalChain,

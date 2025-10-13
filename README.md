@@ -1,6 +1,6 @@
-# BDI Blocks World (BDI-Agent)
+﻿# BDI Blocks World (BDI-Agent)
 
-Belief–Desire–Intention planning for the classic Blocks World, shipped as a full-stack playground. The project now favours a container-first workflow so you can be exploring the simulator in minutes—no local MongoDB, no manual dependency wrangling.
+Beliefâ€“Desireâ€“Intention planning for the classic Blocks World, shipped as a full-stack playground. The project now favours a container-first workflow so you can be exploring the simulator in minutesâ€”no local MongoDB, no manual dependency wrangling.
 
 ---
 
@@ -9,11 +9,11 @@ Belief–Desire–Intention planning for the classic Blocks World, shipped as a 
 - Interactive planner dashboard with live stats, timeline playback, and saved-world persistence (including intention logs).
 - Authenticated persistence per user; admins can promote/demote accounts from the in-app console.
 - Self-serve profile page summarises account details and supports credential updates.
-- Clean ES‑module frontend, Express/Mongo backend, both tailored to run together inside Docker.
+- Clean ESâ€‘module frontend, Express/Mongo backend, both tailored to run together inside Docker.
 
 ---
 
-## Quick Start (Docker – Recommended)
+## Quick Start (Docker â€“ Recommended)
 
 1. **Clone the repo**
    ```bash
@@ -54,16 +54,17 @@ Railway picks up this repo without extra build steps: it runs `npm ci` in the ro
 
 - Add a **MongoDB service** or supply a hosted connection string. Railway exposes it as `MONGO_URL`, `MONGODB_URL`, or `DATABASE_URL`; the server now checks all of them automatically.
 - Populate `JWT_SECRET` (required), plus any bootstrap admin credentials you need (`ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`).
-- Leave `PORT` unset—Railway injects its own `PORT` value and the server already binds to `0.0.0.0`.
+- Surface the backend URL to the frontend with `FRONTEND_API_BASE=https://${{ MONGOHOST }}:${{ MONGOPORT }}`. Railway expands service-scoped variables (`MONGO_URL`, `MONGOHOST`, `MONGOPORT`, `MONGOUSER`, `MONGOPASSWORD`) so the browser points at the correct service.
+- Leave `PORT` unsetâ€”Railway injects its own `PORT` value and the server already binds to `0.0.0.0`.
 - If you enable a static frontend on another domain, set `ALLOWED_ORIGINS` with a comma-separated list so CORS stays open in production.
 
-No `.env` file is required in the repo—manage secrets from the Railway dashboard so automated deployments stay in sync.
+No `.env` file is required in the repoâ€”manage secrets from the Railway dashboard so automated deployments stay in sync.
 
 ---
 
 ## Manual Setup (When You Really Need It)
 
-The repo still supports a traditional setup (Node.js ≥ 18 and MongoDB ≥ 5). High-level steps:
+The repo still supports a traditional setup (Node.js â‰¥ 18 and MongoDB â‰¥ 5). High-level steps:
 
 1. `npm install`
 2. Copy `backend/.env.example` to `backend/.env` and supply `MONGODB_URI` & `JWT_SECRET`
@@ -73,8 +74,8 @@ The repo still supports a traditional setup (Node.js ≥ 18 and MongoDB ≥ 5). 
 
 Detailed backend/frontend guidance now lives in each subdirectory:
 
-- [`backend/README.md`](backend/README.md) – routes, env vars, testing, and architecture notes
-- [`public/README.md`](public/README.md) – UI structure, modules, and styling workflow
+- [`backend/README.md`](backend/README.md) â€“ routes, env vars, testing, and architecture notes
+- [`public/README.md`](public/README.md) â€“ UI structure, modules, and styling workflow
 
 ---
 
@@ -82,11 +83,11 @@ Detailed backend/frontend guidance now lives in each subdirectory:
 
 ```
 BDI-Agent/
-├── backend/            # Express API, BDI planner, persistence layer
-├── public/             # Frontend (dashboard, auth screens, debug tools)
-├── docker-compose.yml  # Production-friendly stack
-├── docker-compose.dev.yml
-└── README.md           # You're here
+â”œâ”€â”€ backend/            # Express API, BDI planner, persistence layer
+â”œâ”€â”€ public/             # Frontend (dashboard, auth screens, debug tools)
+â”œâ”€â”€ docker-compose.yml  # Production-friendly stack
+â”œâ”€â”€ docker-compose.dev.yml
+â””â”€â”€ README.md           # You're here
 ```
 
 Key frontend documents:

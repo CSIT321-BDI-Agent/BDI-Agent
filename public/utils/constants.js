@@ -5,6 +5,8 @@
  * used throughout the application.
  */
 
+import { API_BASE } from './api.js';
+
 // Block and World Dimensions
 export const BLOCK_WIDTH = 80;
 export const BLOCK_HEIGHT = 30;
@@ -32,7 +34,7 @@ export const CLAW_HOME_LEFT_OFFSET = -30; // Will be calculated based on world w
 export const MAX_CLAWS = 1; // Currently single claw, expandable to multiple
 
 // API Configuration
-export const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
+export { API_BASE };
 
 // DOM Element References (cached)
 export const DOM = {

@@ -11,6 +11,7 @@ import { logAction } from './logger.js';
 import { getIntentionTimelineSnapshot, restoreTimelineFromSnapshot, resetIntentionTimeline } from './timeline.js';
 import { updateWorldInfoFromStacks } from './dashboard-ui.js';
 import { getStatsSnapshot, restoreStatsFromSnapshot, resetStats } from './stats.js';
+import { API_BASE } from './api.js';
 
 const META_STORAGE_KEY = 'bdiWorldMeta';
 
@@ -186,8 +187,6 @@ export async function saveWorld(world) {
   const currentSnapshot = getWorldStateSnapshot(world);
   const metaKey = buildMetaKey(user.userId, trimmedName);
 
-  const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
-
   try {
     const response = await authenticatedFetch(`${API_BASE}/worlds`, {
       method: 'POST',
@@ -267,8 +266,6 @@ export async function loadSelectedWorld(world) {
     return;
   }
 
-  const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
-
   try {
     const response = await authenticatedFetch(`${API_BASE}/worlds/${selected}`, {
       method: 'GET'
@@ -335,8 +332,6 @@ export async function refreshLoadList() {
     loadSelectManager.setStatus('login');
     return;
   }
-
-  const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
 
   try {
     const response = await authenticatedFetch(`${API_BASE}/worlds`, {

@@ -1,3 +1,5 @@
+import { API_BASE } from './api.js';
+
 /**
  * Authentication Utilities
  * 
@@ -170,8 +172,6 @@ export async function login(username, password) {
     throw new Error('Username and password are required');
   }
   
-  const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
-  
   const response = await fetch(`${API_BASE}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -216,8 +216,6 @@ export async function signup(email, username, password) {
   if (password.length < 6) {
     throw new Error('Password must be at least 6 characters');
   }
-  
-  const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
   
   const response = await fetch(`${API_BASE}/users/signup`, {
     method: 'POST',

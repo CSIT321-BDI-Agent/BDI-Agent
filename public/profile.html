@@ -346,6 +346,7 @@
     } from './utils/auth.js';
     import { initializeMobileNavigation, initializeSidebarNavigation } from './utils/navigation.js';
     import { initializeProfileMenu } from './utils/profile.js';
+    import { API_BASE } from './utils/api.js';
 
     requireAuth();
 
@@ -359,7 +360,7 @@
 
     window.logout = authLogout;
 
-    const apiBase = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
+    const apiBase = API_BASE;
 
     const profileNameDisplay = document.getElementById('profileName');
     const usernameDisplay = document.getElementById('detailUsername');

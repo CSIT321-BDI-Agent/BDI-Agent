@@ -104,6 +104,7 @@ Saved world documents now resemble:
 |----------|---------|---------|
 | `PORT` | Port for the API | `3000` |
 | `MONGODB_URI` | Mongo connection string (also checks `MONGODB_URL`, `MONGO_URL`, `DATABASE_URL`) | `mongodb://localhost:27017/blocks_world` |
+| `FRONTEND_API_BASE` | Optional base URL injected into `config.js` (falls back to Railway's `MONGO_URL`/`MONGOHOST`/`MONGOPORT`/`MONGOUSER`/`MONGOPASSWORD`) | _auto-resolved_ |
 | `JWT_SECRET` | Signing secret for auth tokens | _required in production_ |
 | `ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Optional bootstrap admin |
 | `ALLOWED_ORIGINS` | Comma-separated CORS whitelist (prod) | Browser localhost hosts |

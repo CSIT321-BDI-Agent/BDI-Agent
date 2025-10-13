@@ -1,31 +1,62 @@
-// Environment configuration for frontend
-window.APP_CONFIG = {
-  // Application identity
-  APP_NAME: 'BDI Blocks World',
-  
-  // API configuration
-  API_BASE: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? `http://${window.location.hostname}:3000`
-    : window.location.origin,
-  
-  // Development vs production settings
-  isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
-  
-  // Authentication configuration
-  AUTH: {
+﻿// Default environment configuration for frontend (offline / static fallback)
+(function configureAppDefaults() {
+  const defaultAuth = {
     REQUIRED: true,
     LOGIN_PAGE: 'login.html',
     MAIN_PAGE: 'index.html'
-  },
-  
-  // Animation settings
-  ANIMATION_DURATION: 550,
-  
-  // Block constraints
-  MAX_BLOCKS: 26, // A-Z
-  MAX_STACK_HEIGHT: 10,
+  };
 
-  PLANNER: {
+  const defaultPlanner = {
     MAX_ITERATIONS: 2500
-  }
-};
+  };
+
+  const guessOrigin = () => {
+    if (typeof window === 'undefined') {
+      return 'http://localhost:3000';
+    }
+
+    const { origin, protocol, hostname, port } = window.location || {};
+    if (origin && origin !== 'null') {
+      return origin;
+    }
+
+    if (protocol && hostname) {
+      const portSegment = port ? `:${port}` : '';
+      return `${protocol}//${hostname}${portSegment}`;
+    }
+
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `http://${hostname}:3000`;
+    }
+
+    return 'http://localhost:3000';
+  };
+
+  const defaults = {
+    APP_NAME: 'BDI Blocks World',
+    API_BASE: guessOrigin(),
+    isDevelopment: (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1'),
+    AUTH: defaultAuth,
+    ANIMATION_DURATION: 550,
+    MAX_BLOCKS: 26,
+    MAX_STACK_HEIGHT: 10,
+    PLANNER: defaultPlanner
+  };
+
+  const existing = (typeof window.APP_CONFIG === 'object' && window.APP_CONFIG !== null)
+    ? window.APP_CONFIG
+    : {};
+
+  window.APP_CONFIG = {
+    ...defaults,
+    ...existing,
+    AUTH: {
+      ...defaultAuth,
+      ...(existing.AUTH || {})
+    },
+    PLANNER: {
+      ...defaultPlanner,
+      ...(existing.PLANNER || {})
+    }
+  };
+})();

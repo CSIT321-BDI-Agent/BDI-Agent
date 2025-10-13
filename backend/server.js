@@ -77,6 +77,105 @@ const formatMongoUriForLog = (uri) => {
   }
 };
 
+const sanitizeClientUrl = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const candidate = trimmed.includes('://') ? trimmed : `https://${trimmed}`;
+
+  try {
+    const parsed = new URL(candidate);
+    const portSegment = parsed.port ? `:${parsed.port}` : '';
+    return `${parsed.protocol}//${parsed.hostname}${portSegment}`;
+  } catch (error) {
+    return null;
+  }
+};
+
+const buildUrlFromMongoServiceParts = () => {
+  const host = typeof process.env.MONGOHOST === 'string' ? process.env.MONGOHOST.trim() : '';
+  if (!host) {
+    return null;
+  }
+
+  const protocolEnv = typeof process.env.MONGO_PROTOCOL === 'string'
+    ? process.env.MONGO_PROTOCOL.trim().toLowerCase()
+    : '';
+  const protocol = protocolEnv === 'http' ? 'http' : 'https';
+
+  const port = typeof process.env.MONGOPORT === 'string' ? process.env.MONGOPORT.trim() : '';
+  const portSegment = port && !['80', '443'].includes(port) ? `:${port}` : '';
+
+  const username = typeof process.env.MONGOUSER === 'string' ? process.env.MONGOUSER.trim() : '';
+  const password = typeof process.env.MONGOPASSWORD === 'string' ? process.env.MONGOPASSWORD.trim() : '';
+  const hasCredentials = username && password;
+  const credentials = hasCredentials
+    ? `${encodeURIComponent(username)}:${encodeURIComponent(password)}@`
+    : '';
+
+  return `${protocol}://${credentials}${host}${portSegment}`;
+};
+
+const resolveFrontendApiBase = () => {
+  const candidates = [
+    process.env.FRONTEND_API_BASE,
+    process.env.PUBLIC_API_BASE,
+    process.env.API_BASE_URL,
+    process.env.API_BASE,
+    process.env.MONGO_URL
+  ];
+
+  for (const candidate of candidates) {
+    const sanitized = sanitizeClientUrl(candidate);
+    if (sanitized) {
+      return sanitized;
+    }
+  }
+
+  const derivedFromParts = buildUrlFromMongoServiceParts();
+  if (derivedFromParts) {
+    const sanitized = sanitizeClientUrl(derivedFromParts);
+    if (sanitized) {
+      return sanitized;
+    }
+  }
+
+  const fallback = sanitizeClientUrl(process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN);
+  return fallback || '';
+};
+
+const buildFrontendConfig = () => {
+  const defaultAuth = {
+    REQUIRED: true,
+    LOGIN_PAGE: 'login.html',
+    MAIN_PAGE: 'index.html'
+  };
+
+  const defaultPlanner = {
+    MAX_ITERATIONS: 2500
+  };
+
+  const baseConfig = {
+    APP_NAME: (typeof process.env.APP_NAME === 'string' && process.env.APP_NAME.trim().length > 0)
+      ? process.env.APP_NAME.trim()
+      : 'BDI Blocks World',
+    API_BASE: resolveFrontendApiBase(),
+    isDevelopment: (process.env.NODE_ENV || 'development') !== 'production',
+    AUTH: defaultAuth,
+    ANIMATION_DURATION: 550,
+    MAX_BLOCKS: 26,
+    MAX_STACK_HEIGHT: 10,
+    PLANNER: defaultPlanner
+  };
+
+  return baseConfig;
+};
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = resolveMongoUri();
@@ -532,6 +631,15 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/admin', adminRoutes);
+
+app.get('/config.js', (req, res) => {
+  const config = buildFrontendConfig();
+  const serialized = JSON.stringify(config).replace(/</g, '\\u003c');
+
+  res.type('application/javascript');
+  res.set('Cache-Control', 'no-store');
+  res.send(`window.APP_CONFIG = ${serialized};`);
+});
 
 app.use(express.static(path.join(__dirname, "../public")));
 

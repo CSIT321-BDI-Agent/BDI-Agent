@@ -7,8 +7,7 @@ import {
 import { initializeMobileNavigation, initializeSidebarNavigation } from './navigation.js';
 import { initializeProfileMenu } from './profile.js';
 import { showMessage, handleError } from './helpers.js';
-
-const API_BASE = window.APP_CONFIG?.API_BASE || 'http://localhost:3000';
+import { API_BASE } from './api.js';
 
 const worldLogsBody = document.getElementById('worldLogs');
 const worldCountElem = document.getElementById('worldCount');
