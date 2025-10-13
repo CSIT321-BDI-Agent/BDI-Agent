@@ -52,7 +52,7 @@ Environment overrides live in `.env` at the project root (see examples inside `b
 
 Railway picks up this repo without extra build steps: it runs `npm ci` in the root, then launches `node backend/server.js`. To keep deployments healthy:
 
-- Add a **MongoDB service** or supply a hosted connection string. Railway exposes it as `MONGO_URL`, `MONGODB_URL`, or `DATABASE_URL`; the server now checks all of them automatically.
+- Add a **MongoDB service** or supply a hosted connection string. Railway exposes it as `MONGO_URL`, `MONGODB_URL`, `DATABASE_URL`, or split credentials like `MONGOHOST`/`MONGOPORT`; the server now resolves them automatically.
 - Populate `JWT_SECRET` (required), plus any bootstrap admin credentials you need (`ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`).
 - Surface the backend URL to the frontend with `FRONTEND_API_BASE=https://${{ MONGOHOST }}:${{ MONGOPORT }}`. Railway expands service-scoped variables (`MONGO_URL`, `MONGOHOST`, `MONGOPORT`, `MONGOUSER`, `MONGOPASSWORD`) so the browser points at the correct service.
 - Leave `PORT` unsetâ€”Railway injects its own `PORT` value and the server already binds to `0.0.0.0`.

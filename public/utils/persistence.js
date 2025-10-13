@@ -4,7 +4,7 @@
  * Handles saving and loading block world configurations to/from the backend
  */
 
-import { DOM } from './constants.js';
+import { DOM, API_BASE } from './constants.js';
 import { showMessage, handleError } from './helpers.js';
 import { getCurrentUser, authenticatedFetch } from './auth.js';
 import { logAction } from './logger.js';

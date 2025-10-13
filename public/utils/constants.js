@@ -5,7 +5,35 @@
  * used throughout the application.
  */
 
-import { API_BASE } from './api.js';
+const resolveApiBase = () => {
+  if (typeof window === 'undefined') {
+    return 'http://localhost:3000';
+  }
+
+  const configured = window.APP_CONFIG?.API_BASE;
+  if (typeof configured === 'string') {
+    const trimmed = configured.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+
+  const { origin, protocol, hostname, port } = window.location || {};
+  if (origin && origin !== 'null') {
+    return origin;
+  }
+
+  if (protocol && hostname) {
+    const portSegment = port ? `:${port}` : '';
+    return `${protocol}//${hostname}${portSegment}`;
+  }
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return `http://${hostname}:3000`;
+  }
+
+  return 'http://localhost:3000';
+};
 
 // Block and World Dimensions
 export const BLOCK_WIDTH = 80;
@@ -34,7 +62,7 @@ export const CLAW_HOME_LEFT_OFFSET = -30; // Will be calculated based on world w
 export const MAX_CLAWS = 1; // Currently single claw, expandable to multiple
 
 // API Configuration
-export { API_BASE };
+export const API_BASE = resolveApiBase();
 
 // DOM Element References (cached)
 export const DOM = {

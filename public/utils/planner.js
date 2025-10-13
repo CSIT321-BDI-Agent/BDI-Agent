@@ -5,7 +5,7 @@
  */
 
 import { authenticatedFetch } from './auth.js';
-import { API_BASE } from './api.js';
+import { API_BASE } from './constants.js';
 
 /**
  * Request a BDI plan from the backend

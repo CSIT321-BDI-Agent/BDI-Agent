@@ -21,131 +21,173 @@ const { attachUser, requireAuth } = require('./utils/auth');
 const adminRoutes = require('./utils/adminRoutes');  
 const { getJwtSecret } = require('./utils/jwt');
 
+const getEnvString = (key) => {
+  const raw = process.env[key];
+  if (typeof raw !== 'string') {
+    return null;
+  }
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const pickFirst = (keys, fallback = null) => {
+  for (const key of keys) {
+    const value = getEnvString(key);
+    if (value) {
+      return value;
+    }
+  }
+  return fallback;
+};
+
 const resolveMongoUri = () => {
   const prioritizedEnvNames = [
     'MONGODB_URI',
     'MONGODB_URL',
+    'MONGODB_CONNECTION_STRING',
+    'MONGODB_CONNECTION_URI',
     'MONGO_URL',
+    'MONGO_URI',
+    'MONGO_CONNECTION_STRING',
     'DATABASE_URL',
     'RAILWAY_MONGODB_URL',
     'RAILWAY_MONGO_URL'
   ];
 
-  for (const name of prioritizedEnvNames) {
-    const rawValue = process.env[name];
-    if (typeof rawValue === 'string' && rawValue.trim().length > 0) {
-      return rawValue.trim();
-    }
+  const direct = pickFirst(prioritizedEnvNames);
+  if (direct) {
+    return direct;
   }
 
-  const {
-    MONGODB_HOST,
-    MONGODB_PORT,
-    MONGODB_DB,
-    MONGODB_DATABASE,
-    MONGODB_USERNAME,
-    MONGODB_PASSWORD
-  } = process.env;
+  const host = pickFirst([
+    'MONGODB_HOST',
+    'MONGO_HOST',
+    'DB_HOST',
+    'MONGOHOST',
+    'RAILWAY_MONGODB_HOST',
+    'RAILWAY_MONGO_HOST'
+  ]);
 
-  if (typeof MONGODB_HOST === 'string' && MONGODB_HOST.trim().length > 0) {
-    const safeHost = MONGODB_HOST.trim();
-    const port = (typeof MONGODB_PORT === 'string' && MONGODB_PORT.trim().length > 0)
-      ? MONGODB_PORT.trim()
-      : '27017';
-    const databaseName = [MONGODB_DB, MONGODB_DATABASE]
-      .find(value => typeof value === 'string' && value.trim().length > 0) || 'blocks_world';
-    const hasCredentials = [MONGODB_USERNAME, MONGODB_PASSWORD]
-      .every(value => typeof value === 'string' && value.trim().length > 0);
-    const credentials = hasCredentials
-      ? `${encodeURIComponent(MONGODB_USERNAME.trim())}:${encodeURIComponent(MONGODB_PASSWORD.trim())}@`
-      : '';
-
-    return `mongodb://${credentials}${safeHost}:${port}/${databaseName}`;
+  if (!host) {
+    return 'mongodb://localhost:27017/blocks_world';
   }
 
-  return 'mongodb://localhost:27017/blocks_world';
+  if (host.includes('://')) {
+    return host;
+  }
+
+  const port = pickFirst([
+    'MONGODB_PORT',
+    'MONGO_PORT',
+    'DB_PORT',
+    'MONGOPORT',
+    'RAILWAY_MONGODB_PORT',
+    'RAILWAY_MONGO_PORT'
+  ]);
+
+  const databaseName = pickFirst([
+    'MONGODB_DB',
+    'MONGODB_DATABASE',
+    'MONGO_DB',
+    'MONGO_DATABASE',
+    'DB_NAME',
+    'MONGONAME',
+    'MONGO_INITDB_DATABASE'
+  ], 'blocks_world');
+
+  const username = pickFirst([
+    'MONGODB_USERNAME',
+    'MONGODB_USER',
+    'MONGO_USERNAME',
+    'MONGO_USER',
+    'DB_USERNAME',
+    'DB_USER',
+    'MONGOUSER',
+    'RAILWAY_MONGODB_USERNAME',
+    'RAILWAY_MONGO_USERNAME'
+  ]);
+
+  const password = pickFirst([
+    'MONGODB_PASSWORD',
+    'MONGO_PASSWORD',
+    'DB_PASSWORD',
+    'MONGOPASSWORD',
+    'RAILWAY_MONGODB_PASSWORD',
+    'RAILWAY_MONGO_PASSWORD'
+  ]);
+
+  const protocol = getEnvString('MONGODB_PROTOCOL') || getEnvString('MONGO_PROTOCOL') || 'mongodb';
+  const options = getEnvString('MONGODB_OPTIONS') || getEnvString('MONGO_OPTIONS');
+
+  const authSegment = username ? `${encodeURIComponent(username)}:${encodeURIComponent(password || '')}@` : '';
+  const portSegment = port && !host.includes(':') ? `:${port}` : '';
+  const pathSegment = databaseName ? `/${databaseName}` : '';
+  const optionSegment = options ? (options.startsWith('?') ? options : `?${options}`) : '';
+
+  return `${protocol}://${authSegment}${host}${portSegment}${pathSegment}${optionSegment}`;
 };
 
-const formatMongoUriForLog = (uri) => {
+const maskMongoUriForLog = (uri) => {
   try {
     const parsed = new URL(uri);
-    const credentials = parsed.username ? `${parsed.username}@` : '';
-    const port = parsed.port ? `:${parsed.port}` : '';
-    return `${parsed.protocol}//${credentials}${parsed.hostname}${port}${parsed.pathname}`;
+    const username = parsed.username ? `${parsed.username}@` : '';
+    const portSegment = parsed.port ? `:${parsed.port}` : '';
+    return `${parsed.protocol}//${username}${parsed.hostname}${portSegment}${parsed.pathname}`;
   } catch (error) {
     return uri;
   }
 };
 
-const sanitizeClientUrl = (value) => {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const candidate = trimmed.includes('://') ? trimmed : `https://${trimmed}`;
-
-  try {
-    const parsed = new URL(candidate);
-    const portSegment = parsed.port ? `:${parsed.port}` : '';
-    return `${parsed.protocol}//${parsed.hostname}${portSegment}`;
-  } catch (error) {
-    return null;
-  }
-};
-
-const buildUrlFromMongoServiceParts = () => {
-  const host = typeof process.env.MONGOHOST === 'string' ? process.env.MONGOHOST.trim() : '';
-  if (!host) {
-    return null;
-  }
-
-  const protocolEnv = typeof process.env.MONGO_PROTOCOL === 'string'
-    ? process.env.MONGO_PROTOCOL.trim().toLowerCase()
-    : '';
-  const protocol = protocolEnv === 'http' ? 'http' : 'https';
-
-  const port = typeof process.env.MONGOPORT === 'string' ? process.env.MONGOPORT.trim() : '';
-  const portSegment = port && !['80', '443'].includes(port) ? `:${port}` : '';
-
-  const username = typeof process.env.MONGOUSER === 'string' ? process.env.MONGOUSER.trim() : '';
-  const password = typeof process.env.MONGOPASSWORD === 'string' ? process.env.MONGOPASSWORD.trim() : '';
-  const hasCredentials = username && password;
-  const credentials = hasCredentials
-    ? `${encodeURIComponent(username)}:${encodeURIComponent(password)}@`
-    : '';
-
-  return `${protocol}://${credentials}${host}${portSegment}`;
-};
-
 const resolveFrontendApiBase = () => {
-  const candidates = [
-    process.env.FRONTEND_API_BASE,
-    process.env.PUBLIC_API_BASE,
-    process.env.API_BASE_URL,
-    process.env.API_BASE,
-    process.env.MONGO_URL
-  ];
+  const direct = pickFirst([
+    'FRONTEND_API_BASE',
+    'PUBLIC_API_BASE',
+    'API_BASE_URL',
+    'API_BASE',
+    'MONGO_URL'
+  ]);
 
-  for (const candidate of candidates) {
-    const sanitized = sanitizeClientUrl(candidate);
+  const sanitize = (value) => {
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const candidate = trimmed.includes('://') ? trimmed : `https://${trimmed}`;
+    try {
+      const parsed = new URL(candidate);
+      const portSegment = parsed.port ? `:${parsed.port}` : '';
+      return `${parsed.protocol}//${parsed.hostname}${portSegment}`;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const sanitizedDirect = sanitize(direct);
+  if (sanitizedDirect) {
+    return sanitizedDirect;
+  }
+
+  const host = pickFirst([
+    'MONGOHOST',
+    'MONGODB_HOST',
+    'MONGO_HOST'
+  ]);
+
+  if (host) {
+    const protocol = (getEnvString('MONGO_PROTOCOL') || 'https').toLowerCase() === 'http' ? 'http' : 'https';
+    const port = pickFirst(['MONGOPORT', 'MONGODB_PORT', 'MONGO_PORT']);
+    const portSegment = port && !['80', '443'].includes(port) ? `:${port}` : '';
+    const candidate = `${protocol}://${host}${portSegment}`;
+    const sanitized = sanitize(candidate);
     if (sanitized) {
       return sanitized;
     }
   }
 
-  const derivedFromParts = buildUrlFromMongoServiceParts();
-  if (derivedFromParts) {
-    const sanitized = sanitizeClientUrl(derivedFromParts);
-    if (sanitized) {
-      return sanitized;
-    }
-  }
-
-  const fallback = sanitizeClientUrl(process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN);
+  const fallback = sanitize(pickFirst(['RAILWAY_STATIC_URL', 'RAILWAY_PUBLIC_DOMAIN']));
   return fallback || '';
 };
 
@@ -160,10 +202,8 @@ const buildFrontendConfig = () => {
     MAX_ITERATIONS: 2500
   };
 
-  const baseConfig = {
-    APP_NAME: (typeof process.env.APP_NAME === 'string' && process.env.APP_NAME.trim().length > 0)
-      ? process.env.APP_NAME.trim()
-      : 'BDI Blocks World',
+  return {
+    APP_NAME: getEnvString('APP_NAME') || 'BDI Blocks World',
     API_BASE: resolveFrontendApiBase(),
     isDevelopment: (process.env.NODE_ENV || 'development') !== 'production',
     AUTH: defaultAuth,
@@ -172,8 +212,6 @@ const buildFrontendConfig = () => {
     MAX_STACK_HEIGHT: 10,
     PLANNER: defaultPlanner
   };
-
-  return baseConfig;
 };
 
 const app = express();
@@ -646,7 +684,7 @@ app.use(express.static(path.join(__dirname, "../public")));
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Database: ${formatMongoUriForLog(MONGODB_URI)}`);
+  console.log(`Database: ${maskMongoUriForLog(MONGODB_URI)}`);
 });
 
 mongoose.connection.once('open', async () => {
@@ -659,15 +697,15 @@ mongoose.connection.once('open', async () => {
 
 // Graceful shutdown
 const gracefulShutdown = (signal) => {
-  console.log(`\n💀 ${signal} received: closing HTTP server`);
+  console.log(`\n${signal} received: closing HTTP server`);
   server.close(async () => {
-    console.log('✅ HTTP server closed');
+    console.log('[server] HTTP server closed');
     try {
       await mongoose.connection.close();
-      console.log('✅ MongoDB connection closed');
+      console.log('[db] MongoDB connection closed');
       process.exit(0);
     } catch (error) {
-      console.error('❌ Error during graceful shutdown:', error);
+      console.error('[server] Error during graceful shutdown:', error);
       process.exit(1);
     }
   });

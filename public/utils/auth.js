@@ -1,4 +1,4 @@
-import { API_BASE } from './api.js';
+import { API_BASE } from './constants.js';
 
 /**
  * Authentication Utilities
