@@ -48,6 +48,17 @@ docker compose down -v
 
 Environment overrides live in `.env` at the project root (see examples inside `backend/.env.example`). Compose automatically maps it into the containers.
 
+## Railway Deployment
+
+Railway picks up this repo without extra build steps: it runs `npm ci` in the root, then launches `node backend/server.js`. To keep deployments healthy:
+
+- Add a **MongoDB service** or supply a hosted connection string. Railway exposes it as `MONGO_URL`, `MONGODB_URL`, or `DATABASE_URL`; the server now checks all of them automatically.
+- Populate `JWT_SECRET` (required), plus any bootstrap admin credentials you need (`ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`).
+- Leave `PORT` unset—Railway injects its own `PORT` value and the server already binds to `0.0.0.0`.
+- If you enable a static frontend on another domain, set `ALLOWED_ORIGINS` with a comma-separated list so CORS stays open in production.
+
+No `.env` file is required in the repo—manage secrets from the Railway dashboard so automated deployments stay in sync.
+
 ---
 
 ## Manual Setup (When You Really Need It)

@@ -103,7 +103,7 @@ Saved world documents now resemble:
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `PORT` | Port for the API | `3000` |
-| `MONGODB_URI` | Mongo connection string | `mongodb://localhost:27017/blocks_world` |
+| `MONGODB_URI` | Mongo connection string (also checks `MONGODB_URL`, `MONGO_URL`, `DATABASE_URL`) | `mongodb://localhost:27017/blocks_world` |
 | `JWT_SECRET` | Signing secret for auth tokens | _required in production_ |
 | `ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Optional bootstrap admin |
 | `ALLOWED_ORIGINS` | Comma-separated CORS whitelist (prod) | Browser localhost hosts |

@@ -21,9 +21,65 @@ const { attachUser, requireAuth } = require('./utils/auth');
 const adminRoutes = require('./utils/adminRoutes');  
 const { getJwtSecret } = require('./utils/jwt');
 
+const resolveMongoUri = () => {
+  const prioritizedEnvNames = [
+    'MONGODB_URI',
+    'MONGODB_URL',
+    'MONGO_URL',
+    'DATABASE_URL',
+    'RAILWAY_MONGODB_URL',
+    'RAILWAY_MONGO_URL'
+  ];
+
+  for (const name of prioritizedEnvNames) {
+    const rawValue = process.env[name];
+    if (typeof rawValue === 'string' && rawValue.trim().length > 0) {
+      return rawValue.trim();
+    }
+  }
+
+  const {
+    MONGODB_HOST,
+    MONGODB_PORT,
+    MONGODB_DB,
+    MONGODB_DATABASE,
+    MONGODB_USERNAME,
+    MONGODB_PASSWORD
+  } = process.env;
+
+  if (typeof MONGODB_HOST === 'string' && MONGODB_HOST.trim().length > 0) {
+    const safeHost = MONGODB_HOST.trim();
+    const port = (typeof MONGODB_PORT === 'string' && MONGODB_PORT.trim().length > 0)
+      ? MONGODB_PORT.trim()
+      : '27017';
+    const databaseName = [MONGODB_DB, MONGODB_DATABASE]
+      .find(value => typeof value === 'string' && value.trim().length > 0) || 'blocks_world';
+    const hasCredentials = [MONGODB_USERNAME, MONGODB_PASSWORD]
+      .every(value => typeof value === 'string' && value.trim().length > 0);
+    const credentials = hasCredentials
+      ? `${encodeURIComponent(MONGODB_USERNAME.trim())}:${encodeURIComponent(MONGODB_PASSWORD.trim())}@`
+      : '';
+
+    return `mongodb://${credentials}${safeHost}:${port}/${databaseName}`;
+  }
+
+  return 'mongodb://localhost:27017/blocks_world';
+};
+
+const formatMongoUriForLog = (uri) => {
+  try {
+    const parsed = new URL(uri);
+    const credentials = parsed.username ? `${parsed.username}@` : '';
+    const port = parsed.port ? `:${parsed.port}` : '';
+    return `${parsed.protocol}//${credentials}${parsed.hostname}${port}${parsed.pathname}`;
+  } catch (error) {
+    return uri;
+  }
+};
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/blocks_world';
+const MONGODB_URI = resolveMongoUri();
 const JWT_SECRET = getJwtSecret();
 const BLOCK_NAME_REGEX = /^[A-Z]$/;
 const MAX_ITERATION_CAP = 5000;
@@ -480,9 +536,9 @@ app.use('/admin', adminRoutes);
 app.use(express.static(path.join(__dirname, "../public")));
 
 const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🗄️ Database: ${MONGODB_URI}`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Database: ${formatMongoUriForLog(MONGODB_URI)}`);
 });
 
 mongoose.connection.once('open', async () => {
