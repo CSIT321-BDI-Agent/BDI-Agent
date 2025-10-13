@@ -11,7 +11,6 @@ import { logAction } from './logger.js';
 import { getIntentionTimelineSnapshot, restoreTimelineFromSnapshot, resetIntentionTimeline } from './timeline.js';
 import { updateWorldInfoFromStacks } from './dashboard-ui.js';
 import { getStatsSnapshot, restoreStatsFromSnapshot, resetStats } from './stats.js';
-import { API_BASE } from './api.js';
 
 const META_STORAGE_KEY = 'bdiWorldMeta';
 
