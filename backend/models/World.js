@@ -10,6 +10,7 @@ const WorldSchema = new mongoose.Schema({
   stats: {
     type: {
       steps: { type: Number, default: 0 },
+      timeElapsedMs: { type: Number, default: 0 },
       timeElapsed: { type: String, default: '--' },
       status: { type: String, default: '--' }
     },

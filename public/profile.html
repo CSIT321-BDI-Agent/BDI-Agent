@@ -72,11 +72,9 @@
         <span>Admin Dashboard</span>
       </a>
       <a
-        href="#"
+        href="agent-logs.html"
         data-route="agent-logs"
-        data-disabled="true"
-        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50"
-        title="Coming soon"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
         aria-label="Agent Logs"
       >
         <span class="material-icons text-lg" aria-hidden="true">receipt_long</span>
@@ -142,11 +140,10 @@
             <span class="sidebar__label" data-sidebar-collapsible="text">Admin Dashboard</span>
           </a>
           <a
-            href="#"
+            href="agent-logs.html"
             data-route="agent-logs"
-            data-disabled="true"
-            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50 transition pointer-events-none opacity-40"
-            title="Agent logs coming soon"
+            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            title="Agent Logs"
             aria-label="Agent Logs"
           >
             <span class="material-icons text-lg" aria-hidden="true">receipt_long</span>
@@ -201,7 +198,7 @@
                 Review your account details, view saved-world totals, and update your username or password from one place.
               </p>
             </div>
-            <div class="relative w-56">
+            <div class="relative w-30">
               <button
                 id="profileBtn"
                 type="button"
@@ -331,21 +328,6 @@
                 <span id="passwordMessage" class="hidden text-sm shrink-0 ml-auto" data-inline="true" aria-live="polite" role="status"></span>
               </div>
             </form>
-
-            <div class="flex flex-wrap gap-3 pt-2">
-              <button id="dashboardBtn" type="button" class="inline-flex items-center gap-2 rounded border border-brand-primary/40 bg-brand-primary/10 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
-                <span class="material-icons text-sm" aria-hidden="true">home</span>
-                Dashboard
-              </button>
-              <button id="adminConsoleBtn" type="button" class="hidden items-center gap-2 rounded border border-amber-400/40 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">
-                <span class="material-icons text-sm" aria-hidden="true">admin_panel_settings</span>
-                Admin Console
-              </button>
-              <button id="logoutBtn" type="button" class="ml-auto inline-flex items-center gap-2 rounded border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">
-                <span class="material-icons text-sm" aria-hidden="true">logout</span>
-                Sign Out
-              </button>
-            </div>
           </section>
         </div>
       </div>

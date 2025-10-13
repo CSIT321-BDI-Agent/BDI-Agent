@@ -196,7 +196,8 @@ export async function saveWorld(world) {
         blocks: world.getCurrentBlocks(),
         stacks: currentSnapshot.stacks,
         colours: currentSnapshot.colours,
-        timeline: currentSnapshot.timeline
+        timeline: currentSnapshot.timeline,
+        stats: currentSnapshot.stats
       })
     });
 

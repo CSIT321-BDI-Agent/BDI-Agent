@@ -53,25 +53,73 @@ const sanitizeTimelineSnapshot = (snapshot) => {
   return snapshot;
 };
 
+const formatElapsedMs = (ms) => {
+  if (!Number.isFinite(ms) || ms < 0) {
+    return '0.00s';
+  }
+  const seconds = Math.floor(ms / 1000);
+  const centiseconds = Math.floor((ms % 1000) / 10);
+  return `${seconds}.${String(centiseconds).padStart(2, '0')}s`;
+};
+
+const parseElapsedString = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '--') {
+    return null;
+  }
+  const match = trimmed.match(/^(\d+)(?:\.(\d{1,2}))?s$/i);
+  if (!match) {
+    return null;
+  }
+  const seconds = Number.parseInt(match[1], 10);
+  const centiseconds = match[2] ? Number.parseInt(match[2].padEnd(2, '0'), 10) : 0;
+  if (!Number.isFinite(seconds) || !Number.isFinite(centiseconds)) {
+    return null;
+  }
+  return (seconds * 1000) + (centiseconds * 10);
+};
+
 const sanitizeStatsSnapshot = (stats) => {
   if (!stats || typeof stats !== 'object') {
     return null;
   }
 
-  const steps =
-    typeof stats.steps === 'number' && Number.isFinite(stats.steps)
-      ? Math.max(0, Math.floor(stats.steps))
-      : null;
-  const timeElapsed = typeof stats.timeElapsed === 'string' ? stats.timeElapsed : null;
-  const status = typeof stats.status === 'string' ? stats.status : null;
+  const steps = Number.isFinite(stats.steps)
+    ? Math.max(0, Math.floor(stats.steps))
+    : null;
 
-  if (steps === null && timeElapsed === null && status === null) {
+  const elapsedMsCandidate = [
+    stats.timeElapsedMs,
+    stats.elapsedMs
+  ].find(value => Number.isFinite(value));
+
+  const parsedFromString = parseElapsedString(stats.timeElapsed);
+  const resolvedElapsedMs = Number.isFinite(elapsedMsCandidate)
+    ? Math.max(0, Math.floor(elapsedMsCandidate))
+    : parsedFromString;
+
+  const timeElapsedStr = typeof stats.timeElapsed === 'string' && stats.timeElapsed.trim().length > 0
+    ? stats.timeElapsed.trim()
+    : null;
+
+  const status = typeof stats.status === 'string' && stats.status.trim().length > 0
+    ? stats.status.trim()
+    : null;
+
+  if (steps === null && resolvedElapsedMs == null && timeElapsedStr === null && status === null) {
     return null;
   }
 
+  const effectiveElapsedMs = resolvedElapsedMs != null ? resolvedElapsedMs : 0;
+  const effectiveElapsedDisplay = timeElapsedStr ?? (resolvedElapsedMs != null ? formatElapsedMs(resolvedElapsedMs) : '--');
+
   return {
     steps: steps ?? 0,
-    timeElapsed: timeElapsed ?? '--',
+    timeElapsedMs: effectiveElapsedMs,
+    timeElapsed: effectiveElapsedDisplay,
     status: status ?? '--'
   };
 };
@@ -215,6 +263,17 @@ app.get('/worlds/:id', requireAuth, withRoute(async (req, res) => {
   if (!doc) throw new HttpError(404, 'World not found or access denied');
 
   res.json(doc);
+}));
+
+app.delete('/worlds/:id', requireAuth, withRoute(async (req, res) => {
+  const worldId = ensureObjectId(req.params.id, 'World ID');
+
+  const deleted = await World.findOneAndDelete({ _id: worldId, user: req.user._id });
+  if (!deleted) {
+    throw new HttpError(404, 'World not found or access denied');
+  }
+
+  res.json({ message: `World "${deleted.name}" deleted successfully.` });
 }));
 
 // ------------------ User Auth ------------------

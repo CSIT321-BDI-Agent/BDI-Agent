@@ -175,7 +175,7 @@ class SimulationController {
     });
 
     if (disabled) {
-      showMessage('Simulation running…', 'info');
+      showMessage('Simulation running...', 'info');
     }
 
     this.refreshStepperAvailability(disabled);
@@ -208,11 +208,11 @@ class SimulationController {
     }
 
     this.setControlsDisabled(true);
-    resetIntentionTimeline('Requesting plan from BDI agent…');
+    resetIntentionTimeline('Requesting plan from BDI agent...');
     startPlannerClock();
 
     startStatsTimer();
-    updateStats(0, 'Planning');
+    updateStats(undefined, 'Planning');
     logAction(`Started planning for goal: ${goalTokens.join(' on ')}`, 'user');
 
     try {
@@ -232,8 +232,8 @@ class SimulationController {
       handleError(error, 'planning');
       stopPlannerClock(false);
       resetIntentionTimeline('Planner request failed.');
-      stopStatsTimer();
-      updateStats(0, 'Unexpected Error');
+      stopStatsTimer(false);
+      updateStats(undefined, 'Unexpected Error');
       this.setControlsDisabled(false);
     }
   }
@@ -247,7 +247,7 @@ class SimulationController {
     );
 
     stopPlannerClock(true);
-    stopStatsTimer();
+    stopStatsTimer(true);
     const actualCycles = (plannerResponse.intentionLog || []).length;
     updateStats(actualCycles, 'Failure');
     this.setControlsDisabled(false);
@@ -261,16 +261,16 @@ class SimulationController {
     );
 
     if (moves.length === 0) {
-      showMessage('Goal already satisfied – no moves required.', 'info');
+      showMessage('Goal already satisfied - no moves required.', 'info');
       finalizeTimeline();
       stopPlannerClock(true);
-      stopStatsTimer();
+      stopStatsTimer(true);
       updateStats(0, 'Success');
       this.setControlsDisabled(false);
       return;
     }
 
-    updateStats(0, 'Running');
+    updateStats(undefined, 'Running');
     await this.executeMoves(moves);
 
     finalizeTimeline();
@@ -278,10 +278,10 @@ class SimulationController {
 
     const actualCycles = (plannerResponse.intentionLog || []).length;
     const moveCount = moves.length;
-    stopStatsTimer();
+    stopStatsTimer(true);
     updateStats(actualCycles, 'Success');
     showMessage(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles).`, 'success');
-    logAction(`✓ Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)`, 'system');
+    logAction(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)`, 'system');
 
     this.setControlsDisabled(false);
   }

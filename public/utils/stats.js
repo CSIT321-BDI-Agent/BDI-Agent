@@ -12,20 +12,78 @@ const STATUS_TONE_CLASSES = {
   error: 'text-red-600'
 };
 
+const DEFAULT_STATUS = '--';
+
 let statStepsElem = null;
 let statTimeElem = null;
 let statStatusElem = null;
 
-let totalSteps = 0;
+let statsState = {
+  steps: null,
+  status: DEFAULT_STATUS,
+  elapsedMs: 0,
+  running: false
+};
+
 let simulationStartTime = null;
 let statsUpdateInterval = null;
 let initialized = false;
 
-const getCurrentTimeDisplay = () => {
-  if (!statTimeElem) return '--';
-  return typeof statTimeElem.textContent === 'string' && statTimeElem.textContent.trim().length > 0
-    ? statTimeElem.textContent
-    : '--';
+const formatElapsed = (ms) => {
+  if (!Number.isFinite(ms) || ms < 0) {
+    return '--';
+  }
+  const seconds = Math.floor(ms / 1000);
+  const centiseconds = Math.floor((ms % 1000) / 10);
+  return `${seconds}.${String(centiseconds).padStart(2, '0')}s`;
+};
+
+const parseElapsed = (value) => {
+  if (Number.isFinite(value)) {
+    return Math.max(0, Math.floor(value));
+  }
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '--') {
+    return null;
+  }
+  const match = trimmed.match(/^(\d+)(?:\.(\d{1,2}))?s$/i);
+  if (!match) {
+    return null;
+  }
+  const seconds = Number.parseInt(match[1], 10);
+  const centiseconds = match[2] ? Number.parseInt(match[2].padEnd(2, '0'), 10) : 0;
+  if (!Number.isFinite(seconds) || !Number.isFinite(centiseconds)) {
+    return null;
+  }
+  return (seconds * 1000) + (centiseconds * 10);
+};
+
+const clearTimer = () => {
+  if (statsUpdateInterval) {
+    clearInterval(statsUpdateInterval);
+    statsUpdateInterval = null;
+  }
+};
+
+const renderStats = () => {
+  if (!initialized) return;
+
+  const stepsText = statsState.steps == null ? '--' : String(statsState.steps);
+  statStepsElem.textContent = stepsText;
+
+  const elapsedDisplay = statsState.steps == null && statsState.elapsedMs === 0
+    ? '--'
+    : formatElapsed(statsState.elapsedMs);
+  statTimeElem.textContent = elapsedDisplay;
+
+  const statusText = statsState.status && statsState.status.trim().length > 0
+    ? statsState.status
+    : DEFAULT_STATUS;
+  statStatusElem.textContent = statusText;
+  applyStatusTone(resolveStatusTone(statusText));
 };
 
 /**
@@ -40,7 +98,14 @@ export function initializeStatsUI({
   statTimeElem = document.querySelector(timeSelector);
   statStatusElem = document.querySelector(statusSelector);
   initialized = Boolean(statStepsElem && statTimeElem && statStatusElem);
-  resetStats();
+  if (!initialized) return;
+  statsState = {
+    steps: null,
+    status: DEFAULT_STATUS,
+    elapsedMs: 0,
+    running: false
+  };
+  renderStats();
 }
 
 /**
@@ -52,15 +117,15 @@ export function updateStats(steps, status) {
   if (!initialized) return;
 
   if (typeof steps === 'number' && Number.isFinite(steps)) {
-    totalSteps = steps;
-    statStepsElem.textContent = String(steps);
+    statsState.steps = Math.max(0, Math.floor(steps));
   }
 
   if (typeof status === 'string') {
     const normalized = status.trim();
-    statStatusElem.textContent = normalized;
-    applyStatusTone(resolveStatusTone(normalized));
+    statsState.status = normalized || DEFAULT_STATUS;
   }
+
+  renderStats();
 }
 
 /**
@@ -69,45 +134,49 @@ export function updateStats(steps, status) {
 export function startStatsTimer() {
   if (!initialized) return;
 
+  clearTimer();
+  statsState.steps = 0;
+  statsState.status = 'Running';
+  statsState.elapsedMs = 0;
+  statsState.running = true;
   simulationStartTime = Date.now();
-  totalSteps = 0;
-  statStepsElem.textContent = '0';
-  statStatusElem.textContent = 'Running';
-  applyStatusTone('info');
+  renderStats();
 
-  if (statsUpdateInterval) clearInterval(statsUpdateInterval);
   statsUpdateInterval = window.setInterval(() => {
     if (!simulationStartTime) return;
-    const elapsed = Date.now() - simulationStartTime;
-    const seconds = Math.floor(elapsed / 1000);
-    const ms = Math.floor((elapsed % 1000) / 10);
-    statTimeElem.textContent = `${seconds}.${String(ms).padStart(2, '0')}s`;
+    statsState.elapsedMs = Date.now() - simulationStartTime;
+    renderStats();
   }, 100);
 }
 
 /**
  * Stop the elapsed time tracker
  */
-export function stopStatsTimer() {
-  if (statsUpdateInterval) {
-    clearInterval(statsUpdateInterval);
-    statsUpdateInterval = null;
+export function stopStatsTimer(finalize = true) {
+  if (!initialized) return;
+  if (finalize && simulationStartTime) {
+    statsState.elapsedMs = Date.now() - simulationStartTime;
   }
+  clearTimer();
+  statsState.running = false;
+  simulationStartTime = null;
+  renderStats();
 }
 
 /**
  * Reset statistics values to their defaults
  */
 export function resetStats() {
-  totalSteps = 0;
-  simulationStartTime = null;
   if (!initialized) return;
-
-  stopStatsTimer();
-  statStepsElem.textContent = '--';
-  statTimeElem.textContent = '--';
-  statStatusElem.textContent = '--';
-  applyStatusTone('default');
+  clearTimer();
+  simulationStartTime = null;
+  statsState = {
+    steps: null,
+    status: DEFAULT_STATUS,
+    elapsedMs: 0,
+    running: false
+  };
+  renderStats();
 }
 
 /**
@@ -115,8 +184,11 @@ export function resetStats() {
  */
 export function incrementStep() {
   if (!initialized) return;
-  totalSteps += 1;
-  statStepsElem.textContent = String(totalSteps);
+  if (statsState.steps == null) {
+    statsState.steps = 0;
+  }
+  statsState.steps += 1;
+  renderStats();
 }
 
 /**
@@ -147,52 +219,55 @@ function applyStatusTone(tone = 'default') {
 
 /**
  * Return a lightweight snapshot of the current statistics panel
- * @returns {{steps:number,timeElapsed:string,status:string}|null}
+ * @returns {{steps:number,timeElapsed:string,timeElapsedMs:number,status:string}|null}
  */
 export function getStatsSnapshot() {
   if (!initialized) return null;
+
+  const hasMeaningfulData =
+    statsState.steps != null ||
+    (statsState.status && statsState.status !== DEFAULT_STATUS) ||
+    statsState.elapsedMs > 0;
+
+  if (!hasMeaningfulData) {
+    return null;
+  }
+
   return {
-    steps: totalSteps,
-    timeElapsed: getCurrentTimeDisplay(),
-    status: typeof statStatusElem?.textContent === 'string' ? statStatusElem.textContent : '--'
+    steps: statsState.steps ?? 0,
+    timeElapsedMs: Math.max(0, Math.floor(statsState.elapsedMs)),
+    timeElapsed: formatElapsed(statsState.elapsedMs),
+    status: statsState.status || DEFAULT_STATUS
   };
 }
 
 /**
  * Restore statistics panel from a saved snapshot
- * @param {{steps?:number,timeElapsed?:string,status?:string}|null} snapshot
+ * @param {{steps?:number,timeElapsed?:string,timeElapsedMs?:number,status?:string}|null} snapshot
  */
 export function restoreStatsFromSnapshot(snapshot) {
   if (!initialized) return;
+  clearTimer();
+
   if (!snapshot || typeof snapshot !== 'object') {
     resetStats();
     return;
   }
 
-  stopStatsTimer();
+  const steps = Number.isFinite(snapshot.steps) ? Math.max(0, Math.floor(snapshot.steps)) : null;
+  const elapsedMs = parseElapsed(snapshot.timeElapsedMs) ?? parseElapsed(snapshot.timeElapsed) ?? 0;
+  const status =
+    typeof snapshot.status === 'string' && snapshot.status.trim().length > 0
+      ? snapshot.status.trim()
+      : DEFAULT_STATUS;
+
+  statsState = {
+    steps,
+    status,
+    elapsedMs,
+    running: false
+  };
   simulationStartTime = null;
-
-  const steps = Number(snapshot.steps);
-  if (Number.isFinite(steps) && steps >= 0) {
-    totalSteps = Math.floor(steps);
-    statStepsElem.textContent = String(totalSteps);
-  } else {
-    totalSteps = 0;
-    statStepsElem.textContent = '--';
-  }
-
-  if (typeof snapshot.timeElapsed === 'string' && snapshot.timeElapsed.trim().length > 0) {
-    statTimeElem.textContent = snapshot.timeElapsed;
-  } else {
-    statTimeElem.textContent = '--';
-  }
-
-  if (typeof snapshot.status === 'string' && snapshot.status.trim().length > 0) {
-    const normalized = snapshot.status.trim();
-    statStatusElem.textContent = normalized;
-    applyStatusTone(resolveStatusTone(normalized));
-  } else {
-    statStatusElem.textContent = '--';
-    applyStatusTone('default');
-  }
+  renderStats();
 }
+

@@ -71,6 +71,7 @@ backend/
 | `POST` | `/worlds` | Save world (requires JWT) – expects `name`, `blocks`, `stacks`, optional `colours`, `timeline` |
 | `GET`  | `/worlds` | List current user's saved worlds |
 | `GET`  | `/worlds/:id` | Retrieve a specific saved world |
+| `DELETE` | `/worlds/:id` | Delete a saved world |
 | `POST` | `/plan` | Run the BDI planner on provided stacks/goal (requires JWT) |
 | `GET`  | `/admin/users` | Admin: list users |
 | `POST` | `/admin/users/:id/promote` | Admin: elevate user role |
@@ -89,7 +90,7 @@ Saved world documents now resemble:
   "stacks": [["C", "B", "A"]],
   "colours": { "A": "hsl(...)", "B": "hsl(...)" },
   "timeline": { "log": [...], "clockDisplay": "00:14.52", ... },
-  "stats": { "steps": 12, "timeElapsed": "14.52s", "status": "Completed" },
+  "stats": { "steps": 12, "timeElapsedMs": 14520, "timeElapsed": "14.52s", "status": "Completed" },
   "user": "64f...",
   "createdAt": "..."
 }
