@@ -139,15 +139,7 @@ const maskMongoUriForLog = (uri) => {
 };
 
 const resolveFrontendApiBase = () => {
-  const direct = pickFirst([
-    'FRONTEND_API_BASE',
-    'PUBLIC_API_BASE',
-    'API_BASE_URL',
-    'API_BASE',
-    'MONGO_URL'
-  ]);
-
-  const sanitize = (value) => {
+  const sanitizeHttpUrl = (value) => {
     if (typeof value !== 'string') {
       return null;
     }
@@ -158,6 +150,9 @@ const resolveFrontendApiBase = () => {
     const candidate = trimmed.includes('://') ? trimmed : `https://${trimmed}`;
     try {
       const parsed = new URL(candidate);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return null;
+      }
       const portSegment = parsed.port ? `:${parsed.port}` : '';
       return `${parsed.protocol}//${parsed.hostname}${portSegment}`;
     } catch (error) {
@@ -165,7 +160,15 @@ const resolveFrontendApiBase = () => {
     }
   };
 
-  const sanitizedDirect = sanitize(direct);
+  const direct = pickFirst([
+    'FRONTEND_API_BASE',
+    'PUBLIC_API_BASE',
+    'API_BASE_URL',
+    'API_BASE',
+    'MONGO_URL'
+  ]);
+
+  const sanitizedDirect = sanitizeHttpUrl(direct);
   if (sanitizedDirect) {
     return sanitizedDirect;
   }
@@ -181,13 +184,13 @@ const resolveFrontendApiBase = () => {
     const port = pickFirst(['MONGOPORT', 'MONGODB_PORT', 'MONGO_PORT']);
     const portSegment = port && !['80', '443'].includes(port) ? `:${port}` : '';
     const candidate = `${protocol}://${host}${portSegment}`;
-    const sanitized = sanitize(candidate);
+    const sanitized = sanitizeHttpUrl(candidate);
     if (sanitized) {
       return sanitized;
     }
   }
 
-  const fallback = sanitize(pickFirst(['RAILWAY_STATIC_URL', 'RAILWAY_PUBLIC_DOMAIN']));
+  const fallback = sanitizeHttpUrl(pickFirst(['RAILWAY_STATIC_URL', 'RAILWAY_PUBLIC_DOMAIN']));
   return fallback || '';
 };
 

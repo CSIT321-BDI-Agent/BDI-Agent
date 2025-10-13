@@ -10,20 +10,41 @@ const resolveApiBase = () => {
     return 'http://localhost:3000';
   }
 
-  const configured = window.APP_CONFIG?.API_BASE;
-  if (typeof configured === 'string') {
-    const trimmed = configured.trim();
-    if (trimmed.length > 0) {
-      return trimmed;
+  const sanitizeHttpUrl = (value) => {
+    if (typeof value !== 'string') {
+      return null;
     }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const candidate = trimmed.includes('://') ? trimmed : `https://${trimmed}`;
+    try {
+      const parsed = new URL(candidate);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return null;
+      }
+      const portSegment = parsed.port ? `:${parsed.port}` : '';
+      return `${parsed.protocol}//${parsed.hostname}${portSegment}`;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const configured = sanitizeHttpUrl(window.APP_CONFIG?.API_BASE);
+  if (configured) {
+    return configured;
   }
 
   const { origin, protocol, hostname, port } = window.location || {};
   if (origin && origin !== 'null') {
-    return origin;
+    const sanitizedOrigin = sanitizeHttpUrl(origin);
+    if (sanitizedOrigin) {
+      return sanitizedOrigin;
+    }
   }
 
-  if (protocol && hostname) {
+  if (protocol && hostname && ['http:', 'https:'].includes(protocol)) {
     const portSegment = port ? `:${port}` : '';
     return `${protocol}//${hostname}${portSegment}`;
   }
