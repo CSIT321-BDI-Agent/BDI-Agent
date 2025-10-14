@@ -249,9 +249,9 @@ export function initializeSidebarNavigation({
       );
       mainContentTransitionClasses.forEach(cls => mainContent.classList.remove(cls));
       
-      // Also set inline styles as fallback
-      sidebar.style.transition = 'none !important';
-      mainContent.style.transition = 'none !important';
+      // Also set no-transition class as fallback
+      sidebar.classList.add('no-transition');
+      mainContent.classList.add('no-transition');
     }
     
     sidebar.setAttribute('data-collapsed', isCollapsed ? 'true' : 'false');
