@@ -81,11 +81,9 @@
         <span>Agent Logs</span>
       </a>
       <a
-        href="#"
+        href="import-export.html"
         data-route="import-export"
-        data-disabled="true"
-        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50"
-        title="Coming soon"
+        class="mobile-menu-link flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
         aria-label="Import/Export"
       >
         <span class="material-icons text-lg" aria-hidden="true">import_export</span>
@@ -118,11 +116,14 @@
           <span id="sidebarTitle" data-sidebar-collapsible="text" class="text-lg font-semibold text-white">BDI Blocks World</span>
         </div>
 
-        <nav class="mt-8 flex flex-col gap-1" aria-label="Primary">
+        <nav class="mt-8 flex flex-col gap-1 relative" aria-label="Primary" id="sidebarNav">
+          <!-- Sliding active indicator -->
+          <div id="sidebarActiveIndicator" class="absolute left-0 top-0 w-full h-10 bg-white/10 rounded transition-all duration-300 ease-out opacity-0 pointer-events-none" style="transform: translateY(0px);"></div>
+          
           <a
             href="index.html"
             data-route="dashboard"
-            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white relative z-10"
             title="Dashboard"
             aria-label="Dashboard"
           >
@@ -132,7 +133,7 @@
           <a
             href="admin.html"
             data-route="admin"
-            class="sidebar__link admin-nav-link hidden flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            class="sidebar__link admin-nav-link hidden flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white relative z-10"
             title="Admin Dashboard"
             aria-label="Admin Dashboard"
           >
@@ -142,7 +143,7 @@
           <a
             href="agent-logs.html"
             data-route="agent-logs"
-            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white relative z-10"
             title="Agent Logs"
             aria-label="Agent Logs"
           >
@@ -150,11 +151,10 @@
             <span class="sidebar__label" data-sidebar-collapsible="text">Agent Logs</span>
           </a>
           <a
-            href="#"
+            href="import-export.html"
             data-route="import-export"
-            data-disabled="true"
-            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/50 transition pointer-events-none opacity-40"
-            title="Import/export coming soon"
+            class="sidebar__link group flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white relative z-10"
+            title="Import/Export"
             aria-label="Import/Export"
           >
             <span class="material-icons text-lg" aria-hidden="true">import_export</span>
@@ -188,13 +188,13 @@
     </aside>
 
     <main class="flex flex-1 flex-col bg-brand-light pt-20 transition-all duration-300 ease-in-out md:ml-72 md:pt-10">
-      <div class="px-4 pb-8 md:px-10">
+      <div class="px-4 pb-10 md:px-10">
         <div class="border border-white/40 bg-white/70 p-6 shadow-card backdrop-blur">
           <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div class="space-y-2">
               <p class="text-xs font-semibold uppercase tracking-[0.2em] text-brand-dark/70">Account Center</p>
               <h1 class="text-2xl font-extrabold text-brand-dark md:text-3xl">Manage your profile</h1>
-              <p class="text-sm text-brand-dark/70 md:max-w-xl">
+              <p class="text-sm text-brand-dark/70 md:max-w-2xl">
                 Review your account details, view saved-world totals, and update your username or password from one place.
               </p>
             </div>
@@ -212,7 +212,7 @@
               </button>
               <div
                 id="profileMenu"
-                class="absolute right-0 z-30 mt-3 w-full origin-top-right border border-slate-200 bg-white p-2 shadow-card hidden"
+                class="absolute right-0 z-30 w-full origin-top-right border border-slate-200 bg-white p-2 shadow-card hidden"
               >
                 <div id="profileMenuLoggedIn" class="hidden flex-col gap-1">
                   <a href="profile.html" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
@@ -336,318 +336,8 @@
 
   <script src="config.js"></script>
   <script type="module">
-    import {
-      requireAuth,
-      getCurrentUser,
-      authenticatedFetch,
-      logout as authLogout,
-      updateUIWithUserInfo,
-      storeAuthData
-    } from './utils/auth.js';
-    import { initializeMobileNavigation, initializeSidebarNavigation } from './utils/navigation.js';
-    import { initializeProfileMenu } from './utils/profile.js';
-    import { API_BASE } from './utils/constants.js';
-
-    requireAuth();
-
-    initializeMobileNavigation();
-    initializeSidebarNavigation({ activeRoute: 'profile', storageKey: 'bdiProfileSidebarCollapsed' });
-    initializeProfileMenu();
-
-    updateUIWithUserInfo({
-      adminNav: '.admin-nav-link'
-    });
-
-    window.logout = authLogout;
-
-    const apiBase = API_BASE;
-
-    const profileNameDisplay = document.getElementById('profileName');
-    const usernameDisplay = document.getElementById('detailUsername');
-    const emailDisplay = document.getElementById('detailEmail');
-    const roleDisplay = document.getElementById('detailRole');
-    const userIdDisplay = document.getElementById('detailUserId');
-    const worldsDisplay = document.getElementById('detailWorlds');
-    const worldsList = document.getElementById('detailWorldsList');
-
-    const usernameForm = document.getElementById('usernameForm');
-    const newUsernameInput = document.getElementById('newUsername');
-    const usernamePasswordInput = document.getElementById('usernameCurrentPassword');
-    const usernameSubmit = document.getElementById('usernameSubmit');
-    const usernameMessage = document.getElementById('usernameMessage');
-
-    const passwordForm = document.getElementById('passwordForm');
-    const passwordCurrentInput = document.getElementById('passwordCurrent');
-    const newPasswordInput = document.getElementById('newPassword');
-    const confirmPasswordInput = document.getElementById('confirmPassword');
-    const passwordSubmit = document.getElementById('passwordSubmit');
-    const passwordMessage = document.getElementById('passwordMessage');
-
-    const dashboardBtn = document.getElementById('dashboardBtn');
-    const adminBtn = document.getElementById('adminConsoleBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const flashMessage = document.getElementById('profileFlash');
-
-    let currentProfile = null;
-
-    const setFeedback = (element, text = '', type = 'info') => {
-      if (!element) return;
-      if (element.dataset.timeoutId) {
-        window.clearTimeout(Number(element.dataset.timeoutId));
-        element.dataset.timeoutId = '';
-      }
-      if (!text) {
-        element.className = element.dataset.inline === 'true'
-          ? 'messages hidden'
-          : 'hidden text-sm';
-        element.textContent = '';
-        return;
-      }
-      if (element.dataset.inline === 'true') {
-        const BASE = 'messages inline-flex items-center gap-2 border px-3 py-2 text-sm font-medium transition-all duration-200 ml-auto whitespace-nowrap';
-        const TONE_MAP = {
-          success: `${BASE} border-emerald-300 bg-emerald-50 text-emerald-700`,
-          error: `${BASE} border-red-300 bg-red-50 text-red-600`,
-          info: `${BASE} border-brand-primary/30 bg-brand-primary/10 text-brand-dark`
-        };
-        element.className = TONE_MAP[type] || TONE_MAP.info;
-        const timeoutId = window.setTimeout(() => {
-          if (element.textContent === text) {
-            element.className = 'messages hidden';
-            element.textContent = '';
-          }
-          element.dataset.timeoutId = '';
-        }, 5000);
-        element.dataset.timeoutId = String(timeoutId);
-      } else {
-        const base = 'text-sm font-medium mt-2';
-        const tone = {
-          success: 'text-emerald-600',
-          error: 'text-red-600',
-          info: 'text-brand-primary'
-        }[type] || 'text-brand-primary';
-        element.className = `${base} ${tone}`;
-      }
-      element.textContent = text;
-    };
-
-    const setFlash = (text = '', type = 'info') => {
-      if (!flashMessage) return;
-      const BASE = 'messages block mt-6 border px-4 py-3 text-sm font-medium transition-all duration-200';
-      const map = {
-        info: `${BASE} border-brand-primary/30 bg-brand-primary/10 text-brand-dark`,
-        success: `${BASE} border-emerald-300 bg-emerald-50 text-emerald-700`,
-        error: `${BASE} border-red-300 bg-red-50 text-red-600`
-      };
-      if (!text) {
-        flashMessage.textContent = '';
-        flashMessage.className = 'messages hidden';
-        return;
-      }
-      flashMessage.textContent = text;
-      flashMessage.className = map[type] || map.info;
-    };
-
-    const populateProfile = (data) => {
-      currentProfile = data;
-      const session = getCurrentUser();
-      if (session && session.token) {
-        storeAuthData({
-          userId: session.userId,
-          username: data.username || session.username,
-          role: data.role || session.role,
-          token: session.token,
-          email: data.email || session.email
-        });
-      }
-      usernameDisplay.textContent = data.username || 'Unknown';
-      emailDisplay.textContent = data.email || '--';
-      roleDisplay.textContent = (data.role || 'user').toLowerCase();
-      userIdDisplay.textContent = data.userId || '--';
-      const savedWorlds = Array.isArray(data.savedWorlds) ? data.savedWorlds : [];
-      const savedWorldCount = Number.isFinite(data.savedWorldCount) ? data.savedWorldCount : savedWorlds.length;
-      const countLabel = savedWorldCount === 0
-        ? 'No worlds saved yet'
-        : `${savedWorldCount} ${savedWorldCount === 1 ? 'world' : 'worlds'}`;
-      worldsDisplay.textContent = countLabel;
-
-      if (worldsList) {
-        worldsList.innerHTML = '';
-        if (savedWorlds.length === 0) {
-          worldsList.classList.add('hidden');
-        } else {
-          worldsList.classList.remove('hidden');
-          savedWorlds.forEach((world) => {
-            const item = document.createElement('li');
-            const name = typeof world?.name === 'string' && world.name.trim().length > 0
-              ? world.name.trim()
-              : 'Untitled world';
-            const savedDate = world?.createdAt
-              ? new Date(world.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })
-              : null;
-            item.textContent = savedDate ? `${name} - saved ${savedDate}` : name;
-            worldsList.appendChild(item);
-          });
-        }
-      }
-      if (profileNameDisplay) {
-        profileNameDisplay.textContent = data.username || 'Guest';
-      }
-      if (data.role === 'admin') {
-        adminBtn.classList.remove('hidden');
-      } else {
-        adminBtn.classList.add('hidden');
-      }
-    };
-
-    const fetchProfile = async (options = {}) => {
-      const { preserveMessages = false } = options;
-      try {
-        const response = await authenticatedFetch(`${apiBase}/users/me`, { method: 'GET' });
-        if (!response.ok) {
-          throw new Error('Unable to load profile details');
-        }
-        const payload = await response.json();
-        populateProfile(payload);
-        if (!preserveMessages) {
-          setFeedback(usernameMessage);
-          setFeedback(passwordMessage);
-        }
-      } catch (error) {
-        console.error('Profile load error:', error);
-        setFlash(error.message || 'Unable to load profile details.', 'error');
-      }
-    };
-
-    usernameForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      setFeedback(usernameMessage);
-      setFlash();
-
-      const newUsername = newUsernameInput.value.trim();
-      const currentPassword = usernamePasswordInput.value.trim();
-
-      if (!newUsername) {
-        setFeedback(usernameMessage, 'Please enter a new username.', 'error');
-        return;
-      }
-      if (currentProfile && newUsername.toLowerCase() === (currentProfile.username || '').toLowerCase()) {
-        setFeedback(usernameMessage, 'You are already using that username.', 'error');
-        return;
-      }
-      if (!currentPassword) {
-        setFeedback(usernameMessage, 'Please provide your current password to confirm.', 'error');
-        return;
-      }
-
-      usernameSubmit.disabled = true;
-
-      try {
-        const response = await authenticatedFetch(`${apiBase}/users/me`, {
-          method: 'PATCH',
-          body: JSON.stringify({ oldPassword: currentPassword, username: newUsername })
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload.message || 'Unable to update username');
-        }
-
-        storeAuthData({
-          userId: payload.user.userId,
-          username: payload.user.username,
-          role: payload.user.role,
-          token: payload.token,
-          email: payload.user.email
-        });
-
-        setFeedback(usernameMessage, 'Username updated successfully.', 'success');
-        newUsernameInput.value = '';
-        usernamePasswordInput.value = '';
-        await fetchProfile({ preserveMessages: true });
-        updateUIWithUserInfo({ adminNav: '.admin-nav-link' });
-      } catch (error) {
-        console.error('Username update error:', error);
-        setFeedback(usernameMessage, error.message || 'Unable to update username.', 'error');
-      } finally {
-        usernameSubmit.disabled = false;
-      }
-    });
-
-    passwordForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      setFeedback(passwordMessage);
-      setFlash();
-
-      const currentPassword = passwordCurrentInput.value.trim();
-      const newPassword = newPasswordInput.value.trim();
-      const confirmPassword = confirmPasswordInput.value.trim();
-
-      if (!currentPassword) {
-        setFeedback(passwordMessage, 'Please provide your current password.', 'error');
-        return;
-      }
-      if (!newPassword || newPassword.length < 6) {
-        setFeedback(passwordMessage, 'New password must be at least 6 characters.', 'error');
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        setFeedback(passwordMessage, 'New password and confirmation do not match.', 'error');
-        return;
-      }
-
-      passwordSubmit.disabled = true;
-
-      try {
-        const response = await authenticatedFetch(`${apiBase}/users/me`, {
-          method: 'PATCH',
-          body: JSON.stringify({ oldPassword: currentPassword, password: newPassword })
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload.message || 'Unable to update password');
-        }
-
-        storeAuthData({
-          userId: payload.user.userId,
-          username: payload.user.username,
-          role: payload.user.role,
-          token: payload.token,
-          email: payload.user.email
-        });
-
-        setFeedback(passwordMessage, 'Password updated successfully.', 'success');
-        passwordCurrentInput.value = '';
-        newPasswordInput.value = '';
-        confirmPasswordInput.value = '';
-        await fetchProfile({ preserveMessages: true });
-        updateUIWithUserInfo({ adminNav: '.admin-nav-link' });
-      } catch (error) {
-        console.error('Password update error:', error);
-        setFeedback(passwordMessage, error.message || 'Unable to update password.', 'error');
-      } finally {
-        passwordSubmit.disabled = false;
-      }
-    });
-
-    dashboardBtn.addEventListener('click', () => {
-      window.location.href = 'index.html';
-    });
-
-    adminBtn.addEventListener('click', () => {
-      window.location.href = 'admin.html';
-    });
-
-    logoutBtn.addEventListener('click', () => {
-      authLogout(false);
-    });
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const appName = window.APP_CONFIG?.APP_NAME || 'BDI Blocks World';
-      const pageTitle = document.getElementById('pageTitle');
-      if (pageTitle) pageTitle.textContent = `Profile - ${appName}`;
-    });
-
-    fetchProfile();
+    import { initializeProfilePage } from './utils/profile.js';
+    initializeProfilePage();
   </script>
 </body>
 </html>

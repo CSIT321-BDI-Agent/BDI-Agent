@@ -90,7 +90,7 @@ export function initializeSidebarNavigation({
     const isMobileLink = link.classList.contains('mobile-menu-link');
     const activeClasses = isMobileLink
       ? ['bg-white/10', 'text-white']
-      : ['bg-white/10', 'text-white'];
+      : ['text-white'];
     const inactiveClasses = isMobileLink
       ? ['text-white/80']
       : ['text-white/70'];
@@ -103,15 +103,114 @@ export function initializeSidebarNavigation({
     }
   };
 
-  const applyActiveRoute = (route) => {
+  const updateSlidingIndicator = (activeLink, skipTransition = false) => {
+    const indicator = document.getElementById('sidebarActiveIndicator');
+    const sidebarNav = document.getElementById('sidebarNav');
+    
+    if (!indicator || !sidebarNav || !activeLink) {
+      return;
+    }
+
+    // Get the position of the active link relative to the nav container
+    const navRect = sidebarNav.getBoundingClientRect();
+    const linkRect = activeLink.getBoundingClientRect();
+    const offsetTop = linkRect.top - navRect.top;
+    
+    // Temporarily disable transition if needed
+    if (skipTransition) {
+      indicator.style.transition = 'none';
+    }
+    
+    // Position and show the indicator
+    indicator.style.transform = `translateY(${offsetTop}px)`;
+    indicator.style.height = `${linkRect.height}px`;
+    indicator.style.opacity = '1';
+    
+    // Re-enable transition after a frame
+    if (skipTransition) {
+      requestAnimationFrame(() => {
+        indicator.style.transition = '';
+      });
+    }
+  };
+
+  const applyActiveRoute = (route, skipTransition = false) => {
+    let activeLink = null;
+    
     navLinks.forEach(link => {
       const isActive = Boolean(route) && link.dataset.route === route;
       applyLinkState(link, isActive);
       if (isActive) {
         link.setAttribute('aria-current', 'page');
+        if (!link.classList.contains('mobile-menu-link')) {
+          activeLink = link;
+        }
       } else {
         link.removeAttribute('aria-current');
       }
+    });
+    
+    // Update the sliding indicator for sidebar links
+    if (activeLink) {
+      updateSlidingIndicator(activeLink, skipTransition);
+    }
+    
+    return activeLink;
+  };
+
+  const attachHoverHandlers = () => {
+    const indicator = document.getElementById('sidebarActiveIndicator');
+    const sidebarNav = document.getElementById('sidebarNav');
+    
+    if (!indicator || !sidebarNav) return;
+    
+    // Store the currently active link
+    let currentActiveLink = null;
+    
+    // Find the current active link
+    navLinks.forEach(link => {
+      if (link.getAttribute('aria-current') === 'page' && !link.classList.contains('mobile-menu-link')) {
+        currentActiveLink = link;
+      }
+    });
+    
+    navLinks.forEach(link => {
+      // Only add hover effects to sidebar links (not mobile menu)
+      if (link.classList.contains('mobile-menu-link')) return;
+      
+      // Skip disabled links
+      if (link.dataset.disabled === 'true') return;
+      
+      link.addEventListener('mouseenter', () => {
+        // Move indicator to hovered link with elastic easing
+        const navRect = sidebarNav.getBoundingClientRect();
+        const linkRect = link.getBoundingClientRect();
+        const offsetTop = linkRect.top - navRect.top;
+        
+        // Use a snappier transition for hover
+        indicator.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), height 0.3s ease-out';
+        indicator.style.transform = `translateY(${offsetTop}px)`;
+        indicator.style.height = `${linkRect.height}px`;
+      });
+      
+      link.addEventListener('mouseleave', () => {
+        // Rubber-band back to active link with bounce effect
+        if (currentActiveLink) {
+          const navRect = sidebarNav.getBoundingClientRect();
+          const linkRect = currentActiveLink.getBoundingClientRect();
+          const offsetTop = linkRect.top - navRect.top;
+          
+          // Use elastic easing for rubber-band effect
+          indicator.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), height 0.3s ease-out';
+          indicator.style.transform = `translateY(${offsetTop}px)`;
+          indicator.style.height = `${linkRect.height}px`;
+          
+          // Reset to default transition after animation completes
+          setTimeout(() => {
+            indicator.style.transition = '';
+          }, 500);
+        }
+      });
     });
   };
 
@@ -126,11 +225,37 @@ export function initializeSidebarNavigation({
     });
   };
 
-  const applySidebarState = (collapsed) => {
+  const applySidebarState = (collapsed, skipTransition = false) => {
     if (!sidebar || !toggleButton || !appLayout || !mainContent) return;
     const isCollapsed = Boolean(collapsed);
+    
+    // Temporarily disable ALL transitions if requested (for initial page load)
+    // Remove transition classes to prevent any animation
+    let sidebarTransitionClasses = [];
+    let mainContentTransitionClasses = [];
+    
+    if (skipTransition) {
+      // Store and remove transition classes from sidebar
+      const sidebarClasses = Array.from(sidebar.classList);
+      sidebarTransitionClasses = sidebarClasses.filter(cls => 
+        cls.includes('transition') || cls.includes('duration') || cls.includes('ease')
+      );
+      sidebarTransitionClasses.forEach(cls => sidebar.classList.remove(cls));
+      
+      // Store and remove transition classes from mainContent
+      const mainClasses = Array.from(mainContent.classList);
+      mainContentTransitionClasses = mainClasses.filter(cls => 
+        cls.includes('transition') || cls.includes('duration') || cls.includes('ease')
+      );
+      mainContentTransitionClasses.forEach(cls => mainContent.classList.remove(cls));
+      
+      // Also set no-transition class as fallback
+      sidebar.classList.add('no-transition');
+      mainContent.classList.add('no-transition');
+    }
+    
     sidebar.setAttribute('data-collapsed', isCollapsed ? 'true' : 'false');
-  sidebar.classList.toggle('is-collapsed', isCollapsed);
+    sidebar.classList.toggle('is-collapsed', isCollapsed);
     sidebar.classList.toggle('md:w-72', !isCollapsed);
     sidebar.classList.toggle('md:w-24', isCollapsed);
     collapsibleTexts.forEach(elem => {
@@ -153,12 +278,28 @@ export function initializeSidebarNavigation({
     toggleButton.setAttribute('aria-expanded', (!isCollapsed).toString());
     if (toggleIcon) toggleIcon.textContent = isCollapsed ? 'chevron_right' : 'chevron_left';
     if (toggleText) toggleText.textContent = isCollapsed ? 'Expand' : 'Collapse';
+    
+    // Re-enable transitions after state is fully applied
+    if (skipTransition) {
+      // Force a reflow to ensure the style changes are applied before re-enabling transitions
+      void sidebar.offsetWidth;
+      void mainContent.offsetWidth;
+      
+      // Restore transition classes
+      sidebarTransitionClasses.forEach(cls => sidebar.classList.add(cls));
+      mainContentTransitionClasses.forEach(cls => mainContent.classList.add(cls));
+      
+      // Remove inline styles
+      sidebar.style.transition = '';
+      mainContent.style.transition = '';
+    }
   };
 
   const restoreSidebarState = () => {
     if (!sidebar || !toggleButton || !window.localStorage) return;
     const saved = window.localStorage.getItem(storageKey);
-    applySidebarState(saved === 'true');
+    // Skip transition on initial restore to prevent animation flash
+    applySidebarState(saved === 'true', true);
   };
 
   const handleToggleClick = () => {
@@ -194,6 +335,9 @@ export function initializeSidebarNavigation({
   if (path.endsWith('agent-logs.html')) {
     return 'agent-logs';
   }
+  if (path.endsWith('import-export.html')) {
+    return 'import-export';
+  }
   return null;
 };
 
@@ -204,7 +348,8 @@ export function initializeSidebarNavigation({
     : resolveRouteFromPath();
 
   if (resolvedRoute) {
-    applyActiveRoute(resolvedRoute);
+    // Skip transition on initial page load to prevent flash
+    applyActiveRoute(resolvedRoute, true);
   }
 
   if (sidebar && toggleButton && appLayout) {
@@ -213,6 +358,9 @@ export function initializeSidebarNavigation({
     window.addEventListener('resize', handleResize);
     handleResize();
   }
+
+  // Attach hover handlers for sliding indicator effect
+  attachHoverHandlers();
 
   sidebarNavInitialized = true;
 }

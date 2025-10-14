@@ -21,6 +21,20 @@ const PRESET_SCENARIOS = [
     }
   },
   {
+    label: 'already satisfied goal short circuits',
+    stacks: [['B', 'A']],
+    goal: ['A', 'B', 'Table'],
+    expectations: {
+      iterations: 0,
+      movesLength: 0,
+      intentionLogLength: 0,
+      finalOnMap: {
+        B: 'Table',
+        A: 'B'
+      }
+    }
+  },
+  {
     label: 'build tower',
     stacks: [['D'], ['C'], ['B'], ['A']],
     goal: ['A', 'B', 'C', 'D'],
@@ -84,6 +98,36 @@ const PRESET_SCENARIOS = [
     }
   },
   {
+    label: 'goal chain automatically anchors to table',
+    stacks: [['A'], ['B']],
+    goal: ['B', 'A'],
+    expectations: {
+      moves: [
+        { block: 'B', to: 'A' }
+      ],
+      intentionLogLength: 4,
+      intentionLogStepTypes: ['MOVE_CLAW', 'PICK_UP', 'MOVE_CLAW', 'DROP'],
+      movesEveryHaveClawStepsLength: 4,
+      firstMoveClawStepTypes: ['MOVE_CLAW', 'PICK_UP', 'MOVE_CLAW', 'DROP'],
+      finalOnMap: {
+        A: 'Table',
+        B: 'A'
+      }
+    }
+  },
+  {
+    label: 'planner options max iteration capped at 5000',
+    stacks: [['A'], ['B']],
+    goal: ['B', 'A', 'Table'],
+    plannerOptions: { maxIterations: 999999 },
+    expectations: {
+      moves: [
+        { block: 'B', to: 'A' }
+      ],
+      plannerOptionsUsed: { maxIterations: 5000 }
+    }
+  },
+  {
     label: 'invalid looped goal detected',
     stacks: [['D', 'E', 'C', 'A', 'B']],
     goal: ['A', 'D', 'E', 'C', 'A'],
@@ -131,6 +175,26 @@ const PRESET_SCENARIOS = [
     goal: ['A', 'Table', 'B'],
     expectFailure: true,
     expectedErrorIncludes: 'only appear as the final'
+  },
+  {
+    label: 'planner fails when maxIterations too low',
+    stacks: [['D'], ['C'], ['B'], ['A']],
+    goal: ['A', 'B', 'C', 'D', 'Table'],
+    plannerOptions: { maxIterations: 1 },
+    expectFailure: true,
+    expectedErrorIncludes: 'Unable to achieve goal'
+  },
+  {
+    label: 'planner enforces minimum maxIterations of 1',
+    stacks: [['A'], ['B']],
+    goal: ['B', 'A'],
+    plannerOptions: { maxIterations: 0 },
+    expectations: {
+      moves: [
+        { block: 'B', to: 'A' }
+      ],
+      plannerOptionsUsed: { maxIterations: 1 }
+    }
   }
 ];
 
@@ -192,6 +256,53 @@ function validateOutcome(outcome, scenario) {
       `${label}: final on-map configuration mismatch`
     );
   }
+
+  if (expectations.intentionLogLength != null) {
+    assert.equal(
+      Array.isArray(outcome.intentionLog) ? outcome.intentionLog.length : 0,
+      expectations.intentionLogLength,
+      `${label}: intention log length mismatch`
+    );
+  }
+
+  if (Array.isArray(expectations.intentionLogStepTypes)) {
+    const stepTypes = (outcome.intentionLog || []).map(entry => entry.moves?.[0]?.stepType);
+    assert.deepEqual(
+      stepTypes,
+      expectations.intentionLogStepTypes,
+      `${label}: intention log step type sequence mismatch`
+    );
+  }
+
+  if (expectations.movesEveryHaveClawStepsLength != null) {
+    outcome.moves.forEach((move, idx) => {
+      const steps = move?.clawSteps;
+      assert.ok(Array.isArray(steps), `${label}: move ${idx + 1} missing clawSteps array`);
+      assert.equal(
+        steps.length,
+        expectations.movesEveryHaveClawStepsLength,
+        `${label}: move ${idx + 1} clawSteps length mismatch`
+      );
+    });
+  }
+
+  if (Array.isArray(expectations.firstMoveClawStepTypes)) {
+    const firstMoveSteps = outcome.moves?.[0]?.clawSteps || [];
+    const stepTypes = firstMoveSteps.map(step => step.type);
+    assert.deepEqual(
+      stepTypes,
+      expectations.firstMoveClawStepTypes,
+      `${label}: first move claw step sequence mismatch`
+    );
+  }
+
+  if (expectations.plannerOptionsUsed) {
+    assert.deepEqual(
+      outcome.plannerOptionsUsed,
+      expectations.plannerOptionsUsed,
+      `${label}: planner options used mismatch`
+    );
+  }
 }
 
 function runPlannerRegressionSuite({ scenarios = PRESET_SCENARIOS, maxIterations = 2500, log = false } = {}) {
@@ -200,12 +311,17 @@ function runPlannerRegressionSuite({ scenarios = PRESET_SCENARIOS, maxIterations
       label,
       stacks,
       goal,
+      plannerOptions,
       expectFailure,
       expectedErrorIncludes
     } = scenario;
 
     try {
-      const outcome = planBlocksWorld(stacks, goal, { maxIterations });
+      const mergedOptions = {
+        maxIterations,
+        ...(plannerOptions || {})
+      };
+      const outcome = planBlocksWorld(stacks, goal, mergedOptions);
 
       if (expectFailure) {
         const message = 'Expected failure, but planner succeeded';
