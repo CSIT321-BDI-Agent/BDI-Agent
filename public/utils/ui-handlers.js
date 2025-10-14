@@ -35,7 +35,7 @@ class SimulationController {
     this.animationDuration = window.APP_CONFIG?.ANIMATION_DURATION || 550;
     this.controlsDisabled = false;
     this.manualControlsLocked = false;
-  this.allowManualDuringRun = false;
+    this.allowManualDuringRun = false;
     this.isRunning = false;
     this.activePlan = [];
     this.pendingReplan = false;
@@ -44,7 +44,12 @@ class SimulationController {
     this.currentGoalTokens = [];
     this.replanInFlight = null;
     this.elements = {};
-  this.executedMoveCount = 0;
+    this.executedMoveCount = 0;
+    this.viewportObserver = null;
+    this.viewportVisibilityHandler = null;
+    this.viewportCleanup = null;
+    this.viewportDebounceHandle = null;
+    this.pendingViewportRealign = false;
 
     const simulationConfig = window.APP_CONFIG?.SIMULATION || {};
     this.speedController = new SpeedController({
@@ -61,6 +66,7 @@ class SimulationController {
 
   initialize() {
     this.cacheDom();
+    this.setupViewportGuards();
     this.setupDragManager();
     this.setupSpeedControls();
     this.bindEvents();
@@ -120,6 +126,100 @@ class SimulationController {
     slider.value = String(this.speedController.getMultiplier());
   }
 
+  setupViewportGuards() {
+    if (typeof this.viewportCleanup === 'function') {
+      this.viewportCleanup();
+      this.viewportCleanup = null;
+    }
+
+    const worldElem = this.elements?.world;
+    if (!worldElem) {
+      return;
+    }
+
+    const simulationConfig = window.APP_CONFIG?.SIMULATION || {};
+    const debounceMsRaw = simulationConfig.WINDOW_RESIZE_DEBOUNCE_MS;
+    const debounceMs = Number.isFinite(debounceMsRaw)
+      ? Math.max(50, Math.round(debounceMsRaw))
+      : 220;
+
+    const scheduleViewportCheck = () => {
+      if (this.viewportDebounceHandle) {
+        window.clearTimeout(this.viewportDebounceHandle);
+      }
+      this.viewportDebounceHandle = window.setTimeout(() => {
+        this.viewportDebounceHandle = null;
+        this.handleViewportChange();
+      }, debounceMs);
+    };
+
+    this.viewportVisibilityHandler = () => {
+      if (document.visibilityState === 'visible') {
+        scheduleViewportCheck();
+      }
+    };
+
+    window.addEventListener('resize', scheduleViewportCheck);
+    window.addEventListener('orientationchange', scheduleViewportCheck);
+    document.addEventListener('visibilitychange', this.viewportVisibilityHandler);
+
+    if (typeof ResizeObserver === 'function') {
+      this.viewportObserver = new ResizeObserver(() => scheduleViewportCheck());
+      this.viewportObserver.observe(worldElem);
+    }
+
+    this.viewportCleanup = () => {
+      window.removeEventListener('resize', scheduleViewportCheck);
+      window.removeEventListener('orientationchange', scheduleViewportCheck);
+      document.removeEventListener('visibilitychange', this.viewportVisibilityHandler);
+      if (this.viewportObserver) {
+        this.viewportObserver.disconnect();
+        this.viewportObserver = null;
+      }
+      this.viewportVisibilityHandler = null;
+      if (this.viewportDebounceHandle) {
+        window.clearTimeout(this.viewportDebounceHandle);
+        this.viewportDebounceHandle = null;
+      }
+    };
+
+    scheduleViewportCheck();
+  }
+
+  handleViewportChange() {
+    if (!this.world) {
+      return;
+    }
+
+    this.world.updatePositions();
+
+    const claw = document.getElementById('claw');
+    if (!claw) {
+      this.pendingViewportRealign = false;
+      return;
+    }
+
+    if (this.isRunning) {
+      this.pendingViewportRealign = true;
+      return;
+    }
+
+    const previousTransition = claw.style.transition;
+    resetClawToDefault(claw, 0);
+    window.requestAnimationFrame(() => {
+      claw.style.transition = previousTransition || '';
+    });
+    this.pendingViewportRealign = false;
+  }
+
+  applyPendingViewportRealign() {
+    if (!this.pendingViewportRealign) {
+      return;
+    }
+    this.pendingViewportRealign = false;
+    this.handleViewportChange();
+  }
+
   syncSpeedUI() {
     const { speedSlider, speedValueLabel } = this.elements;
     if (speedSlider && Number(speedSlider.value) !== this.speedController.getMultiplier()) {
@@ -147,7 +247,11 @@ class SimulationController {
       }
     });
     this.elements.goalInput?.addEventListener('change', () => this.handleGoalInputChange());
-    this.elements.speedSlider?.addEventListener('input', (event) => this.handleSpeedSliderChange(event));
+    if (this.elements.speedSlider) {
+      const slider = this.elements.speedSlider;
+      slider.addEventListener('input', (event) => this.handleSpeedSliderChange(event, { log: false }));
+      slider.addEventListener('change', (event) => this.handleSpeedSliderChange(event, { log: true }));
+    }
 
     this.elements.saveBtn?.addEventListener('click', () => saveWorld(this.world));
     this.elements.loadBtn?.addEventListener('click', () => loadSelectedWorld(this.world));
@@ -216,7 +320,7 @@ class SimulationController {
   }
 
   handleBlockAddition() {
-    if (this.controlsDisabled) return;
+    if (this.manualControlsLocked) return;
     const nextLetter = this.getNextBlockLetter();
 
     if (!nextLetter) {
@@ -237,7 +341,7 @@ class SimulationController {
   }
 
   handleBlockRemoval() {
-    if (this.controlsDisabled) return;
+    if (this.manualControlsLocked) return;
     const targetBlock = this.getTopmostBlock();
 
     if (!targetBlock) {
@@ -257,14 +361,16 @@ class SimulationController {
     }
   }
 
-  handleSpeedSliderChange(event) {
+  handleSpeedSliderChange(event, { log = false } = {}) {
     const rawValue = Number(event?.target?.value);
     if (!Number.isFinite(rawValue)) {
       return;
     }
     const applied = this.speedController.setMultiplier(rawValue);
     this.syncSpeedUI();
-    logAction(`Adjusted simulation speed to ${applied.toFixed(2)}x`, 'user');
+    if (log) {
+      logAction(`Adjusted simulation speed to ${applied.toFixed(2)}x`, 'user');
+    }
   }
 
   handleGoalInputChange() {
@@ -341,9 +447,15 @@ class SimulationController {
   }
 
   recordMutation(mutation) {
-    if (!this.isRunning) {
+    if (!mutation || typeof mutation !== 'object') {
       return;
     }
+
+    if (!this.isRunning) {
+      this.logMutations([mutation]);
+      return;
+    }
+
     this.mutationQueue.add(mutation);
   }
 
@@ -560,6 +672,8 @@ class SimulationController {
       this.isRunning = false;
       this.setManualControlsEnabled(true);
       this.dragManager?.enable();
+      this.dragManager?.clearLockedBlocks?.();
+      this.applyPendingViewportRealign();
     }
   }
 
@@ -569,6 +683,7 @@ class SimulationController {
     this.mutationQueue.clear();
     this.setManualControlsEnabled(true);
     this.dragManager?.enable();
+    this.dragManager?.clearLockedBlocks?.();
     showMessage('Planner could not achieve the goal within the iteration limit.', 'warning');
     renderIntentionTimeline(
       plannerResponse.intentionLog || [],
@@ -581,6 +696,7 @@ class SimulationController {
     const actualCycles = (plannerResponse.intentionLog || []).length;
     updateStats(actualCycles, 'Failure');
     this.setControlsDisabled(false);
+    this.applyPendingViewportRealign();
   }
 
   async handlePlannerSuccess(plannerResponse) {
@@ -599,7 +715,9 @@ class SimulationController {
       this.setControlsDisabled(false);
       this.setManualControlsEnabled(true);
       this.dragManager?.enable();
+      this.dragManager?.clearLockedBlocks?.();
       this.isRunning = false;
+      this.applyPendingViewportRealign();
       return;
     }
 
@@ -615,7 +733,9 @@ class SimulationController {
       this.setControlsDisabled(false);
       this.setManualControlsEnabled(true);
       this.dragManager?.enable();
+      this.dragManager?.clearLockedBlocks?.();
       this.isRunning = false;
+      this.applyPendingViewportRealign();
       return;
     }
 
@@ -636,7 +756,9 @@ class SimulationController {
     this.setControlsDisabled(false);
     this.setManualControlsEnabled(true);
     this.dragManager?.enable();
+    this.dragManager?.clearLockedBlocks?.();
     this.isRunning = false;
+    this.applyPendingViewportRealign();
   }
 
   async executeMoves(moves) {
@@ -656,13 +778,7 @@ class SimulationController {
     }
 
     while (this.isRunning) {
-      this.setManualControlsEnabled(true);
-      this.dragManager?.enable();
-
       await this.speedController.waitForWindow();
-
-      this.setManualControlsEnabled(false);
-      this.dragManager?.disable();
 
       await this.handleCheckpoint();
 
@@ -679,6 +795,10 @@ class SimulationController {
       }
 
       const nextMove = this.activePlan.shift();
+      const blockToLock = nextMove?.block;
+      if (blockToLock) {
+        this.dragManager?.lockBlocks([blockToLock]);
+      }
       await new Promise((resolve) => {
         simulateMove(
           nextMove,
@@ -686,13 +806,19 @@ class SimulationController {
           this.elements.world,
           claw,
           markTimelineStep,
-          resolve,
+          () => {
+            if (blockToLock) {
+              this.dragManager?.unlockBlocks([blockToLock]);
+            }
+            resolve();
+          },
           { durationMs: stepDuration() }
         );
       });
       this.executedMoveCount += 1;
     }
 
+    this.dragManager?.clearLockedBlocks?.();
     this.setManualControlsEnabled(true);
     this.dragManager?.enable();
 
@@ -702,6 +828,7 @@ class SimulationController {
       await this.speedController.waitForWindow();
     }
 
+    this.applyPendingViewportRealign();
     this.activePlan = [];
     return !aborted;
   }

@@ -74,6 +74,14 @@ export const BLOCK_COLOUR_PALETTE = [
 export const CLAW_HEIGHT = 25;
 export const CLAW_WIDTH = 60; // Must match --claw-width in CSS
 export const CLAW_OFFSET = (BLOCK_WIDTH - CLAW_WIDTH) / 2; // Center claw over blocks (10px)
+export const CLAW_ARM_WIDTH = 8;
+export const CLAW_ARM_HEIGHT = (() => {
+  const configured = window.APP_CONFIG?.SIMULATION?.CLAW_ARM_HEIGHT;
+  if (Number.isFinite(configured)) {
+    return Math.max(20, Math.round(configured));
+  }
+  return 240;
+})();
 
 // Claw Home Position (top center of world)
 export const CLAW_HOME_TOP = -40; // Above the world area
@@ -121,6 +129,8 @@ export function initializeClaw() {
   claw.id = 'claw';
   claw.className = 'absolute z-50 flex h-[25px] w-[60px] items-end justify-center rounded-t-md bg-brand-dark';
   claw.setAttribute('data-claw-id', '0'); // Future: support for multiple claws
+
+  ensureClawArm(claw);
   worldElem.appendChild(claw);
   
   // Set home position at top center
@@ -144,7 +154,26 @@ export function resetClawToHome(claw, durationOverride = null) {
   claw.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
   claw.style.left = `${centerLeft}px`;
   claw.style.top = `${CLAW_HOME_TOP}px`;
+  ensureClawArm(claw);
 }
 
 // Backward compatibility alias
 export const resetClawToDefault = resetClawToHome;
+
+function ensureClawArm(claw) {
+  if (!claw) return;
+  let arm = claw.querySelector('[data-claw-arm="true"]');
+  if (!arm) {
+    arm = document.createElement('div');
+    arm.dataset.clawArm = 'true';
+    arm.className = 'pointer-events-none absolute rounded-b-sm bg-brand-dark/80';
+    claw.appendChild(arm);
+  }
+
+  const width = CLAW_ARM_WIDTH;
+  const height = CLAW_ARM_HEIGHT;
+  arm.style.width = `${width}px`;
+  arm.style.height = `${height}px`;
+  arm.style.left = `${(CLAW_WIDTH / 2) - (width / 2)}px`;
+  arm.style.top = `${-height}px`;
+}

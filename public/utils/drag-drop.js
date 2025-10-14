@@ -10,6 +10,7 @@ export class BlockDragManager {
     this.enabled = false;
     this.dragState = null;
     this.onUserMutation = null;
+    this.lockedBlocks = new Set();
 
     this.handlePointerDown = this.handlePointerDown.bind(this);
     this.handlePointerMove = this.handlePointerMove.bind(this);
@@ -30,12 +31,14 @@ export class BlockDragManager {
     if (this.enabled) {
       this.attachListeners();
     }
+    this.lockedBlocks.forEach(block => this.applyLockState(block, true));
   }
 
   enable() {
     if (this.enabled) return;
     this.enabled = true;
     this.attachListeners();
+    this.lockedBlocks.forEach(block => this.applyLockState(block, true));
   }
 
   disable() {
@@ -70,14 +73,31 @@ export class BlockDragManager {
 
     const blockName = blockElem.dataset.block;
     if (!blockName) return;
-
-    if (!this.world.isClear(blockName)) {
-      showMessage(`Block "${blockName}" is not clear. Move blocks above it first.`, 'warning');
+    if (this.isLocked(blockName)) {
       return;
     }
 
     const rect = blockElem.getBoundingClientRect();
-    const containerRect = this.container.getBoundingClientRect();
+    const originSupport = this.world.on[blockName] || 'Table';
+    const originStackIndex = this.world.stacks.findIndex(stack => stack.includes(blockName));
+    let blockedDestinations = new Set();
+
+    if (originStackIndex !== -1) {
+      const stackSnapshot = [...this.world.stacks[originStackIndex]];
+      const position = stackSnapshot.indexOf(blockName);
+      if (position !== -1) {
+        blockedDestinations = new Set(stackSnapshot.slice(position + 1));
+      }
+    }
+    let detachInfo = null;
+
+    try {
+      detachInfo = this.world.detachBlock(blockName);
+    } catch (error) {
+      console.error('BlockDragManager: unable to detach block for dragging', error);
+      showMessage('Unable to pick up that block right now.', 'error');
+      return;
+    }
 
     this.dragState = {
       block: blockName,
@@ -88,7 +108,9 @@ export class BlockDragManager {
       originalTransition: blockElem.style.transition,
       originalLeft: blockElem.style.left,
       originalTop: blockElem.style.top,
-      originSupport: this.world.on[blockName] || 'Table'
+      originSupport,
+      detachInfo,
+      blockedDestinations
     };
 
     blockElem.setPointerCapture(event.pointerId);
@@ -126,8 +148,13 @@ export class BlockDragManager {
   }
 
   finalizeDrag(event) {
-    const { block, element, originalTransition, originSupport } = this.dragState;
-    element.releasePointerCapture(this.dragState.pointerId);
+    const state = this.dragState;
+    if (!state) {
+      return;
+    }
+
+    const { block, element, originalTransition, originSupport, detachInfo } = state;
+    element.releasePointerCapture(state.pointerId);
 
     element.style.transition = originalTransition || '';
     DRAGGING_CLASSES.forEach(cls => element.classList.remove(cls));
@@ -136,7 +163,7 @@ export class BlockDragManager {
     this.resetDragState();
 
     if (!destination) {
-      this.world.updatePositions();
+      this.world.restoreDetachedBlock(block, detachInfo);
       return;
     }
 
@@ -144,43 +171,56 @@ export class BlockDragManager {
     const normalizedDest = type === 'table' ? 'Table' : target;
 
     if (!this.isMoveMeaningful(block, normalizedDest, originSupport)) {
-      this.world.updatePositions();
+      this.world.restoreDetachedBlock(block, detachInfo);
       return;
     }
 
-    if (!this.isDestinationValid(block, normalizedDest)) {
+    if (!this.isDestinationValid(block, normalizedDest, state)) {
       showMessage(`Cannot move ${block} onto ${normalizedDest}.`, 'warning');
-      this.world.updatePositions();
+      this.world.restoreDetachedBlock(block, detachInfo);
       return;
     }
 
     try {
-      this.world.moveBlock(block, normalizedDest);
-      this.world.updatePositions();
+      const dropOptions = type === 'table'
+        ? { preferredStackIndex: destination.stackIndex }
+        : {};
+      this.world.placeBlock(block, normalizedDest, dropOptions);
       if (typeof this.onUserMutation === 'function') {
         this.onUserMutation({
           type: 'MOVE',
           block,
           to: normalizedDest,
-          from: originSupport
+          from: originSupport,
+          payload: {
+            detachInfo,
+            dropType: type,
+            blockedDestinations: Array.from(state.blockedDestinations || [])
+          }
         });
       }
     } catch (error) {
       console.error('BlockDragManager: failed to apply move', error);
       showMessage('Unable to complete that move.', 'error');
-      this.world.updatePositions();
+      this.world.restoreDetachedBlock(block, detachInfo);
     }
   }
 
   cancelDrag() {
-    const { element, originalTransition } = this.dragState || {};
+    const state = this.dragState;
+    if (!state) {
+      return;
+    }
+
+    const { element, originalTransition, detachInfo, block } = state;
+    element?.releasePointerCapture?.(state.pointerId);
     if (element) {
-      element.releasePointerCapture?.(this.dragState.pointerId);
       element.style.transition = originalTransition || '';
       DRAGGING_CLASSES.forEach(cls => element.classList.remove(cls));
     }
+
     this.resetDragState();
-    this.world?.updatePositions();
+    this.world?.restoreDetachedBlock(block, detachInfo);
   }
 
   resetDragState() {
@@ -188,16 +228,13 @@ export class BlockDragManager {
   }
 
   isMoveMeaningful(block, destination, originSupport) {
-    if (destination === 'Table' && originSupport === 'Table') {
-      return false;
-    }
     if (destination === originSupport) {
       return false;
     }
     return true;
   }
 
-  isDestinationValid(block, destination) {
+  isDestinationValid(block, destination, state) {
     if (!this.world) return false;
     if (destination === 'Table') {
       return true;
@@ -206,6 +243,9 @@ export class BlockDragManager {
       return false;
     }
     if (block === destination) {
+      return false;
+    }
+    if (state?.blockedDestinations?.has(destination)) {
       return false;
     }
     return this.world.isClear(destination);
@@ -218,24 +258,70 @@ export class BlockDragManager {
     const relativeX = event.clientX - containerRect.left;
 
     if (relativeX < 0 || this.world.stacks.length === 0) {
-      return { type: 'table', target: 'Table' };
+      return { type: 'table', target: 'Table', stackIndex: 0 };
     }
 
     const columnWidth = BLOCK_WIDTH + STACK_MARGIN;
     const stackIndex = Math.floor(relativeX / columnWidth);
 
-    if (stackIndex < 0 || stackIndex >= this.world.stacks.length) {
-      return { type: 'table', target: 'Table' };
+    if (stackIndex < 0) {
+      return { type: 'table', target: 'Table', stackIndex: 0 };
+    }
+
+    if (stackIndex >= this.world.stacks.length) {
+      return { type: 'table', target: 'Table', stackIndex: this.world.stacks.length };
     }
 
     const targetStack = this.world.stacks[stackIndex];
     if (!Array.isArray(targetStack) || targetStack.length === 0) {
-      return { type: 'table', target: 'Table' };
+      return { type: 'table', target: 'Table', stackIndex };
     }
 
     return {
       type: 'stack',
-      target: targetStack[targetStack.length - 1]
+      target: targetStack[targetStack.length - 1],
+      stackIndex
     };
+  }
+
+  isLocked(blockName) {
+    return this.lockedBlocks.has(blockName);
+  }
+
+  lockBlocks(blocks = []) {
+    blocks.forEach(block => {
+      if (!block) return;
+      this.lockedBlocks.add(block);
+      this.applyLockState(block, true);
+    });
+  }
+
+  unlockBlocks(blocks = []) {
+    blocks.forEach(block => {
+      if (!block) return;
+      this.lockedBlocks.delete(block);
+      this.applyLockState(block, false);
+    });
+  }
+
+  clearLockedBlocks() {
+    Array.from(this.lockedBlocks).forEach(block => this.applyLockState(block, false));
+    this.lockedBlocks.clear();
+  }
+
+  applyLockState(blockName, locked) {
+    const elem = this.container?.querySelector(`[data-block='${blockName}']`);
+    if (!elem) return;
+    if (locked) {
+      elem.dataset.locked = 'true';
+      elem.classList.remove('cursor-grab');
+      elem.classList.add('cursor-not-allowed');
+    } else {
+      elem.classList.remove('cursor-not-allowed');
+      elem.classList.add('cursor-grab');
+      if (elem.dataset.locked) {
+        delete elem.dataset.locked;
+      }
+    }
   }
 }

@@ -209,7 +209,9 @@ const buildFrontendConfig = () => {
     SPEED_MIN: 0.25,
     SPEED_MAX: 2,
     SPEED_DEFAULT: 1,
-    INTERACTION_WINDOW_MS: 750
+    INTERACTION_WINDOW_MS: 750,
+    WINDOW_RESIZE_DEBOUNCE_MS: 220,
+    CLAW_ARM_HEIGHT: 240
   };
 
   return {

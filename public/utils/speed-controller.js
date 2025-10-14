@@ -12,11 +12,13 @@ export class SpeedController {
     this.minMultiplier = minMultiplier;
     this.maxMultiplier = maxMultiplier;
     this.multiplier = clamp(defaultMultiplier, this.minMultiplier, this.maxMultiplier);
-    this.interactionWindowMs = Math.max(200, Math.round(interactionWindowMs));
+    this.baseInteractionWindowMs = Math.max(200, Math.round(interactionWindowMs));
   }
 
   setMultiplier(multiplier) {
-    const clamped = clamp(Number(multiplier) || this.minMultiplier, this.minMultiplier, this.maxMultiplier);
+    const numeric = Number(multiplier);
+    const safe = Number.isFinite(numeric) && numeric > 0 ? numeric : this.minMultiplier;
+    const clamped = clamp(safe, this.minMultiplier, this.maxMultiplier);
     this.multiplier = clamped;
     return this.multiplier;
   }
@@ -33,11 +35,13 @@ export class SpeedController {
   }
 
   getStepDuration() {
-    return Math.max(100, Math.round(this.baseDuration * this.multiplier));
+    return Math.max(100, Math.round(this.baseDuration / this.multiplier));
   }
 
   getInteractionWindow() {
-    return Math.max(200, Math.round(this.interactionWindowMs * this.multiplier));
+    const scaled = this.baseInteractionWindowMs / Math.max(this.multiplier, 0.01);
+    const clamped = Math.min(1200, scaled);
+    return Math.max(150, Math.round(clamped));
   }
 
   async waitForWindow() {

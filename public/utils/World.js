@@ -137,6 +137,101 @@ export class World {
     this.notifyStacksChanged();
   }
 
+  rebuildSupportForStack(stackIndex) {
+    const stack = this.stacks[stackIndex];
+    if (!Array.isArray(stack)) {
+      return;
+    }
+    stack.forEach((blockName, index) => {
+      this.on[blockName] = index === 0 ? 'Table' : stack[index - 1];
+    });
+  }
+
+  detachBlock(block) {
+    const stackIndex = this.stacks.findIndex(s => s.includes(block));
+    if (stackIndex === -1) {
+      throw new Error(`Block ${block} is not in any stack`);
+    }
+
+    const stack = this.stacks[stackIndex];
+    const position = stack.indexOf(block);
+    if (position === -1) {
+      throw new Error(`Block ${block} not found in the expected stack`);
+    }
+
+    const info = {
+      stackIndex,
+      position,
+      stackRemoved: false
+    };
+
+    stack.splice(position, 1);
+
+    if (stack.length === 0) {
+      this.stacks.splice(stackIndex, 1);
+      info.stackRemoved = true;
+    } else {
+      this.rebuildSupportForStack(stackIndex);
+    }
+
+    delete this.on[block];
+
+    this.notifyStacksChanged();
+    this.updatePositions(block);
+
+    return info;
+  }
+
+  restoreDetachedBlock(block, info) {
+    if (!info || typeof info.stackIndex !== 'number') {
+      this.placeBlock(block, 'Table');
+      return;
+    }
+
+    const targetIndex = Math.max(0, Math.min(info.stackIndex, this.stacks.length));
+
+    if (info.stackRemoved) {
+      this.stacks.splice(targetIndex, 0, []);
+    }
+
+    if (!this.stacks[targetIndex]) {
+      this.stacks[targetIndex] = [];
+    }
+
+    const stack = this.stacks[targetIndex];
+    const insertPosition = Math.max(0, Math.min(info.position ?? stack.length, stack.length));
+    stack.splice(insertPosition, 0, block);
+    this.rebuildSupportForStack(targetIndex);
+
+    this.notifyStacksChanged();
+    this.updatePositions();
+  }
+
+  placeBlock(block, dest, options = {}) {
+    const { preferredStackIndex = null } = options;
+
+    if (dest === 'Table') {
+      const newStack = [block];
+      if (Number.isInteger(preferredStackIndex) && preferredStackIndex >= 0 && preferredStackIndex <= this.stacks.length) {
+        this.stacks.splice(preferredStackIndex, 0, newStack);
+      } else {
+        this.stacks.push(newStack);
+      }
+      this.on[block] = 'Table';
+    } else {
+      const destIndex = this.stacks.findIndex(s => s.includes(dest));
+      if (destIndex === -1) {
+        throw new Error(`Destination block ${dest} not found`);
+      }
+      this.stacks[destIndex].push(block);
+      this.on[block] = dest;
+      this.rebuildSupportForStack(destIndex);
+    }
+
+    this.notifyStacksChanged();
+    this.updatePositions();
+  }
+
   /**
    * Dispatch a DOM event when block composition changes
    */
@@ -148,6 +243,7 @@ export class World {
 
     document.dispatchEvent(new CustomEvent('world:blocks-changed', { detail }));
   }
+
 
   /**
    * Get the block directly above the specified block
