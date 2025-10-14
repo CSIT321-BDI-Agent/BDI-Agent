@@ -13,13 +13,17 @@ import {
   startPlannerClock,
   stopPlannerClock,
   finalizeTimeline,
-  markTimelineStep
+  markTimelineStep,
+  getIntentionTimelineSnapshot
 } from './timeline.js';
 import { requestBDIPlan } from './planner.js';
 import { simulateMove } from './animation.js';
 import { saveWorld, loadSelectedWorld, refreshLoadList } from './persistence.js';
 import { startStatsTimer, stopStatsTimer, updateStats, resetStats } from './stats.js';
 import { logAction } from './logger.js';
+import { BlockDragManager } from './drag-drop.js';
+import { MutationQueue } from './mutation-queue.js';
+import { SpeedController } from './speed-controller.js';
 
 const LETTER_Z_CODE = 'Z'.charCodeAt(0);
 const MOVE_CYCLE_BUFFER = 600; // buffer to let the claw settle between moves
@@ -30,13 +34,39 @@ class SimulationController {
     this.maxBlocks = window.APP_CONFIG?.MAX_BLOCKS || 26;
     this.animationDuration = window.APP_CONFIG?.ANIMATION_DURATION || 550;
     this.controlsDisabled = false;
+    this.manualControlsLocked = false;
+  this.allowManualDuringRun = false;
+    this.isRunning = false;
+    this.activePlan = [];
+    this.pendingReplan = false;
+    this.pendingReplanReason = null;
+    this.stagedGoalTokens = null;
+    this.currentGoalTokens = [];
+    this.replanInFlight = null;
     this.elements = {};
+  this.executedMoveCount = 0;
+
+    const simulationConfig = window.APP_CONFIG?.SIMULATION || {};
+    this.speedController = new SpeedController({
+      baseDuration: this.animationDuration,
+      minMultiplier: simulationConfig.SPEED_MIN ?? 0.25,
+      maxMultiplier: simulationConfig.SPEED_MAX ?? 2,
+      defaultMultiplier: simulationConfig.SPEED_DEFAULT ?? 1,
+      interactionWindowMs: simulationConfig.INTERACTION_WINDOW_MS ?? 750
+    });
+
+    this.mutationQueue = new MutationQueue();
+    this.dragManager = null;
   }
 
   initialize() {
     this.cacheDom();
+    this.setupDragManager();
+    this.setupSpeedControls();
     this.bindEvents();
     this.syncBlockControls();
+    this.syncSpeedUI();
+    this.setManualControlsEnabled(true);
     resetStats();
     refreshLoadList();
   }
@@ -52,8 +82,57 @@ class SimulationController {
       goalInput: DOM.goalInput(),
       saveBtn: DOM.saveBtn(),
       loadBtn: DOM.loadBtn(),
-      loadSelect: DOM.loadSelect()
+      loadSelect: DOM.loadSelect(),
+      speedSlider: DOM.speedSlider(),
+      speedValueLabel: DOM.speedValueLabel()
     };
+  }
+
+  setupDragManager() {
+    if (!this.world || !this.elements.world) {
+      return;
+    }
+
+    if (!this.dragManager) {
+      this.dragManager = new BlockDragManager(this.world, this.elements.world);
+      this.dragManager.onUserMutation = (mutation) => this.handleUserMutation(mutation);
+    } else {
+      this.dragManager.setWorld(this.world);
+      this.dragManager.setContainer(this.elements.world);
+    }
+
+    this.dragManager.enable();
+  }
+
+  setupSpeedControls() {
+    const slider = this.elements.speedSlider;
+    if (!slider) {
+      return;
+    }
+    const simulationConfig = window.APP_CONFIG?.SIMULATION || {};
+    if (simulationConfig.SPEED_MIN != null) {
+      slider.min = String(simulationConfig.SPEED_MIN);
+    }
+    if (simulationConfig.SPEED_MAX != null) {
+      slider.max = String(simulationConfig.SPEED_MAX);
+    }
+    slider.step = slider.step || '0.05';
+    slider.value = String(this.speedController.getMultiplier());
+  }
+
+  syncSpeedUI() {
+    const { speedSlider, speedValueLabel } = this.elements;
+    if (speedSlider && Number(speedSlider.value) !== this.speedController.getMultiplier()) {
+      speedSlider.value = String(this.speedController.getMultiplier());
+    }
+    if (speedValueLabel) {
+      speedValueLabel.textContent = `${this.speedController.getMultiplier().toFixed(2)}x`;
+    }
+  }
+
+  setManualControlsEnabled(enabled) {
+    this.manualControlsLocked = !enabled;
+    this.refreshStepperAvailability();
   }
 
   bindEvents() {
@@ -67,6 +146,8 @@ class SimulationController {
         this.runSimulation();
       }
     });
+    this.elements.goalInput?.addEventListener('change', () => this.handleGoalInputChange());
+    this.elements.speedSlider?.addEventListener('input', (event) => this.handleSpeedSliderChange(event));
 
     this.elements.saveBtn?.addEventListener('click', () => saveWorld(this.world));
     this.elements.loadBtn?.addEventListener('click', () => loadSelectedWorld(this.world));
@@ -103,7 +184,7 @@ class SimulationController {
     return null;
   }
 
-  syncBlockControls(forceDisabled = this.controlsDisabled) {
+  syncBlockControls(forceDisabled = this.controlsDisabled && !this.allowManualDuringRun) {
     const { blockCountLabel, nextBlockLabel } = this.elements;
 
     if (blockCountLabel) {
@@ -118,11 +199,13 @@ class SimulationController {
     this.refreshStepperAvailability(forceDisabled);
   }
 
-  refreshStepperAvailability(forceDisabled = this.controlsDisabled) {
+  refreshStepperAvailability(forceDisabled = this.controlsDisabled && !this.allowManualDuringRun) {
     const { addBtn, removeBtn } = this.elements;
     if (!addBtn || !removeBtn) return;
 
-    if (forceDisabled) {
+    const shouldDisable = forceDisabled || this.manualControlsLocked;
+
+    if (shouldDisable) {
       addBtn.disabled = true;
       removeBtn.disabled = true;
       return;
@@ -146,6 +229,10 @@ class SimulationController {
     if (added) {
       logAction(`Added block "${nextLetter}" to the workspace`, 'user');
       this.syncBlockControls();
+      if (this.isRunning) {
+        this.recordMutation({ type: 'BLOCK_ADD', block: nextLetter });
+        this.requestReplan('block-added');
+      }
     }
   }
 
@@ -163,64 +250,299 @@ class SimulationController {
     if (removed) {
       logAction(`Removed block "${targetBlock}" from the workspace`, 'user');
       this.syncBlockControls();
+      if (this.isRunning) {
+        this.recordMutation({ type: 'BLOCK_REMOVE', block: targetBlock });
+        this.requestReplan('block-removed');
+      }
     }
   }
 
-  setControlsDisabled(disabled) {
-    this.controlsDisabled = disabled;
-    const { startBtn, saveBtn, loadBtn, goalInput } = this.elements;
-
-    [startBtn, saveBtn, loadBtn, goalInput].forEach((element) => {
-      if (element) element.disabled = disabled;
-    });
-
-    if (disabled) {
-      showMessage('Simulation running...', 'info');
+  handleSpeedSliderChange(event) {
+    const rawValue = Number(event?.target?.value);
+    if (!Number.isFinite(rawValue)) {
+      return;
     }
-
-    this.refreshStepperAvailability(disabled);
+    const applied = this.speedController.setMultiplier(rawValue);
+    this.syncSpeedUI();
+    logAction(`Adjusted simulation speed to ${applied.toFixed(2)}x`, 'user');
   }
 
-  async runSimulation() {
-    if (!this.world || this.controlsDisabled) return;
+  handleGoalInputChange() {
+    if (!this.isRunning) return;
+    const rawInput = this.elements.goalInput?.value ?? '';
+    const { tokens, error } = this.parseGoalInput(rawInput, { allowEmpty: true });
 
-    const goalInput = (this.elements.goalInput?.value || '').trim();
-    if (!goalInput) {
-      showMessage('Please enter a goal (e.g., "A on B on C").', 'error');
+    if (error) {
+      showMessage(error, 'warning');
       return;
     }
 
-    const goalTokens = goalInput
-      .split(/\s*on\s*/i)
-      .map((token) => token.trim().toUpperCase())
-      .filter(Boolean);
-
-    if (goalTokens.length === 0) {
-      showMessage('Goal input is empty or invalid.', 'error');
+    if (!tokens || tokens.length === 0) {
       return;
     }
 
-    const currentBlocks = this.world.getCurrentBlocks();
-    const unknownBlocks = goalTokens.filter((token) => token !== 'TABLE' && !currentBlocks.includes(token));
+    const unknownBlocks = this.findUnknownGoalBlocks(tokens);
     if (unknownBlocks.length > 0) {
       showMessage(`Unknown blocks in goal: ${unknownBlocks.join(', ')}.`, 'error');
       return;
     }
 
-    this.setControlsDisabled(true);
+    if (this.areGoalTokensEqual(tokens, this.currentGoalTokens)) {
+      return;
+    }
+
+    this.stagedGoalTokens = tokens;
+    this.recordMutation({ type: 'GOAL_SET', goals: tokens });
+    this.requestReplan('goal-change');
+    logAction(`Updated goal to ${tokens.join(' on ')}`, 'user');
+  }
+
+  parseGoalInput(rawInput, { allowEmpty = false } = {}) {
+    const sanitized = (rawInput || '').trim();
+    if (!sanitized) {
+      return allowEmpty
+        ? { tokens: [] }
+        : { error: 'Please enter a goal (e.g., "A on B on C").' };
+    }
+
+    const tokens = sanitized
+      .split(/\s*on\s*/i)
+      .map((token) => token.trim().toUpperCase())
+      .filter(Boolean);
+
+    if (tokens.length === 0) {
+      return allowEmpty
+        ? { tokens: [] }
+        : { error: 'Goal input is empty or invalid.' };
+    }
+
+    if (tokens[tokens.length - 1] !== 'TABLE') {
+      tokens.push('Table');
+    }
+
+    return { tokens };
+  }
+
+  areGoalTokensEqual(a = [], b = []) {
+    if (a.length !== b.length) return false;
+    return a.every((token, idx) => token === b[idx]);
+  }
+
+  findUnknownGoalBlocks(tokens = []) {
+    const currentBlocks = this.world.getCurrentBlocks();
+    return tokens.filter((token) => token !== 'Table' && !currentBlocks.includes(token));
+  }
+
+  handleUserMutation(mutation) {
+    this.recordMutation(mutation);
+    if (this.isRunning) {
+      this.requestReplan('manual-move');
+    }
+  }
+
+  recordMutation(mutation) {
+    if (!this.isRunning) {
+      return;
+    }
+    this.mutationQueue.add(mutation);
+  }
+
+  requestReplan(reason = 'manual-change') {
+    if (!this.isRunning) {
+      return;
+    }
+    if (this.pendingReplan) {
+      this.pendingReplanReason = reason;
+      return;
+    }
+    this.pendingReplan = true;
+    this.pendingReplanReason = reason;
+    updateStats(undefined, 'Planning');
+    showMessage('Manual edit received. Re-planning before continuing...', 'info');
+  }
+
+  async handleCheckpoint() {
+    const mutations = this.mutationQueue.drain();
+    if (mutations.length > 0) {
+      this.logMutations(mutations);
+    }
+
+    if (this.pendingReplan) {
+      await this.performReplan();
+    }
+  }
+
+  async performReplan() {
+    if (!this.pendingReplan) return;
+    if (this.replanInFlight) {
+      await this.replanInFlight;
+      return;
+    }
+
+    const targetGoalTokens = this.stagedGoalTokens && this.stagedGoalTokens.length > 0
+      ? this.stagedGoalTokens
+      : this.currentGoalTokens;
+
+    if (!targetGoalTokens || targetGoalTokens.length === 0) {
+      showMessage('Cannot re-plan without a valid goal.', 'error');
+      this.isRunning = false;
+      this.pendingReplan = false;
+      return;
+    }
+
+    const planPromise = this.requestPlan(targetGoalTokens).then((response) => {
+      if (!response.goalAchieved) {
+        showMessage('Planner could not satisfy the updated goal.', 'warning');
+        this.pendingReplan = false;
+        this.isRunning = false;
+        return response;
+      }
+      return response;
+    }).catch((error) => {
+      handleError(error, 'replan');
+      this.pendingReplan = false;
+      this.isRunning = false;
+      return null;
+    });
+
+    this.replanInFlight = planPromise;
+    const plannerResponse = await planPromise;
+    this.replanInFlight = null;
+
+    if (!plannerResponse || !this.isRunning) {
+      return;
+    }
+
+    await this.applyReplanResponse(plannerResponse, targetGoalTokens);
+  }
+
+  async applyReplanResponse(plannerResponse, goalTokens) {
+    this.pendingReplan = false;
+    this.pendingReplanReason = null;
+    this.stagedGoalTokens = null;
+    this.currentGoalTokens = goalTokens;
+
+    if (!plannerResponse.goalAchieved) {
+      this.isRunning = false;
+      return;
+    }
+
+    const moves = Array.isArray(plannerResponse.moves) ? [...plannerResponse.moves] : [];
+    this.activePlan = moves;
+    renderIntentionTimeline(
+      plannerResponse.intentionLog || [],
+      plannerResponse.agentCount || 1,
+      { emptyMessage: 'No planner cycles required after manual update.' }
+    );
+    updateStats(undefined, moves.length === 0 ? 'Idle' : 'Running');
+
+    if (moves.length === 0) {
+      showMessage('Goal already satisfied after manual edits.', 'success');
+    } else {
+      showMessage('Plan updated after manual change. Continuing execution...', 'success');
+    }
+  }
+
+  logMutations(mutations) {
+    mutations.forEach((mutation) => {
+      if (!mutation || typeof mutation !== 'object') return;
+      switch (mutation.type) {
+        case 'MOVE':
+          logAction(`Manual move: ${mutation.block} -> ${mutation.to}`, 'user');
+          break;
+        case 'BLOCK_ADD':
+          logAction(`Manual addition: added block ${mutation.block}`, 'user');
+          break;
+        case 'BLOCK_REMOVE':
+          logAction(`Manual removal: removed block ${mutation.block}`, 'user');
+          break;
+        case 'GOAL_SET':
+          if (Array.isArray(mutation.goals) && mutation.goals.length > 0) {
+            logAction(`Manual goal update: ${mutation.goals.join(' on ')}`, 'user');
+          } else {
+            logAction('Manual goal update applied.', 'user');
+          }
+          break;
+        default:
+          logAction('Manual mutation applied.', 'user');
+          break;
+      }
+    });
+  }
+
+  async requestPlan(goalTokens) {
+    return requestBDIPlan(
+      this.world.getCurrentStacks(),
+      goalTokens,
+      { maxIterations: window.APP_CONFIG?.PLANNER?.MAX_ITERATIONS || 2500 }
+    );
+  }
+
+  setControlsDisabled(disabled, options = {}) {
+  this.controlsDisabled = disabled;
+    const { startBtn, saveBtn, loadBtn, goalInput } = this.elements;
+    const allowManualInteractions = Boolean(options.allowManualInteractions);
+  this.allowManualDuringRun = disabled && allowManualInteractions;
+
+    [startBtn, saveBtn, loadBtn].forEach((element) => {
+      if (element) element.disabled = disabled;
+    });
+
+    if (goalInput) {
+      goalInput.disabled = disabled && !allowManualInteractions;
+    }
+
+    if (disabled) {
+      showMessage('Simulation running...', 'info');
+    }
+
+    if (disabled && !allowManualInteractions) {
+      this.manualControlsLocked = true;
+    } else if (!disabled) {
+      this.manualControlsLocked = false;
+      this.allowManualDuringRun = false;
+    }
+
+    this.refreshStepperAvailability(disabled && !allowManualInteractions);
+  }
+
+  async runSimulation() {
+    if (!this.world || this.isRunning) return;
+
+    const rawGoal = this.elements.goalInput?.value ?? '';
+    const { tokens: goalTokens, error } = this.parseGoalInput(rawGoal);
+
+    if (error) {
+      showMessage(error, 'error');
+      return;
+    }
+
+    const unknownBlocks = this.findUnknownGoalBlocks(goalTokens);
+    if (unknownBlocks.length > 0) {
+      showMessage(`Unknown blocks in goal: ${unknownBlocks.join(', ')}.`, 'error');
+      return;
+    }
+
+    this.currentGoalTokens = goalTokens;
+    this.stagedGoalTokens = null;
+    this.pendingReplan = false;
+    this.mutationQueue.clear();
+    this.isRunning = true;
+  this.executedMoveCount = 0;
+
+    this.setControlsDisabled(true, { allowManualInteractions: true });
+    this.setManualControlsEnabled(true);
+    this.dragManager?.enable();
+
     resetIntentionTimeline('Requesting plan from BDI agent...');
     startPlannerClock();
 
     startStatsTimer();
     updateStats(undefined, 'Planning');
-    logAction(`Started planning for goal: ${goalTokens.join(' on ')}`, 'user');
+    logAction(`Started planning for goal: ${goalTokens.filter(token => token !== 'Table').join(' on ') || 'Table'}`, 'user');
 
     try {
-      const plannerResponse = await requestBDIPlan(
-        this.world.getCurrentStacks(),
-        goalTokens,
-        { maxIterations: window.APP_CONFIG?.PLANNER?.MAX_ITERATIONS || 2500 }
-      );
+      const plannerResponse = await this.requestPlan(goalTokens);
 
       if (!plannerResponse.goalAchieved) {
         this.handlePlannerFailure(plannerResponse);
@@ -235,10 +557,18 @@ class SimulationController {
       stopStatsTimer(false);
       updateStats(undefined, 'Unexpected Error');
       this.setControlsDisabled(false);
+      this.isRunning = false;
+      this.setManualControlsEnabled(true);
+      this.dragManager?.enable();
     }
   }
 
   handlePlannerFailure(plannerResponse) {
+    this.isRunning = false;
+    this.pendingReplan = false;
+    this.mutationQueue.clear();
+    this.setManualControlsEnabled(true);
+    this.dragManager?.enable();
     showMessage('Planner could not achieve the goal within the iteration limit.', 'warning');
     renderIntentionTimeline(
       plannerResponse.intentionLog || [],
@@ -267,51 +597,113 @@ class SimulationController {
       stopStatsTimer(true);
       updateStats(0, 'Success');
       this.setControlsDisabled(false);
+      this.setManualControlsEnabled(true);
+      this.dragManager?.enable();
+      this.isRunning = false;
       return;
     }
 
+    this.activePlan = [...moves];
+    this.pendingReplan = false;
     updateStats(undefined, 'Running');
-    await this.executeMoves(moves);
+    const completed = await this.executeMoves(moves);
 
+    if (!completed) {
+      stopPlannerClock(false);
+      stopStatsTimer(false);
+      updateStats(undefined, 'Interrupted');
+      this.setControlsDisabled(false);
+      this.setManualControlsEnabled(true);
+      this.dragManager?.enable();
+      this.isRunning = false;
+      return;
+    }
+
+    this.pendingReplan = false;
     finalizeTimeline();
     stopPlannerClock(true);
 
-    const actualCycles = (plannerResponse.intentionLog || []).length;
-    const moveCount = moves.length;
+    const timelineSnapshot = getIntentionTimelineSnapshot();
+    const actualCycles = Array.isArray(timelineSnapshot?.log)
+      ? timelineSnapshot.log.length
+      : (plannerResponse.intentionLog || []).length;
+    const moveCount = this.executedMoveCount;
     stopStatsTimer(true);
     updateStats(actualCycles, 'Success');
     showMessage(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles).`, 'success');
     logAction(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)`, 'system');
 
     this.setControlsDisabled(false);
+    this.setManualControlsEnabled(true);
+    this.dragManager?.enable();
+    this.isRunning = false;
   }
 
   async executeMoves(moves) {
-    const claw = document.getElementById('claw');
+    this.activePlan = Array.isArray(this.activePlan) && this.activePlan.length > 0
+      ? this.activePlan
+      : Array.isArray(moves)
+        ? [...moves]
+        : [];
 
-    if (claw && moves.length > 0) {
-      resetClawToDefault(claw);
-      await this.wait(this.animationDuration + MOVE_CYCLE_BUFFER);
+    const claw = document.getElementById('claw');
+    const stepDuration = () => this.speedController.getStepDuration();
+    let aborted = false;
+
+    if (claw && this.activePlan.length > 0) {
+      resetClawToDefault(claw, stepDuration());
+      await this.wait(stepDuration() + MOVE_CYCLE_BUFFER);
     }
 
-    for (const move of moves) {
+    while (this.isRunning) {
+      this.setManualControlsEnabled(true);
+      this.dragManager?.enable();
+
+      await this.speedController.waitForWindow();
+
+      this.setManualControlsEnabled(false);
+      this.dragManager?.disable();
+
+      await this.handleCheckpoint();
+
+      if (!this.isRunning) {
+        aborted = true;
+        break;
+      }
+
+      if (!this.activePlan.length) {
+        if (this.pendingReplan) {
+          continue;
+        }
+        break;
+      }
+
+      const nextMove = this.activePlan.shift();
       await new Promise((resolve) => {
         simulateMove(
-          move,
+          nextMove,
           this.world,
           this.elements.world,
           claw,
           markTimelineStep,
-          resolve
+          resolve,
+          { durationMs: stepDuration() }
         );
       });
+      this.executedMoveCount += 1;
     }
 
-    if (claw && moves.length > 0) {
+    this.setManualControlsEnabled(true);
+    this.dragManager?.enable();
+
+    if (claw) {
       await this.wait(200);
-      resetClawToDefault(claw);
-      await this.wait(this.animationDuration + MOVE_CYCLE_BUFFER);
+      resetClawToDefault(claw, stepDuration());
+      await this.speedController.waitForWindow();
     }
+
+    this.activePlan = [];
+    return !aborted;
   }
 
   wait(duration) {
@@ -327,8 +719,8 @@ export function initializeHandlers(world) {
   return controllerInstance;
 }
 
-export function setControlsDisabled(disabled) {
-  controllerInstance?.setControlsDisabled(disabled);
+export function setControlsDisabled(disabled, options = {}) {
+  controllerInstance?.setControlsDisabled(disabled, options);
 }
 
 export function runSimulation() {

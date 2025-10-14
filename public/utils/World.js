@@ -48,11 +48,12 @@ export class World {
     }
     const blockColour = this.colours[name];
 
-  const div = document.createElement('div');
-  div.className = 'world-block absolute flex h-[30px] w-[80px] items-center justify-center rounded-none border border-brand-dark/30 text-sm font-semibold text-white shadow-sm transition-[left,top] duration-500 ease-out select-none cursor-default';
+    const div = document.createElement('div');
+    div.className = 'world-block absolute flex h-[30px] w-[80px] items-center justify-center rounded-none border border-brand-dark/30 text-sm font-semibold text-white shadow-sm transition-[left,top] duration-500 ease-out select-none cursor-grab active:cursor-grabbing';
     div.dataset.block = name;
     div.textContent = name;
     div.style.backgroundColor = blockColour;
+    div.style.touchAction = 'none';
     
     if (this.container) {
       this.container.appendChild(div);
@@ -60,6 +61,7 @@ export class World {
     }
     
     this.notifyBlocksChanged();
+    this.notifyStacksChanged();
     this.setMessage('');
     return true;
   }
@@ -104,6 +106,7 @@ export class World {
 
     this.updatePositions();
     this.notifyBlocksChanged();
+    this.notifyStacksChanged();
     this.setMessage('');
     return true;
   }
@@ -130,6 +133,8 @@ export class World {
       this.stacks[destIndex].push(block);
       this.on[block] = dest;
     }
+
+    this.notifyStacksChanged();
   }
 
   /**
@@ -170,6 +175,7 @@ export class World {
    * @param {string} skipBlock - Block to skip (currently being animated)
    */
   updatePositions(skipBlock) {
+    if (!this.container) return;
     const width = this.stacks.length * (BLOCK_WIDTH + STACK_MARGIN);
     this.container.style.width = `${width}px`;
     this.stacks.forEach((stack, index) => {
@@ -183,6 +189,14 @@ export class World {
         div.style.top = `${top}px`;
       });
     });
+  }
+
+  notifyStacksChanged() {
+    const detail = {
+      stacks: this.getCurrentStacks()
+    };
+
+    document.dispatchEvent(new CustomEvent('world:stacks-changed', { detail }));
   }
 
   /**

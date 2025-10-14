@@ -299,6 +299,28 @@
               </div>
 
               <div class="border border-slate-200 bg-brand-dark/5 p-4">
+                <div class="flex items-center justify-between gap-2">
+                  <label for="simulationSpeed" class="text-sm font-semibold text-brand-dark">Simulation speed</label>
+                  <span id="simulationSpeedValue" class="text-sm font-semibold text-brand-dark">1.00x</span>
+                </div>
+                <div class="mt-4 flex flex-col gap-1">
+                  <input
+                    type="range"
+                    id="simulationSpeed"
+                    min="0.25"
+                    max="2"
+                    step="0.05"
+                    aria-label="Simulation speed"
+                    class="w-full accent-brand-primary"
+                  />
+                  <div class="flex justify-between text-xs font-medium text-brand-dark/70">
+                    <span>Slower</span>
+                    <span>Faster</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="border border-slate-200 bg-brand-dark/5 p-4">
                 <label for="goalInput" class="text-sm font-semibold text-brand-dark">Goal stack</label>
                 <div class="mt-3 flex flex-col gap-3 sm:flex-row">
                   <input

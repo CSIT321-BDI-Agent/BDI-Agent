@@ -97,6 +97,8 @@ export const DOM = {
   saveBtn: () => document.getElementById('saveBtn'),
   loadBtn: () => document.getElementById('loadBtn'),
   loadSelect: () => document.getElementById('loadSelect'),
+  speedSlider: () => document.getElementById('simulationSpeed'),
+  speedValueLabel: () => document.getElementById('simulationSpeedValue'),
   messages: () => document.getElementById('messages'),
   intentionTimeline: () => document.getElementById('intentionTimeline'),
   plannerClock: () => document.getElementById('plannerClock'),
@@ -128,7 +130,7 @@ export function initializeClaw() {
 }
 
 // Reset claw to home position (top center)
-export function resetClawToHome(claw) {
+export function resetClawToHome(claw, durationOverride = null) {
   if (!claw) return;
   
   const worldElem = DOM.world();
@@ -138,7 +140,7 @@ export function resetClawToHome(claw) {
   const worldWidth = worldElem.offsetWidth || 400; // Default fallback
   const centerLeft = (worldWidth / 2) - (CLAW_WIDTH / 2);
   
-  const duration = window.APP_CONFIG?.ANIMATION_DURATION || 550;
+  const duration = durationOverride ?? window.APP_CONFIG?.ANIMATION_DURATION ?? 550;
   claw.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
   claw.style.left = `${centerLeft}px`;
   claw.style.top = `${CLAW_HOME_TOP}px`;

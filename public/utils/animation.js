@@ -63,10 +63,12 @@ function animateClawTo(claw, targetLeft, targetTop, duration) {
  * @param {Function} markTimelineStep - Function to mark timeline step completion
  * @param {Function} callback - Callback when animation completes
  */
-export async function simulateMove(move, world, worldElem, claw, markTimelineStep, callback) {
+export async function simulateMove(move, world, worldElem, claw, markTimelineStep, callback, options = {}) {
   const blockName = move.block;
   const dest = move.to;
-  const duration = window.APP_CONFIG?.ANIMATION_DURATION || 550;
+  const duration = Number.isFinite(options.durationMs)
+    ? Math.max(100, Math.round(options.durationMs))
+    : window.APP_CONFIG?.ANIMATION_DURATION || 550;
 
   const blockDiv = worldElem?.querySelector(`[data-block='${blockName}']`);
   if (!blockDiv) {
@@ -90,7 +92,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     // === STEP 1: Move claw to source block ===
     const sourceClawLeft = sourcePos.left + CLAW_OFFSET;
     const sourceClawTop = sourcePos.top - CLAW_HEIGHT;
-    await animateClawTo(claw, sourceClawLeft, sourceClawTop, duration);
+  await animateClawTo(claw, sourceClawLeft, sourceClawTop, duration);
     
     // Mark step 1 complete in timeline
     if (typeof markTimelineStep === 'function') {
@@ -126,7 +128,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     blockDiv.style.left = `${destLeft}px`;
     blockDiv.style.top = `${destTop}px`;
     
-    await animateClawTo(claw, destClawLeft, destClawTop, duration);
+  await animateClawTo(claw, destClawLeft, destClawTop, duration);
     
     // Mark step 3 complete in timeline
     if (typeof markTimelineStep === 'function') {
