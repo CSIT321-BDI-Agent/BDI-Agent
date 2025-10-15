@@ -59,7 +59,7 @@ const resolveApiBase = () => {
 // Block and World Dimensions
 export const BLOCK_WIDTH = 80;
 export const BLOCK_HEIGHT = 30;
-export const WORLD_HEIGHT = 240;
+export const WORLD_HEIGHT = 320;
 export const STACK_MARGIN = 10;
 
 export const BLOCK_COLOUR_PALETTE = [
@@ -80,11 +80,11 @@ export const CLAW_ARM_HEIGHT = (() => {
   if (Number.isFinite(configured)) {
     return Math.max(20, Math.round(configured));
   }
-  return 240;
+  return 280;
 })();
 
 // Claw Home Position (top center of world)
-export const CLAW_HOME_TOP = -40; // Above the world area
+export const CLAW_HOME_TOP = 10; // Visible at top of world area
 export const CLAW_HOME_LEFT_OFFSET = -30; // Will be calculated based on world width
 
 // Future: Support for multiple claws

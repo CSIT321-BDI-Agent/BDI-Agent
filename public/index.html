@@ -253,29 +253,29 @@
           </div>
         </div>
 
-  <div class="mt-8 grid gap-6 lg:grid-cols-[1.5fr_1fr] xl:grid-cols-[1.8fr_1fr]">
-          <section class="border border-slate-200 bg-white shadow-card">
+  <div class="mt-8 grid gap-6 lg:grid-cols-[2fr_1fr] xl:grid-cols-[2.4fr_1fr]">
+          <section class="border border-slate-200 bg-white shadow-card flex flex-col">
             <div class="border-b border-slate-200 px-6 py-4">
               <h3 class="text-lg font-semibold text-brand-dark">Simulation Environment</h3>
             </div>
-            <div class="space-y-4 px-6 pb-6 pt-4">
+            <div class="flex-1 flex flex-col space-y-4 px-6 pb-6 pt-4">
               <div
                 id="world-wrapper"
-                class="relative overflow-x-auto border border-dashed border-brand-dark/30 bg-white p-4 min-h-[320px]"
+                class="flex-1 relative overflow-x-auto border border-dashed border-brand-dark/30 bg-white p-4"
               >
-                <div id="world" class="relative mx-auto min-h-[260px] w-full max-w-[760px]"></div>
+                <div id="world" class="relative mx-auto h-full w-full max-w-[760px]"></div>
               </div>
-              <div id="messages" class="messages hidden"></div>
+              <div id="messages" class="messages hidden flex-shrink-0"></div>
             </div>
           </section>
 
           <section class="border border-slate-200 bg-white shadow-card">
-            <div class="border-b border-slate-200 px-6 py-4">
+            <div class="border-b border-slate-200 px-4 py-3">
               <h3 class="text-lg font-semibold text-brand-dark">Control Panel</h3>
             </div>
-            <div class="space-y-6 px-6 pb-6 pt-4">
-              <div class="border border-slate-200 bg-brand-dark/5 p-4">
-                <div class="flex items-start justify-between gap-4">
+            <div class="space-y-4 px-4 pb-4 pt-3">
+              <div class="border border-slate-200 bg-brand-dark/5 p-3">
+                <div class="flex items-start justify-between gap-3">
                   <div>
                     <p class="text-sm font-semibold text-brand-dark">Blocks</p>
                     <p class="text-xs text-brand-dark/70">Next: <span id="nextBlockLabel">A</span></p>
@@ -287,7 +287,7 @@
                       class="inline-flex h-9 w-9 items-center justify-center border border-slate-200 bg-white text-lg font-semibold text-brand-dark shadow-sm transition hover:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
                       aria-label="Remove last block"
                     >-</button>
-                    <span class="text-sm font-semibold text-brand-dark"><span id="blockCountLabel">0</span> active</span>
+                    <span class="text-sm font-semibold text-brand-dark"><span id="blockCountLabel">0</span></span>
                     <button
                       id="addBlockBtn"
                       type="button"
@@ -298,12 +298,12 @@
                 </div>
               </div>
 
-              <div class="border border-slate-200 bg-brand-dark/5 p-4">
+              <div class="border border-slate-200 bg-brand-dark/5 p-3">
                 <div class="flex items-center justify-between gap-2">
                   <label for="simulationSpeed" class="text-sm font-semibold text-brand-dark">Simulation speed</label>
                   <span id="simulationSpeedValue" class="text-sm font-semibold text-brand-dark">1.00x</span>
                 </div>
-                <div class="mt-4 flex flex-col gap-1">
+                <div class="mt-3 flex flex-col gap-1">
                   <input
                     type="range"
                     id="simulationSpeed"
@@ -320,14 +320,14 @@
                 </div>
               </div>
 
-              <div class="border border-slate-200 bg-brand-dark/5 p-4">
+              <div class="border border-slate-200 bg-brand-dark/5 p-3">
                 <label for="goalInput" class="text-sm font-semibold text-brand-dark">Goal stack</label>
-                <div class="mt-3 flex flex-col gap-3 sm:flex-row">
+                <div class="mt-2 flex flex-col gap-2">
                   <input
                     type="text"
                     id="goalInput"
                     placeholder="e.g. A on C on D"
-                    class="w-full flex-1 border border-slate-300 bg-white px-3 py-2 text-sm text-brand-dark shadow-sm transition placeholder:text-brand-dark/50 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                    class="w-full border border-slate-300 bg-white px-3 py-2 text-sm text-brand-dark shadow-sm transition placeholder:text-brand-dark/50 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary"
                   />
                   <button
                     id="startBtn"
@@ -339,30 +339,32 @@
                 </div>
               </div>
 
-              <div class="border border-slate-200 bg-brand-dark/5 p-4">
+              <div class="border border-slate-200 bg-brand-dark/5 p-3">
                 <div class="flex flex-col gap-1">
                   <p class="text-sm font-semibold text-brand-dark">Saved worlds</p>
                 </div>
-                <div class="mt-3 flex flex-col gap-3 sm:flex-row">
-                  <button
-                    id="saveBtn"
-                    type="button"
-                    class="inline-flex items-center justify-center bg-brand-primary px-4 py-2 text-sm font-semibold text-brand-dark shadow-card transition hover:bg-brand-primary/90 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Save
-                  </button>
+                <div class="mt-2 flex flex-col gap-2">
                   <select
                     id="loadSelect"
                     title="Saved worlds"
-                    class="w-full flex-1 border border-slate-300 bg-white px-3 py-2 text-sm text-brand-dark shadow-sm transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                    class="w-full border border-slate-300 bg-white px-3 py-2 text-sm text-brand-dark shadow-sm transition focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary"
                   ></select>
-                  <button
-                    id="loadBtn"
-                    type="button"
-                    class="inline-flex items-center justify-center border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-brand-dark shadow-card transition hover:border-brand-primary hover:text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Load
-                  </button>
+                  <div class="flex gap-2">
+                    <button
+                      id="saveBtn"
+                      type="button"
+                      class="flex-1 inline-flex items-center justify-center bg-brand-primary px-4 py-2 text-sm font-semibold text-brand-dark shadow-card transition hover:bg-brand-primary/90 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Save
+                    </button>
+                    <button
+                      id="loadBtn"
+                      type="button"
+                      class="flex-1 inline-flex items-center justify-center border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-brand-dark shadow-card transition hover:border-brand-primary hover:text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Load
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
