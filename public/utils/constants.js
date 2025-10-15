@@ -59,7 +59,7 @@ const resolveApiBase = () => {
 // Block and World Dimensions
 export const BLOCK_WIDTH = 80;
 export const BLOCK_HEIGHT = 30;
-export const WORLD_HEIGHT = 240;
+export const WORLD_HEIGHT = 320;
 export const STACK_MARGIN = 10;
 
 export const BLOCK_COLOUR_PALETTE = [
@@ -74,9 +74,17 @@ export const BLOCK_COLOUR_PALETTE = [
 export const CLAW_HEIGHT = 25;
 export const CLAW_WIDTH = 60; // Must match --claw-width in CSS
 export const CLAW_OFFSET = (BLOCK_WIDTH - CLAW_WIDTH) / 2; // Center claw over blocks (10px)
+export const CLAW_ARM_WIDTH = 8;
+export const CLAW_ARM_HEIGHT = (() => {
+  const configured = window.APP_CONFIG?.SIMULATION?.CLAW_ARM_HEIGHT;
+  if (Number.isFinite(configured)) {
+    return Math.max(20, Math.round(configured));
+  }
+  return 280;
+})();
 
 // Claw Home Position (top center of world)
-export const CLAW_HOME_TOP = -40; // Above the world area
+export const CLAW_HOME_TOP = 10; // Visible at top of world area
 export const CLAW_HOME_LEFT_OFFSET = -30; // Will be calculated based on world width
 
 // Future: Support for multiple claws
@@ -97,6 +105,8 @@ export const DOM = {
   saveBtn: () => document.getElementById('saveBtn'),
   loadBtn: () => document.getElementById('loadBtn'),
   loadSelect: () => document.getElementById('loadSelect'),
+  speedSlider: () => document.getElementById('simulationSpeed'),
+  speedValueLabel: () => document.getElementById('simulationSpeedValue'),
   messages: () => document.getElementById('messages'),
   intentionTimeline: () => document.getElementById('intentionTimeline'),
   plannerClock: () => document.getElementById('plannerClock'),
@@ -119,6 +129,8 @@ export function initializeClaw() {
   claw.id = 'claw';
   claw.className = 'absolute z-50 flex h-[25px] w-[60px] items-end justify-center rounded-t-md bg-brand-dark';
   claw.setAttribute('data-claw-id', '0'); // Future: support for multiple claws
+
+  ensureClawArm(claw);
   worldElem.appendChild(claw);
   
   // Set home position at top center
@@ -128,7 +140,7 @@ export function initializeClaw() {
 }
 
 // Reset claw to home position (top center)
-export function resetClawToHome(claw) {
+export function resetClawToHome(claw, durationOverride = null) {
   if (!claw) return;
   
   const worldElem = DOM.world();
@@ -138,11 +150,30 @@ export function resetClawToHome(claw) {
   const worldWidth = worldElem.offsetWidth || 400; // Default fallback
   const centerLeft = (worldWidth / 2) - (CLAW_WIDTH / 2);
   
-  const duration = window.APP_CONFIG?.ANIMATION_DURATION || 550;
+  const duration = durationOverride ?? window.APP_CONFIG?.ANIMATION_DURATION ?? 550;
   claw.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
   claw.style.left = `${centerLeft}px`;
   claw.style.top = `${CLAW_HOME_TOP}px`;
+  ensureClawArm(claw);
 }
 
 // Backward compatibility alias
 export const resetClawToDefault = resetClawToHome;
+
+function ensureClawArm(claw) {
+  if (!claw) return;
+  let arm = claw.querySelector('[data-claw-arm="true"]');
+  if (!arm) {
+    arm = document.createElement('div');
+    arm.dataset.clawArm = 'true';
+    arm.className = 'pointer-events-none absolute rounded-b-sm bg-brand-dark/80';
+    claw.appendChild(arm);
+  }
+
+  const width = CLAW_ARM_WIDTH;
+  const height = CLAW_ARM_HEIGHT;
+  arm.style.width = `${width}px`;
+  arm.style.height = `${height}px`;
+  arm.style.left = `${(CLAW_WIDTH / 2) - (width / 2)}px`;
+  arm.style.top = `${-height}px`;
+}

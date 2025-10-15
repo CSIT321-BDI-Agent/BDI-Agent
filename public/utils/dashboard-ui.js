@@ -65,6 +65,13 @@ function bindGoalPreview() {
 
 function bindWorldInfoUpdates() {
   document.addEventListener('world:blocks-changed', updateWorldInfo);
+  document.addEventListener('world:stacks-changed', (event) => {
+    if (event?.detail?.stacks) {
+      updateWorldInfoFromStacks(event.detail.stacks);
+    } else {
+      updateWorldInfo();
+    }
+  });
 }
 
 export function updateWorldInfoFromStacks(stacks) {

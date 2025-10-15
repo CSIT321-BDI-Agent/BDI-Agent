@@ -205,6 +205,15 @@ const buildFrontendConfig = () => {
     MAX_ITERATIONS: 2500
   };
 
+  const defaultSimulation = {
+    SPEED_MIN: 0.25,
+    SPEED_MAX: 2,
+    SPEED_DEFAULT: 1,
+    INTERACTION_WINDOW_MS: 750,
+    WINDOW_RESIZE_DEBOUNCE_MS: 220,
+    CLAW_ARM_HEIGHT: 240
+  };
+
   return {
     APP_NAME: getEnvString('APP_NAME') || 'BDI Blocks World',
     API_BASE: resolveFrontendApiBase(),
@@ -213,7 +222,8 @@ const buildFrontendConfig = () => {
     ANIMATION_DURATION: 550,
     MAX_BLOCKS: 26,
     MAX_STACK_HEIGHT: 10,
-    PLANNER: defaultPlanner
+    PLANNER: defaultPlanner,
+    SIMULATION: defaultSimulation
   };
 };
 

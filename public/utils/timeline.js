@@ -20,6 +20,9 @@ const MOVE_SKIP_CLASSES = ['border-slate-300', 'text-slate-400', 'italic'];
 const MOVE_INFO_CLASSES = ['text-slate-400'];
 
 const TIMELINE_EMPTY_CLASS = 'border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs font-medium text-slate-500';
+const STEP_BADGE_CLASS = 'mt-2 inline-flex w-fit items-center justify-center rounded-full bg-brand-primary/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-brand-primary';
+const SKIP_BADGE_CLASS = 'mt-2 inline-flex w-fit items-center justify-center rounded-full bg-slate-200 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600';
+const BELIEF_META_CLASS = 'mt-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-4 text-slate-600';
 
 // Timeline state
 let intentionTimelineState = null;
@@ -48,6 +51,28 @@ const setMoveVisualState = (element, state = 'pending') => {
   applyClasses(element, MOVE_SKIP_CLASSES, state === 'skip');
   applyClasses(element, MOVE_INFO_CLASSES, state === 'informational');
   element.dataset.state = state;
+};
+
+const humanizeTimelineLabel = (input) => {
+  if (!input) return '';
+  const normalized = String(input)
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return '';
+  return normalized
+    .split(' ')
+    .map(segment => segment ? segment[0].toUpperCase() + segment.slice(1).toLowerCase() : '')
+    .join(' ');
+};
+
+const formatPendingRelation = (pendingRelation) => {
+  if (!pendingRelation || typeof pendingRelation !== 'object') {
+    return 'none';
+  }
+  const block = pendingRelation.block || '?';
+  const destination = pendingRelation.destination || 'Table';
+  return `${block} -> ${destination}`;
 };
 
 /**
@@ -149,62 +174,133 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
     entry.dataset.cycleIndex = String(idx);
 
     const header = document.createElement('div');
-    header.className = 'flex items-center justify-between gap-3';
+    header.className = 'flex items-start justify-between gap-3';
+
+    const titleGroup = document.createElement('div');
+    titleGroup.className = 'flex flex-col';
 
     const title = document.createElement('span');
     title.className = 'text-sm font-semibold text-brand-dark';
-    title.textContent = `Cycle ${idx + 1}`;
+    const cycleNumber = Number.isFinite(cycle?.cycle) ? cycle.cycle : idx + 1;
+    title.textContent = `Cycle ${cycleNumber}`;
+    titleGroup.appendChild(title);
+
+    const moves = Array.isArray(cycle?.moves) ? cycle.moves : [];
+    const primaryMove = moves.find(move => move && (move.block || move.skipped));
+
+    if (primaryMove && (primaryMove.stepType || primaryMove.stepDescription || primaryMove.stepNumber != null)) {
+      const badge = document.createElement('span');
+      const labelSource = primaryMove.stepDescription || primaryMove.stepType || primaryMove.reason;
+      const label = humanizeTimelineLabel(labelSource || 'Action');
+      const hasStepInfo = Number.isFinite(primaryMove.stepNumber) && Number.isFinite(primaryMove.totalSteps);
+      badge.className = STEP_BADGE_CLASS;
+      badge.textContent = hasStepInfo
+        ? `Step ${primaryMove.stepNumber}/${primaryMove.totalSteps} | ${label}`
+        : label;
+      titleGroup.appendChild(badge);
+    } else if (primaryMove && primaryMove.skipped) {
+      const badge = document.createElement('span');
+      const reasonLabel = humanizeTimelineLabel(primaryMove.reason || 'Skipped');
+    badge.className = SKIP_BADGE_CLASS;
+    badge.textContent = `Skipped | ${reasonLabel}`;
+      titleGroup.appendChild(badge);
+    }
+
+    header.appendChild(titleGroup);
 
     const time = document.createElement('span');
     time.className = 'text-xs font-mono text-brand-dark/60';
     time.textContent = '--:--';
-
-    header.appendChild(title);
     header.appendChild(time);
+
     entry.appendChild(header);
 
     const list = document.createElement('ul');
     list.className = 'mt-3 flex flex-col gap-2';
 
-    const moves = Array.isArray(cycle?.moves) ? cycle.moves : [];
     const moveStates = [];
     let totalActionMoves = 0;
 
     moves.forEach((move, moveIdx) => {
+      const metadata = { ...(move || {}) };
       const item = document.createElement('li');
       item.className = MOVE_BASE_CLASS;
 
       let description = 'No planner actions recorded.';
       let moveState = 'informational';
+      const isAction = Boolean(metadata.block);
 
-      if (move && move.block) {
+      if (isAction) {
         totalActionMoves += 1;
-        const actor = move.actor || `Agent ${moveIdx + 1}`;
-        const destination = move.to || 'Table';
-        const reason = move.reason || 'move';
-        description = `${actor}: ${move.block} -> ${destination} (${reason})`;
+        const actor = metadata.actor || `Agent ${moveIdx + 1}`;
+        const stepLabel = humanizeTimelineLabel(metadata.stepDescription || metadata.stepType || metadata.reason || 'Action');
+        const hasStepInfo = Number.isFinite(metadata.stepNumber) && Number.isFinite(metadata.totalSteps);
+        const stepInfo = hasStepInfo
+          ? `Step ${metadata.stepNumber}/${metadata.totalSteps}`
+          : Number.isFinite(metadata.stepNumber)
+            ? `Step ${metadata.stepNumber}`
+            : null;
+        const destinationLabel = metadata.to && metadata.to !== 'claw'
+          ? `-> ${metadata.to}`
+          : metadata.to === 'claw'
+            ? 'Holding'
+            : null;
+
+        const summaryParts = [actor];
+        if (stepInfo) summaryParts.push(stepInfo);
+        summaryParts.push(stepLabel);
+        if (destinationLabel) summaryParts.push(destinationLabel);
+        description = summaryParts.filter(Boolean).join(' | ');
+
+        if (metadata.stepDescription && metadata.stepDescription !== stepLabel) {
+          description += ` - ${metadata.stepDescription}`;
+        }
+
         moveState = 'pending';
-      } else if (move && move.skipped) {
-        const actor = move.actor || `Agent ${moveIdx + 1}`;
-        const reason = move.reason || 'no action';
-        description = `${actor}: skipped (${reason})`;
+      } else if (metadata.skipped) {
+        const actor = metadata.actor || `Agent ${moveIdx + 1}`;
+        const reasonLabel = humanizeTimelineLabel(metadata.reason || 'No Action');
+        description = `${actor} | Skipped (${reasonLabel})`;
         moveState = 'skip';
+      } else if (metadata.reason) {
+        description = humanizeTimelineLabel(metadata.reason);
       }
 
       item.textContent = description;
-      setMoveVisualState(item, moveState);
+      if (metadata.stepNumber != null) {
+        item.dataset.stepNumber = String(metadata.stepNumber);
+      }
+      if (metadata.stepType) {
+        item.dataset.stepType = metadata.stepType;
+      }
+      if (metadata.block) {
+        item.dataset.block = metadata.block;
+      }
 
+      setMoveVisualState(item, moveState);
       list.appendChild(item);
 
       moveStates.push({
-        meta: move,
+        meta: metadata,
         element: item,
         completed: moveState !== 'pending',
-        isAction: Boolean(move && move.block)
+        isAction
       });
     });
 
     entry.appendChild(list);
+
+    if (cycle?.beliefs) {
+      const beliefMeta = document.createElement('div');
+      beliefMeta.className = BELIEF_META_CLASS;
+      const pendingRelation = formatPendingRelation(cycle.beliefs.pendingRelation);
+      const clearBlocks = Array.isArray(cycle.beliefs.clearBlocks) && cycle.beliefs.clearBlocks.length
+        ? cycle.beliefs.clearBlocks.join(', ')
+        : 'none';
+    beliefMeta.textContent = `Beliefs | Pending: ${pendingRelation} | Clear: ${clearBlocks}`;
+      entry.appendChild(beliefMeta);
+    }
+
     container.appendChild(entry);
 
     const cycleState = {
@@ -213,7 +309,7 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
       timeElement: time,
       moveStates,
       totalMoves: totalActionMoves,
-      processedMoves: 0,
+      processedMoves: moveStates.filter(ms => ms.isAction && ms.completed).length,
       visual: {
         active: false,
         completed: false,
@@ -279,6 +375,32 @@ function completeTimelineCycle(cycleState) {
   }
 }
 
+function matchesTimelineMove(step, moveMeta) {
+  if (!step || !moveMeta) {
+    return false;
+  }
+
+  const stepNumber = Number.isFinite(step.stepNumber) ? Number(step.stepNumber) : null;
+  const metaStepNumber = Number.isFinite(moveMeta.stepNumber) ? Number(moveMeta.stepNumber) : null;
+  if (stepNumber !== null && metaStepNumber !== null && stepNumber !== metaStepNumber) {
+    return false;
+  }
+
+  const stepType = (step.type || step.stepType || '').toUpperCase();
+  const metaStepType = (moveMeta.stepType || '').toUpperCase();
+  if (stepType && metaStepType && stepType !== metaStepType) {
+    return false;
+  }
+
+  const stepBlock = (step.block || '').toUpperCase();
+  const metaBlock = (moveMeta.block || '').toUpperCase();
+  if (stepBlock && metaBlock && stepBlock !== metaBlock) {
+    return false;
+  }
+
+  return true;
+}
+
 /**
  * Mark a claw step as completed in the timeline
  * Each claw action (move/pick/move/drop) counts as one cycle
@@ -293,7 +415,11 @@ export function markTimelineStep(step) {
     if (cycleState.totalMoves === 0) continue;
     if (cycleState.processedMoves >= cycleState.totalMoves) continue;
 
-    const matcher = cycleState.moveStates.find(ms => ms.isAction && !ms.completed);
+    let matcher = cycleState.moveStates.find(ms => ms.isAction && !ms.completed && matchesTimelineMove(step, ms.meta));
+
+    if (!matcher) {
+      matcher = cycleState.moveStates.find(ms => ms.isAction && !ms.completed);
+    }
 
     if (matcher) {
       matcher.completed = true;

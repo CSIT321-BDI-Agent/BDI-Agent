@@ -10,6 +10,15 @@
     MAX_ITERATIONS: 2500
   };
 
+  const defaultSimulation = {
+    SPEED_MIN: 0.25,
+    SPEED_MAX: 2,
+    SPEED_DEFAULT: 1,
+    INTERACTION_WINDOW_MS: 750,
+    WINDOW_RESIZE_DEBOUNCE_MS: 220,
+    CLAW_ARM_HEIGHT: 240
+  };
+
   const guessOrigin = () => {
     if (typeof window === 'undefined') {
       return 'http://localhost:3000';
@@ -40,7 +49,8 @@
     ANIMATION_DURATION: 550,
     MAX_BLOCKS: 26,
     MAX_STACK_HEIGHT: 10,
-    PLANNER: defaultPlanner
+    PLANNER: defaultPlanner,
+    SIMULATION: defaultSimulation
   };
 
   const existing = (typeof window.APP_CONFIG === 'object' && window.APP_CONFIG !== null)
@@ -57,6 +67,10 @@
     PLANNER: {
       ...defaultPlanner,
       ...(existing.PLANNER || {})
+    },
+    SIMULATION: {
+      ...defaultSimulation,
+      ...(existing.SIMULATION || {})
     }
   };
 })();
