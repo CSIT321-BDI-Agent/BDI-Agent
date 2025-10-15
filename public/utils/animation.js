@@ -26,6 +26,52 @@ const computeContactDuration = (stepDuration) => {
 
 const delay = (ms) => new Promise(resolve => window.setTimeout(resolve, Math.max(0, ms | 0)));
 
+function syncBlockWithClaw(claw, blockDiv) {
+  if (!claw || !blockDiv) {
+    return;
+  }
+
+  const previousTransition = blockDiv.style.transition;
+  blockDiv.style.transition = 'none';
+  const clawPosition = getElementPosition(claw);
+  const newLeft = clawPosition.left - CLAW_OFFSET;
+  const newTop = computeBlockTopForClaw(clawPosition.top);
+  blockDiv.style.left = `${newLeft}px`;
+  blockDiv.style.top = `${newTop}px`;
+  blockDiv.getBoundingClientRect();
+  blockDiv.style.transition = previousTransition || '';
+}
+
+function attachBlockToClaw(claw, blockDiv, blockName) {
+  if (!claw || !blockDiv) {
+    return;
+  }
+
+  claw.dataset.carryingBlock = blockName || blockDiv.dataset.block || '';
+  blockDiv.dataset.attachedToClaw = 'true';
+  if (!blockDiv.dataset.originalZIndex) {
+    blockDiv.dataset.originalZIndex = blockDiv.style.zIndex || '';
+  }
+  blockDiv.style.zIndex = '2000';
+  syncBlockWithClaw(claw, blockDiv);
+}
+
+function detachBlockFromClaw(claw, blockDiv) {
+  if (claw) {
+    delete claw.dataset.carryingBlock;
+  }
+  if (!blockDiv) {
+    return;
+  }
+
+  delete blockDiv.dataset.attachedToClaw;
+  const previousZ = blockDiv.dataset.originalZIndex;
+  if (previousZ !== undefined) {
+    blockDiv.style.zIndex = previousZ;
+  }
+  delete blockDiv.dataset.originalZIndex;
+}
+
 function getElementPosition(element) {
   if (!element) {
     return { left: 0, top: 0 };
@@ -54,26 +100,25 @@ function computeBlockTopForClaw(clawTop) {
   return clawTop + CLAW_HEIGHT;
 }
 
-function resolveBlockTargets(step, fallbackClawPosition, previousBlock, initialBlock) {
-  const fallbackLeft = Number.isFinite(fallbackClawPosition?.left)
-    ? fallbackClawPosition.left - CLAW_OFFSET
-    : (previousBlock?.left ?? initialBlock?.left ?? 0);
 
-  const fallbackTop = Number.isFinite(fallbackClawPosition?.top)
-    ? fallbackClawPosition.top + CLAW_HEIGHT
-    : (previousBlock?.top ?? initialBlock?.top ?? 0);
 
-  const left = Number.isFinite(step?.blockLeft)
-    ? step.blockLeft
-    : fallbackLeft;
-
-  const top = Number.isFinite(step?.blockTop)
-    ? step.blockTop
-    : fallbackTop;
-
-  return { left, top };
+/**
+ * Linear interpolation helper
+ */
+function lerp(start, end, t) {
+  return start + (end - start) * t;
 }
 
+/**
+ * Easing function - can be changed to ease-in-out if needed
+ */
+function easeLinear(t) {
+  return t;
+}
+
+/**
+ * RAF-based animation loop - frame-perfect synchronization
+ */
 async function animateClawPath(claw, blockDiv, steps, duration) {
   if (!claw || !Array.isArray(steps) || steps.length === 0) {
     if (duration > 0) {
@@ -90,156 +135,92 @@ async function animateClawPath(claw, blockDiv, steps, duration) {
     return;
   }
 
-  const baseDuration = clampDuration(duration, sanitizedSteps.length) * sanitizedSteps.length;
-
-  const clawStart = getElementPosition(claw);
-  const blockStart = blockDiv ? getBlockVisualPosition(blockDiv) : null;
-
-  const weights = [];
-  let totalWeight = 0;
-  let previewClaw = { ...clawStart };
-  let previewBlock = blockStart ? { ...blockStart } : null;
-
-  for (const step of sanitizedSteps) {
-    const targetLeft = typeof step.clawLeft === 'number' ? step.clawLeft : previewClaw.left;
-    const targetTop = typeof step.clawTop === 'number' ? step.clawTop : previewClaw.top;
-    const fallbackClawPosition = { left: targetLeft, top: targetTop };
-
-    let weight = Math.abs(targetLeft - previewClaw.left) + Math.abs(targetTop - previewClaw.top);
-
-    if (blockDiv) {
-      const priorBlockLeft = previewBlock?.left ?? blockStart?.left ?? (previewClaw.left - CLAW_OFFSET);
-      const priorBlockTop = previewBlock?.top ?? blockStart?.top ?? (previewClaw.top + CLAW_HEIGHT);
-      const { left: targetBlockLeft, top: targetBlockTop } = resolveBlockTargets(step, fallbackClawPosition, previewBlock, blockStart);
-      const blockWeight = Math.abs(targetBlockLeft - priorBlockLeft) + Math.abs(targetBlockTop - priorBlockTop);
-      weight = Math.max(weight, blockWeight);
-      previewBlock = { left: targetBlockLeft, top: targetBlockTop };
-    }
-
-    if (weight < 0.5) {
-      weight = 0;
-    }
-
-    weights.push(weight);
-    totalWeight += weight;
-    previewClaw = { left: targetLeft, top: targetTop };
-  }
-
-  if (totalWeight === 0) {
-    if (duration > 0) {
-      await delay(duration);
-    }
-    return;
-  }
-
-  const durations = new Array(sanitizedSteps.length).fill(0);
-  const positiveIndices = weights
-    .map((weight, idx) => (weight > 0 ? idx : -1))
-    .filter(idx => idx >= 0);
-
-  if (!positiveIndices.length) {
-    if (duration > 0) {
-      await delay(duration);
-    }
-    return;
-  }
-
-  const sharedDuration = Math.max(
-    MIN_AXIS_SEGMENT_DURATION,
-    Math.round(baseDuration / positiveIndices.length)
-  );
-
-  let accumulatedShared = 0;
-  positiveIndices.forEach(idx => {
-    durations[idx] = sharedDuration;
-    accumulatedShared += sharedDuration;
-  });
-
-  if (accumulatedShared !== baseDuration) {
-    const lastIdx = positiveIndices[positiveIndices.length - 1];
-    durations[lastIdx] += baseDuration - accumulatedShared;
-  }
-
-  let previous = { ...clawStart };
-  let previousBlock = blockStart ? { ...blockStart } : null;
-
-  for (let idx = 0; idx < sanitizedSteps.length; idx += 1) {
-    const step = sanitizedSteps[idx];
-    const segmentDuration = durations[idx];
-    const targetLeft = typeof step.clawLeft === 'number' ? step.clawLeft : previous.left;
-    const targetTop = typeof step.clawTop === 'number' ? step.clawTop : previous.top;
-    const fallbackClawPosition = { left: targetLeft, top: targetTop };
-    const moveHorizontally = Math.abs(targetLeft - previous.left) > 0.5;
-    const moveVertically = Math.abs(targetTop - previous.top) > 0.5;
-
-    const priorBlockState = previousBlock
-      ? { ...previousBlock }
-      : blockDiv
-        ? {
-            left: blockStart?.left ?? (previous.left - CLAW_OFFSET),
-            top: blockStart?.top ?? (previous.top + CLAW_HEIGHT)
-          }
-        : null;
-
-    const { left: targetBlockLeft, top: targetBlockTop } = resolveBlockTargets(step, fallbackClawPosition, previousBlock, blockStart);
-    const blockMovesHorizontally = blockDiv && priorBlockState
-      ? Math.abs(targetBlockLeft - priorBlockState.left) > 0.5
-      : false;
-    const blockMovesVertically = blockDiv && priorBlockState
-      ? Math.abs(targetBlockTop - priorBlockState.top) > 0.5
-      : false;
-
-    const nextBlockPosition = { left: targetBlockLeft, top: targetBlockTop };
-
-    if (!moveHorizontally && !moveVertically && !blockMovesHorizontally && !blockMovesVertically) {
-      previousBlock = nextBlockPosition;
-      continue;
-    }
-
-    const transitions = [];
-    if (moveHorizontally) transitions.push(`left ${segmentDuration}ms ease`);
-    if (moveVertically) transitions.push(`top ${segmentDuration}ms ease`);
-    claw.style.transition = transitions.join(', ');
-
-    if (moveHorizontally) {
-      claw.style.left = `${targetLeft}px`;
-    }
-    if (moveVertically) {
-      claw.style.top = `${targetTop}px`;
-    }
-
-    if (blockDiv && (blockMovesHorizontally || blockMovesVertically)) {
-      const blockTransitions = [];
-      if (blockMovesHorizontally) {
-        blockTransitions.push(`left ${segmentDuration}ms ease`);
-      }
-      if (blockMovesVertically) {
-        blockTransitions.push(`top ${segmentDuration}ms ease`);
-      }
-      if (blockTransitions.length) {
-        blockDiv.style.transition = blockTransitions.join(', ');
-      }
-      if (blockMovesHorizontally) {
-        blockDiv.style.left = `${targetBlockLeft}px`;
-      }
-      if (blockMovesVertically) {
-        blockDiv.style.top = `${targetBlockTop}px`;
-      }
-      previousBlock = nextBlockPosition;
-    } else if (blockDiv) {
-      previousBlock = nextBlockPosition;
-    }
-
-    if (segmentDuration > 0) {
-      await delay(segmentDuration);
-    }
-    previous = { left: targetLeft, top: targetTop };
-  }
-
-  claw.style.transition = '';
+  // Clear any CSS transitions - we're doing manual animation
+  claw.style.transition = 'none';
   if (blockDiv) {
-    blockDiv.style.transition = '';
+    blockDiv.style.transition = 'none';
   }
+
+  const perSegmentDuration = clampDuration(duration, sanitizedSteps.length);
+  const blockAttached = Boolean(blockDiv?.dataset?.attachedToClaw === 'true');
+  
+  // Build waypoints array from current position through all steps
+  const clawStart = getElementPosition(claw);
+  const waypoints = [{ claw: { ...clawStart }, duration: 0 }];
+  
+  let currentClaw = { ...clawStart };
+  
+  for (const step of sanitizedSteps) {
+    const targetLeft = typeof step.clawLeft === 'number' ? step.clawLeft : currentClaw.left;
+    const targetTop = typeof step.clawTop === 'number' ? step.clawTop : currentClaw.top;
+    
+    waypoints.push({
+      claw: { left: targetLeft, top: targetTop },
+      duration: perSegmentDuration
+    });
+    
+    currentClaw = { left: targetLeft, top: targetTop };
+  }
+
+  // Animate through waypoints using RAF
+  return new Promise((resolve) => {
+    let currentWaypointIndex = 1;
+    let segmentStartTime = performance.now();
+    let animationFrameId = null;
+
+    const animate = (currentTime) => {
+      if (currentWaypointIndex >= waypoints.length) {
+        // Animation complete
+        resolve();
+        return;
+      }
+
+      const prevWaypoint = waypoints[currentWaypointIndex - 1];
+      const currentWaypoint = waypoints[currentWaypointIndex];
+      const segmentDuration = currentWaypoint.duration;
+
+      if (segmentDuration === 0) {
+        // Skip zero-duration segments
+        currentWaypointIndex++;
+        segmentStartTime = currentTime;
+        animationFrameId = window.requestAnimationFrame(animate);
+        return;
+      }
+
+      const elapsed = currentTime - segmentStartTime;
+      const progress = Math.min(elapsed / segmentDuration, 1);
+      const t = easeLinear(progress);
+
+      // Interpolate claw position
+      const clawLeft = lerp(prevWaypoint.claw.left, currentWaypoint.claw.left, t);
+      const clawTop = lerp(prevWaypoint.claw.top, currentWaypoint.claw.top, t);
+
+      claw.style.left = `${clawLeft}px`;
+      claw.style.top = `${clawTop}px`;
+
+      // If block is attached, keep it perfectly synced with claw
+      if (blockDiv && blockAttached) {
+        const blockLeft = clawLeft - CLAW_OFFSET;
+        const blockTop = computeBlockTopForClaw(clawTop);
+        blockDiv.style.left = `${blockLeft}px`;
+        blockDiv.style.top = `${blockTop}px`;
+      }
+
+      if (progress >= 1) {
+        // Move to next segment
+        currentWaypointIndex++;
+        segmentStartTime = currentTime;
+      }
+
+      if (currentWaypointIndex < waypoints.length) {
+        animationFrameId = window.requestAnimationFrame(animate);
+      } else {
+        resolve();
+      }
+    };
+
+    animationFrameId = window.requestAnimationFrame(animate);
+  });
 }
 
 /**
@@ -318,26 +299,28 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     
     // === STEP 2: Pick up block (attach to claw) ===
     MOVING_CLASSES.forEach(cls => blockDiv.classList.add(cls));
-  await delay(computeContactDuration(duration));
+    await delay(computeContactDuration(duration));
+    attachBlockToClaw(claw, blockDiv, blockName);
     
     // Mark step 2 complete in timeline
     if (typeof markTimelineStep === 'function') {
       markTimelineStep({ type: 'PICK_UP', block: blockName, stepNumber: 2 });
     }
 
-  // === STEP 3: Apply the move in world state ===
-  world.moveBlock(blockName, dest);
-  world.updatePositions(blockName);
+    // === STEP 3: Apply the move in world state ===
+    world.moveBlock(blockName, dest);
+    world.updatePositions(blockName);
 
-  const originalTransition = blockDiv.style.transition;
-  blockDiv.style.transition = 'none';
-  blockDiv.style.left = `${sourcePos.left}px`;
-  blockDiv.style.top = `${sourcePos.top}px`;
-  blockDiv.getBoundingClientRect();
-  blockDiv.style.transition = originalTransition || '';
+    const originalTransition = blockDiv.style.transition;
+    blockDiv.style.transition = 'none';
+    blockDiv.style.left = `${sourcePos.left}px`;
+    blockDiv.style.top = `${sourcePos.top}px`;
+    blockDiv.getBoundingClientRect();
+    blockDiv.style.transition = originalTransition || '';
+    syncBlockWithClaw(claw, blockDiv);
 
     // Get destination position
-  const destPos = getBlockPosition(world, blockName);
+    const destPos = getBlockPosition(world, blockName);
     if (!destPos) {
       throw new Error(`Block ${blockName} not found after move`);
     }
@@ -352,30 +335,27 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     const raisedBlockTop = computeBlockTopForClaw(SAFE_CLAW_TOP);
     const pathToDestination = [];
 
-    if (Math.abs(sourceClawTop - SAFE_CLAW_TOP) > 0.5 || Math.abs(blockStart.top - raisedBlockTop) > 0.5) {
+    const needsSourceLift = Math.abs(sourceClawTop - SAFE_CLAW_TOP) > 0.5 || Math.abs(blockStart.top - raisedBlockTop) > 0.5;
+    if (needsSourceLift) {
       pathToDestination.push({
         clawLeft: sourceClawLeft,
-        clawTop: SAFE_CLAW_TOP,
-        blockLeft: blockStart.left,
-        blockTop: raisedBlockTop
+        clawTop: SAFE_CLAW_TOP
       });
     }
 
-    if (Math.abs(destClawLeft - sourceClawLeft) > 0.5) {
+    const needsHorizontalTravel = Math.abs(destClawLeft - sourceClawLeft) > 0.5 || Math.abs(destLeft - blockStart.left) > 0.5;
+    if (needsHorizontalTravel) {
       pathToDestination.push({
         clawLeft: destClawLeft,
-        clawTop: SAFE_CLAW_TOP,
-        blockLeft: destLeft,
-        blockTop: raisedBlockTop
+        clawTop: SAFE_CLAW_TOP
       });
     }
 
-    if (Math.abs(destClawTop - SAFE_CLAW_TOP) > 0.5 || Math.abs(destTop - raisedBlockTop) > 0.5) {
+    const needsDrop = Math.abs(destClawTop - SAFE_CLAW_TOP) > 0.5 || Math.abs(destTop - raisedBlockTop) > 0.5;
+    if (needsDrop) {
       pathToDestination.push({
         clawLeft: destClawLeft,
-        clawTop: destClawTop,
-        blockLeft: destLeft,
-        blockTop: destTop
+        clawTop: destClawTop
       });
     }
 
@@ -387,8 +367,9 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     }
 
     // === STEP 4: Drop block (detach from claw) ===
-  await delay(computeContactDuration(duration));
-    
+    await delay(computeContactDuration(duration));
+    detachBlockFromClaw(claw, blockDiv);
+
     MOVING_CLASSES.forEach(cls => blockDiv.classList.remove(cls));
     blockDiv.style.transition = '';
     world.updatePositions();
@@ -414,6 +395,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     
   } catch (error) {
     handleError(error, 'simulateMove');
+    detachBlockFromClaw(claw, blockDiv);
     MOVING_CLASSES.forEach(cls => blockDiv?.classList.remove(cls));
     callback();
   }
