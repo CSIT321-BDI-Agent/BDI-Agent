@@ -7,6 +7,7 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test:planner": "node planner-debug.js",
+    "test:multi-agent": "node multi-agent-tests.js",
     "docker:build": "cd .. && docker build -t bdi-agent .",
     "docker:run": "cd .. && docker run -p 3000:3000 bdi-agent",
     "docker:up": "cd .. && docker compose up --build",

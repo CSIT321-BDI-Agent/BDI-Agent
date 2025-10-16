@@ -124,6 +124,22 @@ function createBlocksHelpers(PlanningError) {
     return null;
   }
 
+  function listPendingRelations(stacks, goalChain) {
+    if (!Array.isArray(goalChain) || goalChain.length < 2) {
+      return [];
+    }
+
+    const pending = [];
+    for (let i = goalChain.length - 1; i >= 1; i -= 1) {
+      const block = goalChain[i - 1];
+      const destination = goalChain[i];
+      if (!isOn(stacks, block, destination)) {
+        pending.push({ block, destination });
+      }
+    }
+    return pending;
+  }
+
   function goalAchieved(stacks, goalChain) {
     if (!goalChain || goalChain.length < 2) {
       return true;
@@ -187,6 +203,7 @@ function createBlocksHelpers(PlanningError) {
     deriveOnMap,
     isOn,
     selectNextRelation,
+    listPendingRelations,
     goalAchieved,
     applyMove,
     ensureGoalFeasible

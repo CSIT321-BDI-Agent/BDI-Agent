@@ -670,6 +670,39 @@ app.post('/plan', requireAuth, withRoute((req, res) => {
   });
 }));
 
+// ------------------ Multi-Agent Planning ------------------
+app.post('/multi-agent-plan', requireAuth, withRoute(async (req, res) => {
+  const { stacks, goalChain, options = {} } = req.body || {};
+
+  const validatedStacks = validateStacksPayload(stacks);
+  const validatedGoalChain = validateGoalChain(goalChain);
+
+  const {
+    maxIterations = 2500,
+    negotiationTimeout = 5000,
+    enableNegotiation = true
+  } = options;
+
+  // Use collaborative multi-agent approach:
+  // Both agents work on full goal, propose one step at a time, deliberate together
+  const { collaborativePlan } = require('./bdi/collaborativeMultiAgent');
+  console.log('[API] /multi-agent-plan called');
+  console.log('[API] Stacks payload:', JSON.stringify(validatedStacks));
+  console.log('[API] Goal chain payload:', JSON.stringify(validatedGoalChain));
+  console.log('[API] Options:', { maxIterations, negotiationTimeout, enableNegotiation });
+  
+  const result = await collaborativePlan(
+    validatedStacks,
+    validatedGoalChain,
+    { maxIterations, negotiationTimeout, enableNegotiation }
+  );
+
+  res.json({
+    success: Boolean(result?.goalAchieved),
+    ...result
+  });
+}));
+
 // ------------------ Health ------------------
 app.get('/health', (req, res) => {
   const healthcheck = {

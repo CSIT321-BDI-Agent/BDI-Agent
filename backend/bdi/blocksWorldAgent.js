@@ -494,5 +494,12 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
 
 module.exports = {
   planBlocksWorld,
-  PlanningError
+  PlanningError,
+  createPlannerAgent,
+  computeStateFacts,
+  extractMove,
+  expandMoveToClawSteps,
+  validateMoveCandidate,
+  sanitizePlannerInputs,
+  createInitialPlannerState
 };

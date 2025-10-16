@@ -185,6 +185,21 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
     title.textContent = `Cycle ${cycleNumber}`;
     titleGroup.appendChild(title);
 
+    const chosenAgents = Array.isArray(cycle?.deliberation?.chosenAgents)
+      ? cycle.deliberation.chosenAgents
+      : null;
+    const chosenAgentDisplay = chosenAgents && chosenAgents.length
+      ? chosenAgents.join(' & ')
+      : cycle?.deliberation?.chosenAgent;
+
+    if (chosenAgentDisplay) {
+      const agentBadge = document.createElement('span');
+      agentBadge.className = 'text-[11px] font-semibold uppercase tracking-wide text-brand-primary/80';
+      const conflictLabel = cycle.deliberation.conflict ? 'Conflict resolved' : 'Selected agent';
+      agentBadge.textContent = `${conflictLabel}: ${chosenAgentDisplay}`;
+      titleGroup.appendChild(agentBadge);
+    }
+
     const moves = Array.isArray(cycle?.moves) ? cycle.moves : [];
     const primaryMove = moves.find(move => move && (move.block || move.skipped));
 
@@ -220,6 +235,42 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
 
     const moveStates = [];
     let totalActionMoves = 0;
+
+    if (cycle?.proposals && typeof cycle.proposals === 'object') {
+      const proposalsItem = document.createElement('li');
+      proposalsItem.className = MOVE_BASE_CLASS;
+      const summaries = [];
+      const summarize = (label, proposal) => {
+        if (!proposal) return;
+        const fragments = [label];
+        if (proposal.block) fragments.push(proposal.block);
+        if (proposal.to) fragments.push(`-> ${proposal.to}`);
+        if (proposal.reason) fragments.push(humanizeTimelineLabel(proposal.reason));
+        summaries.push(fragments.filter(Boolean).join(' '));
+      };
+      summarize('Agent A', cycle.proposals.agentA);
+      summarize('Agent B', cycle.proposals.agentB);
+      proposalsItem.textContent = summaries.length
+        ? `Proposals | ${summaries.join(' | ')}`
+        : 'Proposals | None';
+      setMoveVisualState(proposalsItem, 'informational');
+      proposalsItem.dataset.infoType = 'proposals';
+      list.appendChild(proposalsItem);
+    }
+
+    if (cycle?.deliberation && typeof cycle.deliberation === 'object') {
+      const deliberationItem = document.createElement('li');
+      deliberationItem.className = MOVE_BASE_CLASS;
+      const deliberationAgents = Array.isArray(cycle.deliberation.chosenAgents) && cycle.deliberation.chosenAgents.length
+        ? cycle.deliberation.chosenAgents.join(' & ')
+        : cycle.deliberation.chosenAgent || 'Unknown agent';
+      const reasonLabel = humanizeTimelineLabel(cycle.deliberation.reason || 'Selected');
+    const conflictLabel = cycle.deliberation.conflict ? 'conflict resolved' : 'agreement';
+    deliberationItem.textContent = `Deliberation | ${deliberationAgents} | ${conflictLabel} | ${reasonLabel}`;
+      setMoveVisualState(deliberationItem, 'informational');
+      deliberationItem.dataset.infoType = 'deliberation';
+      list.appendChild(deliberationItem);
+    }
 
     moves.forEach((move, moveIdx) => {
       const metadata = { ...(move || {}) };

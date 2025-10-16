@@ -5,7 +5,15 @@
  * persistence shortcuts, and control state synchronisation.
  */
 
-import { DOM, resetClawToDefault } from './constants.js';
+import {
+  DOM,
+  resetClawToDefault,
+  ensureAgentClaw,
+  removeAgentClaw,
+  layoutClaws,
+  getAgentClaw,
+  getAllAgentClaws
+} from './constants.js';
 import { showMessage, handleError } from './helpers.js';
 import {
   resetIntentionTimeline,
@@ -16,7 +24,7 @@ import {
   markTimelineStep,
   getIntentionTimelineSnapshot
 } from './timeline.js';
-import { requestBDIPlan } from './planner.js';
+import { requestBDIPlan, requestMultiAgentPlan } from './planner.js';
 import { simulateMove } from './animation.js';
 import { saveWorld, loadSelectedWorld, refreshLoadList } from './persistence.js';
 import { startStatsTimer, stopStatsTimer, updateStats, resetStats } from './stats.js';
@@ -62,13 +70,22 @@ class SimulationController {
 
     this.mutationQueue = new MutationQueue();
     this.dragManager = null;
+    this.claws = {};
   }
 
   initialize() {
     this.cacheDom();
+    this.syncClawRegistry();
     this.setupViewportGuards();
     this.setupDragManager();
     this.setupSpeedControls();
+    if (this.elements.multiAgentMode?.checked) {
+      ensureAgentClaw('Agent-B');
+    } else {
+      removeAgentClaw('Agent-B');
+    }
+    this.refreshClawLayout({ durationMs: 0 });
+    this.syncClawRegistry();
     this.bindEvents();
     this.syncBlockControls();
     this.syncSpeedUI();
@@ -90,8 +107,42 @@ class SimulationController {
       loadBtn: DOM.loadBtn(),
       loadSelect: DOM.loadSelect(),
       speedSlider: DOM.speedSlider(),
-      speedValueLabel: DOM.speedValueLabel()
+      speedValueLabel: DOM.speedValueLabel(),
+      multiAgentMode: document.getElementById('multiAgentMode'),
+      multiAgentInfo: document.getElementById('multiAgentInfo'),
+      multiAgentControls: document.getElementById('multiAgentControls'),
+      multiAgentStats: document.getElementById('multiAgentStats')
     };
+  }
+
+  syncClawRegistry() {
+    ensureAgentClaw('Agent-A');
+    const primary = getAgentClaw('Agent-A');
+    const secondary = getAgentClaw('Agent-B');
+    this.claws = {};
+    if (primary) {
+      this.claws['Agent-A'] = primary;
+    }
+    if (secondary) {
+      this.claws['Agent-B'] = secondary;
+    }
+  }
+
+  getAllClaws() {
+    const worldClaws = getAllAgentClaws();
+    if (worldClaws.length) {
+      return worldClaws;
+    }
+    return Object.values(this.claws).filter((claw) => claw && claw.isConnected);
+  }
+
+  getClawForAgent(agentKey = 'Agent-A') {
+    return this.claws[agentKey] || this.getAllClaws()[0] || null;
+  }
+
+  refreshClawLayout(options = {}) {
+    layoutClaws(options);
+    this.syncClawRegistry();
   }
 
   setupDragManager() {
@@ -193,8 +244,8 @@ class SimulationController {
 
     this.world.updatePositions();
 
-    const claw = document.getElementById('claw');
-    if (!claw) {
+    const claws = this.getAllClaws();
+    if (!claws.length) {
       this.pendingViewportRealign = false;
       return;
     }
@@ -204,10 +255,17 @@ class SimulationController {
       return;
     }
 
-    const previousTransition = claw.style.transition;
-    resetClawToDefault(claw, 0);
-    window.requestAnimationFrame(() => {
-      claw.style.transition = previousTransition || '';
+    claws.forEach((claw) => {
+      if (!claw) {
+        return;
+      }
+      const previousTransition = claw.style.transition;
+      resetClawToDefault(claw, 0);
+      window.requestAnimationFrame(() => {
+        if (claw) {
+          claw.style.transition = previousTransition || '';
+        }
+      });
     });
     this.pendingViewportRealign = false;
   }
@@ -256,7 +314,62 @@ class SimulationController {
     this.elements.saveBtn?.addEventListener('click', () => saveWorld(this.world));
     this.elements.loadBtn?.addEventListener('click', () => loadSelectedWorld(this.world));
 
+    // Multi-agent mode toggle
+    this.elements.multiAgentMode?.addEventListener('change', (event) => this.handleMultiAgentModeChange(event));
+
     document.addEventListener('world:blocks-changed', () => this.syncBlockControls());
+  }
+
+  handleMultiAgentModeChange(event) {
+    const isMultiAgent = event.target.checked;
+    
+    // Toggle multi-agent UI elements
+    if (this.elements.multiAgentInfo) {
+      this.elements.multiAgentInfo.classList.toggle('hidden', !isMultiAgent);
+    }
+
+    if (isMultiAgent) {
+      ensureAgentClaw('Agent-B');
+      this.refreshClawLayout({ durationMs: 200 });
+    } else {
+      removeAgentClaw('Agent-B');
+      this.refreshClawLayout({ durationMs: 0 });
+    }
+    this.syncClawRegistry();
+    
+    // Log mode change
+    logAction(`Planner mode: ${isMultiAgent ? 'Multi-Agent enabled (negotiation: ON, timeout: 5000ms)' : 'Single Agent (default)'}`, 'user');
+    
+    // Show/hide multi-agent stats panel when switching modes
+    if (this.elements.multiAgentStats && !isMultiAgent) {
+      this.elements.multiAgentStats.classList.add('hidden');
+    }
+  }
+
+  updateMultiAgentStats(statistics) {
+    if (!statistics) return;
+    
+    const agentAMovesEl = document.getElementById('stat-agent-a-moves');
+    const agentBMovesEl = document.getElementById('stat-agent-b-moves');
+    const conflictsEl = document.getElementById('stat-conflicts');
+    const negotiationsEl = document.getElementById('stat-negotiations');
+    const deliberationsEl = document.getElementById('stat-deliberations');
+    
+    if (agentAMovesEl) agentAMovesEl.textContent = statistics.agentAMoves || 0;
+    if (agentBMovesEl) agentBMovesEl.textContent = statistics.agentBMoves || 0;
+    if (conflictsEl) conflictsEl.textContent = statistics.totalConflicts || 0;
+    if (negotiationsEl) negotiationsEl.textContent = statistics.totalNegotiations || 0;
+    if (deliberationsEl) deliberationsEl.textContent = statistics.totalDeliberations || 0;
+    
+    // Show the stats panel
+    if (this.elements.multiAgentStats) {
+      this.elements.multiAgentStats.classList.remove('hidden');
+    }
+    
+    // Log summary
+    if (statistics.totalConflicts > 0) {
+      logAction(`Multi-agent: ${statistics.totalConflicts} conflicts detected, ${statistics.totalNegotiations} negotiations`, 'system');
+    }
   }
 
   get blockCount() {
@@ -583,6 +696,24 @@ class SimulationController {
   }
 
   async requestPlan(goalTokens) {
+    const isMultiAgent = document.getElementById('multiAgentMode')?.checked || false;
+    
+    if (isMultiAgent) {
+      // Use default values since Multi-Agent Options card is removed
+      const enableNegotiation = true;
+      const deliberationTimeout = 5000;
+      
+      return requestMultiAgentPlan(
+        this.world.getCurrentStacks(),
+        goalTokens,
+        {
+          maxIterations: 2500,  // Increased from 1000 to match single-agent limit
+          deliberationTimeout,
+          enableNegotiation
+        }
+      );
+    }
+    
     return requestBDIPlan(
       this.world.getCurrentStacks(),
       goalTokens,
@@ -701,10 +832,17 @@ class SimulationController {
 
   async handlePlannerSuccess(plannerResponse) {
     const moves = plannerResponse.moves || [];
+    const isMultiAgent = plannerResponse.statistics?.agentAMoves !== undefined;
+    
     renderIntentionTimeline(
       plannerResponse.intentionLog || [],
-      plannerResponse.agentCount || 1
+      plannerResponse.agentCount || (isMultiAgent ? 2 : 1)
     );
+
+    // Show multi-agent statistics if available
+    if (isMultiAgent) {
+      this.updateMultiAgentStats(plannerResponse.statistics);
+    }
 
     if (moves.length === 0) {
       showMessage('Goal already satisfied - no moves required.', 'info');
@@ -767,13 +905,15 @@ class SimulationController {
       : Array.isArray(moves)
         ? [...moves]
         : [];
+    this.syncClawRegistry();
 
-    const claw = document.getElementById('claw');
     const stepDuration = () => this.speedController.getStepDuration();
     let aborted = false;
 
-    if (claw && this.activePlan.length > 0) {
-      resetClawToDefault(claw, stepDuration());
+    const availableClaws = this.getAllClaws();
+
+    if (availableClaws.length && this.activePlan.length > 0) {
+      availableClaws.forEach((clawElem) => resetClawToDefault(clawElem, stepDuration()));
       await this.wait(stepDuration() + MOVE_CYCLE_BUFFER);
     }
 
@@ -794,37 +934,97 @@ class SimulationController {
         break;
       }
 
-      const nextMove = this.activePlan.shift();
-      const blockToLock = nextMove?.block;
-      if (blockToLock) {
-        this.dragManager?.lockBlocks([blockToLock]);
+      const nextMoveGroup = this.activePlan.shift();
+      console.log('[EXEC] nextMoveGroup:', nextMoveGroup);
+      
+      const moveBatch = Array.isArray(nextMoveGroup?.moves)
+        ? nextMoveGroup.moves.filter(Boolean)
+        : nextMoveGroup
+          ? [nextMoveGroup]
+          : [];
+
+      console.log('[EXEC] moveBatch.length:', moveBatch.length);
+
+      if (!moveBatch.length) {
+        continue;
       }
-      await new Promise((resolve) => {
-        simulateMove(
-          nextMove,
-          this.world,
-          this.elements.world,
-          claw,
-          markTimelineStep,
-          () => {
-            if (blockToLock) {
-              this.dragManager?.unlockBlocks([blockToLock]);
-            }
-            resolve();
-          },
-          { durationMs: stepDuration() }
-        );
+
+      const preparedMoves = moveBatch.map((move) => {
+        const agentKey = move?.actor || move?.agent || 'Agent-A';
+        const claw = this.getClawForAgent(agentKey) || this.getClawForAgent('Agent-A');
+        console.log(`[EXEC] Preparing ${agentKey}: ${move.block} → ${move.to}, claw:`, claw?.id);
+        return { move, agentKey, claw };
       });
-      this.executedMoveCount += 1;
+      
+      console.log('[EXEC] Will execute', preparedMoves.length, 'moves in parallel');
+
+      const missingClaw = preparedMoves.some(({ claw }) => !claw);
+      if (missingClaw) {
+        showMessage('No available robotic arm to execute the next move batch. Stopping simulation.', 'error');
+        aborted = true;
+        break;
+      }
+
+      const usedClaws = new Set();
+      const reusedClaw = preparedMoves.some(({ claw }) => {
+        if (usedClaws.has(claw)) {
+          return true;
+        }
+        usedClaws.add(claw);
+        return false;
+      });
+      if (reusedClaw) {
+        showMessage('Planner assigned multiple moves to the same robotic arm in one cycle. Stopping simulation.', 'error');
+        aborted = true;
+        break;
+      }
+
+      const promises = preparedMoves.map(({ move, claw }) => {
+        const blockToLock = move?.block;
+        if (blockToLock) {
+          this.dragManager?.lockBlocks([blockToLock]);
+        }
+
+        console.log(`[EXEC] Launching simulateMove for ${move.actor || 'unknown'}: ${move.block} → ${move.to}`);
+
+        return new Promise((resolve) => {
+          simulateMove(
+            move,
+            this.world,
+            this.elements.world,
+            claw,
+            markTimelineStep,
+            () => {
+              console.log(`[EXEC] Completed simulateMove for ${move.actor || 'unknown'}: ${move.block}`);
+              if (blockToLock) {
+                this.dragManager?.unlockBlocks([blockToLock]);
+              }
+              resolve();
+            },
+            { durationMs: stepDuration() }
+          );
+        });
+      });
+
+      console.log('[EXEC] Waiting for', promises.length, 'parallel animations...');
+      await Promise.all(promises);
+      console.log('[EXEC] All parallel animations completed');
+      
+      // Update all DOM positions after parallel animations complete
+      this.world.updatePositions();
+      console.log('[EXEC] World positions synchronized');
+      
+      this.executedMoveCount += moveBatch.length;
     }
 
     this.dragManager?.clearLockedBlocks?.();
     this.setManualControlsEnabled(true);
     this.dragManager?.enable();
 
-    if (claw) {
+    const finalClaws = this.getAllClaws();
+    if (finalClaws.length) {
       await this.wait(200);
-      resetClawToDefault(claw, stepDuration());
+      finalClaws.forEach((clawElem) => resetClawToDefault(clawElem, stepDuration()));
       await this.speedController.waitForWindow();
     }
 

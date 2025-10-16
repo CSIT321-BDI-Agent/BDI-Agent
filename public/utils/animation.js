@@ -253,9 +253,12 @@ function getBlockPosition(world, blockName) {
 export async function simulateMove(move, world, worldElem, claw, markTimelineStep, callback, options = {}) {
   const blockName = move.block;
   const dest = move.to;
+  const actor = move.actor || 'Agent-A';
   const duration = Number.isFinite(options.durationMs)
     ? Math.max(100, Math.round(options.durationMs))
     : window.APP_CONFIG?.ANIMATION_DURATION || 550;
+
+  console.log(`[ANIM START] ${actor}: ${blockName} → ${dest} (duration: ${duration}ms)`);
 
   const blockDiv = worldElem?.querySelector(`[data-block='${blockName}']`);
   if (!blockDiv) {
@@ -308,18 +311,10 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     }
 
     // === STEP 3: Apply the move in world state ===
+    // Update logical world state (but defer DOM position updates to avoid race conditions)
     world.moveBlock(blockName, dest);
-    world.updatePositions(blockName);
-
-    const originalTransition = blockDiv.style.transition;
-    blockDiv.style.transition = 'none';
-    blockDiv.style.left = `${sourcePos.left}px`;
-    blockDiv.style.top = `${sourcePos.top}px`;
-    blockDiv.getBoundingClientRect();
-    blockDiv.style.transition = originalTransition || '';
-    syncBlockWithClaw(claw, blockDiv);
-
-    // Get destination position
+    
+    // Calculate destination position based on new world state
     const destPos = getBlockPosition(world, blockName);
     if (!destPos) {
       throw new Error(`Block ${blockName} not found after move`);
@@ -372,7 +367,10 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
 
     MOVING_CLASSES.forEach(cls => blockDiv.classList.remove(cls));
     blockDiv.style.transition = '';
-    world.updatePositions();
+    
+    // Manually position block at destination (updatePositions will be called by executor after all parallel moves)
+    blockDiv.style.left = `${destLeft}px`;
+    blockDiv.style.top = `${destTop}px`;
     
     // Mark step 4 complete in timeline
     if (typeof markTimelineStep === 'function') {
@@ -391,9 +389,11 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     const destination = dest === 'Table' ? 'Table' : dest;
     logMove(`Move ${blockName} → ${destination}`);
     
+    console.log(`[ANIM END] ${actor}: ${blockName} → ${dest} completed`);
     callback();
     
   } catch (error) {
+    console.log(`[ANIM ERROR] ${actor}: ${blockName} →`, error.message);
     handleError(error, 'simulateMove');
     detachBlockFromClaw(claw, blockDiv);
     MOVING_CLASSES.forEach(cls => blockDiv?.classList.remove(cls));

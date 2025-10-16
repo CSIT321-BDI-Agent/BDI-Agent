@@ -88,7 +88,27 @@ export const CLAW_HOME_TOP = 10; // Visible at top of world area
 export const CLAW_HOME_LEFT_OFFSET = -30; // Will be calculated based on world width
 
 // Future: Support for multiple claws
-export const MAX_CLAWS = 1; // Currently single claw, expandable to multiple
+export const MAX_CLAWS = 2;
+
+const CLAW_BASE_CLASS = 'absolute z-50 flex h-[25px] w-[60px] items-end justify-center rounded-t-md text-[10px] font-semibold uppercase tracking-[0.28em] text-white shadow-[0_10px_24px_rgba(15,23,42,0.24)] pointer-events-none';
+const CLAW_LABEL_CLASS = 'pointer-events-none mb-1 text-[9px] font-semibold uppercase tracking-[0.35em] text-white/85';
+
+const AGENT_CLAW_MAP = {
+  'Agent-A': {
+    id: 'claw',
+    label: 'A',
+    classes: `${CLAW_BASE_CLASS} bg-brand-dark`,
+    armClass: 'pointer-events-none absolute rounded-b-sm bg-brand-dark/80'
+  },
+  'Agent-B': {
+    id: 'claw-agent-b',
+    label: 'B',
+    classes: `${CLAW_BASE_CLASS} bg-brand-primary`,
+    armClass: 'pointer-events-none absolute rounded-b-sm bg-brand-primary/80'
+  }
+};
+
+const CLAW_DATA_ATTRIBUTE = 'data-agent-claw';
 
 // API Configuration
 export const API_BASE = resolveApiBase();
@@ -120,23 +140,107 @@ export const DOM = {
   actionLog: () => document.getElementById('actionLog')
 };
 
-// Initialize claw element
+const parseIndex = (value, fallback = 0) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const createLabel = (text) => {
+  const span = document.createElement('span');
+  span.className = CLAW_LABEL_CLASS;
+  span.textContent = text;
+  return span;
+};
+
+export function getAgentClaw(agentKey) {
+  const config = AGENT_CLAW_MAP[agentKey];
+  if (!config) return null;
+  return document.getElementById(config.id);
+}
+
+export function getAllAgentClaws() {
+  const worldElem = DOM.world();
+  if (!worldElem) return [];
+  return Array.from(worldElem.querySelectorAll(`[${CLAW_DATA_ATTRIBUTE}='true']`));
+}
+
+function applyClawClasses(claw, config, agentKey) {
+  claw.className = config.classes;
+  claw.dataset.armClass = config.armClass;
+  if (agentKey) {
+    claw.dataset.agentKey = agentKey;
+  }
+}
+
+function ensureLabel(claw, text) {
+  let label = claw.querySelector('[data-claw-label="true"]');
+  if (!label) {
+    label = createLabel(text);
+    label.dataset.clawLabel = 'true';
+    claw.appendChild(label);
+  } else {
+    label.textContent = text;
+  }
+}
+
+// Initialize claw element(s)
 export function initializeClaw() {
+  const primaryClaw = ensureAgentClaw('Agent-A');
+  layoutClaws({ durationMs: 0 });
+  return primaryClaw;
+}
+
+export function ensureAgentClaw(agentKey) {
   const worldElem = DOM.world();
   if (!worldElem) return null;
-  
-  const claw = document.createElement('div');
-  claw.id = 'claw';
-  claw.className = 'absolute z-50 flex h-[25px] w-[60px] items-end justify-center rounded-t-md bg-brand-dark';
-  claw.setAttribute('data-claw-id', '0'); // Future: support for multiple claws
 
-  ensureClawArm(claw);
-  worldElem.appendChild(claw);
-  
-  // Set home position at top center
-  resetClawToHome(claw);
-  
+  const config = AGENT_CLAW_MAP[agentKey];
+  if (!config) {
+    return null;
+  }
+
+  let claw = document.getElementById(config.id);
+  if (!claw) {
+    claw = document.createElement('div');
+    claw.id = config.id;
+    claw.setAttribute(CLAW_DATA_ATTRIBUTE, 'true');
+    claw.dataset.agentKey = agentKey;
+    applyClawClasses(claw, config, agentKey);
+    ensureLabel(claw, config.label);
+    ensureClawArm(claw);
+    worldElem.appendChild(claw);
+  } else {
+    applyClawClasses(claw, config, agentKey);
+    ensureLabel(claw, config.label);
+    ensureClawArm(claw);
+  }
+
   return claw;
+}
+
+export function removeAgentClaw(agentKey) {
+  const config = AGENT_CLAW_MAP[agentKey];
+  if (!config) return;
+  const claw = document.getElementById(config.id);
+  if (claw && claw.parentElement) {
+    claw.parentElement.removeChild(claw);
+  }
+  layoutClaws({ durationMs: 0 });
+}
+
+export function layoutClaws({ durationMs = 0 } = {}) {
+  const worldElem = DOM.world();
+  if (!worldElem) return;
+  const claws = getAllAgentClaws();
+  if (!claws.length) {
+    return;
+  }
+
+  claws.forEach((claw, index) => {
+    claw.dataset.clawIndex = String(index);
+    claw.dataset.clawCount = String(claws.length);
+    resetClawToHome(claw, durationMs);
+  });
 }
 
 // Reset claw to home position (top center)
@@ -146,13 +250,18 @@ export function resetClawToHome(claw, durationOverride = null) {
   const worldElem = DOM.world();
   if (!worldElem) return;
   
-  // Calculate center of world area
-  const worldWidth = worldElem.offsetWidth || 400; // Default fallback
-  const centerLeft = (worldWidth / 2) - (CLAW_WIDTH / 2);
+  const worldWidth = worldElem.offsetWidth || 400;
+  const siblings = getAllAgentClaws();
+  const count = siblings.length || parseIndex(claw.dataset.clawCount, 1);
+  const indexFromDataset = parseIndex(claw.dataset.clawIndex, -1);
+  const siblingIndex = siblings.indexOf(claw);
+  const resolvedIndex = indexFromDataset >= 0 ? indexFromDataset : Math.max(0, siblingIndex);
+  const slotWidth = count > 0 ? worldWidth / (count + 1) : worldWidth / 2;
+  const targetLeft = slotWidth * (resolvedIndex + 1) - (CLAW_WIDTH / 2);
   
   const duration = durationOverride ?? window.APP_CONFIG?.ANIMATION_DURATION ?? 550;
   claw.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
-  claw.style.left = `${centerLeft}px`;
+  claw.style.left = `${Math.max(0, Math.round(targetLeft))}px`;
   claw.style.top = `${CLAW_HOME_TOP}px`;
   ensureClawArm(claw);
 }
@@ -166,8 +275,10 @@ function ensureClawArm(claw) {
   if (!arm) {
     arm = document.createElement('div');
     arm.dataset.clawArm = 'true';
-    arm.className = 'pointer-events-none absolute rounded-b-sm bg-brand-dark/80';
+    arm.className = claw.dataset.armClass || 'pointer-events-none absolute rounded-b-sm bg-brand-dark/80';
     claw.appendChild(arm);
+  } else {
+    arm.className = claw.dataset.armClass || 'pointer-events-none absolute rounded-b-sm bg-brand-dark/80';
   }
 
   const width = CLAW_ARM_WIDTH;
