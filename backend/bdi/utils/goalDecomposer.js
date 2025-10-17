@@ -57,7 +57,7 @@ function decomposeGoals(goalChain) {
   const overlap = normalizedChain[midpoint];
 
   return {
-    goalChainA: ensureTableAnchor(goalChainA),
+    goalChainA: goalChainA.length >= 2 ? goalChainA : ensureTableAnchor(goalChainA),
     goalChainB: ensureTableAnchor(goalChainB),
     overlap
   };

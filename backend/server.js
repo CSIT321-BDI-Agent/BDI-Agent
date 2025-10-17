@@ -679,22 +679,22 @@ app.post('/multi-agent-plan', requireAuth, withRoute(async (req, res) => {
 
   const {
     maxIterations = 2500,
-    negotiationTimeout = 5000,
+    deliberationTimeout = 5000,
     enableNegotiation = true
   } = options;
 
-  // Use collaborative multi-agent approach:
-  // Both agents work on full goal, propose one step at a time, deliberate together
-  const { collaborativePlan } = require('./bdi/collaborativeMultiAgent');
-  console.log('[API] /multi-agent-plan called');
+  // Use TRUE multi-agent BDI approach:
+  // Two independent agents with separate beliefs/desires/intentions, deliberate through negotiation protocol
+  const { trueBDIPlan } = require('./bdi/multiAgentEnvironment');
+  console.log('[API] /multi-agent-plan called (TRUE BDI)');
   console.log('[API] Stacks payload:', JSON.stringify(validatedStacks));
   console.log('[API] Goal chain payload:', JSON.stringify(validatedGoalChain));
-  console.log('[API] Options:', { maxIterations, negotiationTimeout, enableNegotiation });
+  console.log('[API] Options:', { maxIterations, deliberationTimeout, enableNegotiation });
   
-  const result = await collaborativePlan(
+  const result = await trueBDIPlan(
     validatedStacks,
     validatedGoalChain,
-    { maxIterations, negotiationTimeout, enableNegotiation }
+    { maxIterations, deliberationTimeout, enableNegotiation }
   );
 
   res.json({

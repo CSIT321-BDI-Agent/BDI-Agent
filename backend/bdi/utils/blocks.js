@@ -5,6 +5,22 @@ function createBlocksHelpers(PlanningError) {
     return stacks.map(stack => [...stack]);
   }
 
+  function computeClearBlocks(stacks) {
+    if (!Array.isArray(stacks)) {
+      return [];
+    }
+
+    const clear = new Set();
+
+    stacks.forEach(stack => {
+      if (Array.isArray(stack) && stack.length > 0) {
+        clear.add(stack[stack.length - 1]);
+      }
+    });
+
+    return Array.from(clear).sort();
+  }
+
   function normalizeStacks(rawStacks) {
     if (!Array.isArray(rawStacks)) {
       throw new PlanningError('Stacks payload must be an array of stacks.');
@@ -206,7 +222,8 @@ function createBlocksHelpers(PlanningError) {
     listPendingRelations,
     goalAchieved,
     applyMove,
-    ensureGoalFeasible
+    ensureGoalFeasible,
+    computeClearBlocks
   };
 }
 

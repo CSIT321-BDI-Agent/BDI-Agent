@@ -35,9 +35,9 @@ class DeliberationManager extends EventEmitter {
    * 
    * @param {Array<Object>} proposals - Proposals from all agents
    * @param {Object} currentState - Current world state
-   * @returns {Promise<{decisions: Array, conflicts: Array, negotiations: Array}>}
+  * @returns {{decisions: Array, conflicts: Array, negotiations: Array}}
    */
-  async deliberate(proposals, currentState) {
+  deliberate(proposals, currentState) {
     const deliberationId = `delib-${Date.now()}`;
     const startTime = Date.now();
     
@@ -49,7 +49,7 @@ class DeliberationManager extends EventEmitter {
 
     try {
       // Phase 1: Validate proposals
-      const validProposals = await this.validateProposals(proposals, currentState);
+      const validProposals = this.validateProposals(proposals, currentState);
       
       if (validProposals.length === 0) {
         // No valid proposals - agents may be done
@@ -75,7 +75,7 @@ class DeliberationManager extends EventEmitter {
       let negotiations = [];
 
       if (conflicts.length > 0 && this.enableNegotiation) {
-        const negotiationResult = await this.negotiateWithTimeout(
+        const negotiationResult = this.negotiateWithTimeout(
           validProposals,
           conflicts,
           currentState
@@ -139,9 +139,9 @@ class DeliberationManager extends EventEmitter {
    * 
    * @param {Array<Object>} proposals
    * @param {Object} currentState
-   * @returns {Promise<Array>} Valid proposals
+  * @returns {Array} Valid proposals
    */
-  async validateProposals(proposals, currentState) {
+  validateProposals(proposals, currentState) {
     return proposals.filter(proposal => {
       if (!proposal.move) return false;
 
@@ -192,15 +192,16 @@ class DeliberationManager extends EventEmitter {
    * @param {Array} proposals
    * @param {Array} conflicts
    * @param {Object} currentState
-   * @returns {Promise<Object>}
+  * @returns {Object}
    */
-  async negotiateWithTimeout(proposals, conflicts, currentState) {
-    return Promise.race([
-      this.negotiator.negotiate(proposals, conflicts, currentState),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Negotiation timeout')), this.timeout)
-      )
-    ]);
+  negotiateWithTimeout(proposals, conflicts, currentState) {
+    const result = this.negotiator.negotiate(proposals, conflicts, currentState);
+
+    if (!result || typeof result !== 'object') {
+      throw new Error('Negotiation protocol returned invalid result');
+    }
+
+    return result;
   }
 
   /**

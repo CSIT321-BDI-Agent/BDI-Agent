@@ -114,6 +114,7 @@ Saved world documents now resemble:
 ## Testing & Tooling
 
 - Planner regression suite: `npm run test:planner`
+- Multi-agent regression suite: `npm run test:multi-agent`
 - Logs are standard `console.log`/`console.error`; combine with `docker compose logs app` when running in containers.
 - Health endpoint (`/health`) reports uptime and MongoDB connection status for Compose or Kubernetes probes.
 

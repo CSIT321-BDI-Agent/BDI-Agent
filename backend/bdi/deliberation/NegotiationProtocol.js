@@ -4,7 +4,15 @@
  * Implements utility-based negotiation with cooperative solution finding
  */
 
-const { computeClearBlocks } = require('../utils/blocks');
+function computeClearBlocks(stacks) {
+  if (!Array.isArray(stacks)) {
+    return [];
+  }
+
+  return stacks
+    .filter(stack => Array.isArray(stack) && stack.length > 0)
+    .map(stack => stack[stack.length - 1]);
+}
 
 class NegotiationProtocol {
   constructor(options = {}) {
@@ -19,15 +27,15 @@ class NegotiationProtocol {
    * @param {Array<Object>} proposals - All agent proposals
    * @param {Array<Object>} conflicts - Detected conflicts
    * @param {Object} currentState - World state
-   * @returns {Promise<{decisions: Array, negotiations: Array}>}
+  * @returns {{decisions: Array, negotiations: Array}}
    */
-  async negotiate(proposals, conflicts, currentState) {
+  negotiate(proposals, conflicts, currentState) {
     const negotiations = [];
     const decisions = [];
 
     // Process each conflict through negotiation
     for (const conflict of conflicts) {
-      const negotiation = await this.negotiateConflict(
+      const negotiation = this.negotiateConflict(
         conflict,
         currentState
       );
@@ -57,9 +65,9 @@ class NegotiationProtocol {
    * 
    * @param {Object} conflict - Conflict to resolve
    * @param {Object} state - Current world state
-   * @returns {Promise<Object>} Negotiation result
+  * @returns {Object} Negotiation result
    */
-  async negotiateConflict(conflict, state) {
+  negotiateConflict(conflict, state) {
     const { proposalA, proposalB, type } = conflict;
 
     // Calculate utilities for both proposals
@@ -76,6 +84,13 @@ class NegotiationProtocol {
       phases: []
     };
 
+    const moveA = proposalA?.move || null;
+    const moveB = proposalB?.move || null;
+    const reasonA = moveA?.reason ? String(moveA.reason).toLowerCase() : '';
+    const reasonB = moveB?.reason ? String(moveB.reason).toLowerCase() : '';
+    const isClearA = reasonA.startsWith('clear');
+    const isClearB = reasonB.startsWith('clear');
+
     // PHASE 1: Utility-based comparison
     negotiation.phases.push({
       phase: 'utility-comparison',
@@ -83,6 +98,25 @@ class NegotiationProtocol {
       utilityB,
       utilityDiff: Math.abs(utilityA - utilityB)
     });
+
+    if (type === 'ORDERING_CONFLICT' && isClearA !== isClearB) {
+      const winner = isClearA ? proposalA : proposalB;
+      const loser = isClearA ? proposalB : proposalA;
+
+      negotiation.phases.push({
+        phase: 'clear-priority',
+        winner: winner.agentId
+      });
+
+      negotiation.resolution = {
+        type: 'clear-priority',
+        winner,
+        loser,
+        reason: 'Clearing move takes precedence over stacking'
+      };
+
+      return negotiation;
+    }
 
     // If utilities are significantly different, winner is clear
     if (Math.abs(utilityA - utilityB) > this.utilityThreshold) {
@@ -101,7 +135,7 @@ class NegotiationProtocol {
         phase: 'cooperative-search'
       });
 
-      const cooperativeSolution = await this.findCooperativeSolution(
+      const cooperativeSolution = this.findCooperativeSolution(
         proposalA,
         proposalB,
         conflict,
@@ -150,6 +184,11 @@ class NegotiationProtocol {
 
     if (!move) return 0;
 
+    const normalizedReason = typeof move.reason === 'string'
+      ? move.reason.toLowerCase()
+      : '';
+    const isClearMove = normalizedReason.startsWith('clear');
+
     // Check if move directly achieves a goal relation
     if (state.goalChain) {
       for (let i = 0; i < state.goalChain.length - 1; i++) {
@@ -166,13 +205,17 @@ class NegotiationProtocol {
       utility += 0.3; // Clearing needed block
     }
 
+    if (isClearMove) {
+      utility += 0.4; // Prioritise clearing moves that unlock dependencies
+    }
+
     // Check if destination is in goal chain
     if (state.goalChain && state.goalChain.includes(move.to)) {
       utility += 0.2; // Moving toward goal structure
     }
 
     // Penalty for moving to table without clearing reason
-    if (move.to === 'Table' && move.reason !== 'clear') {
+    if (move.to === 'Table' && !isClearMove) {
       utility -= 0.1; // Discourage unnecessary table moves
     }
 
@@ -187,41 +230,37 @@ class NegotiationProtocol {
    * @param {Object} proposalB
    * @param {Object} conflict
    * @param {Object} state
-   * @returns {Promise<Object|null>}
+  * @returns {Object|null}
    */
-  async findCooperativeSolution(proposalA, proposalB, conflict, state) {
-    // Strategy 1: Resource conflict - suggest alternative for one agent
-    if (conflict.type === 'RESOURCE_CONFLICT') {
-      const altMoveA = this.findAlternativeMove(proposalA, state, conflict.resource);
-      const altMoveB = this.findAlternativeMove(proposalB, state, conflict.resource);
-
-      if (altMoveA) {
-        return {
-          type: 'cooperative-alternative',
-          winner: proposalB, // B keeps original move
-          loser: proposalA,  // A gets alternative
-          alternative: altMoveA,
-          reason: 'Alternative move found for Agent A'
-        };
-      }
-
-      if (altMoveB) {
-        return {
-          type: 'cooperative-alternative',
-          winner: proposalA,
-          loser: proposalB,
-          alternative: altMoveB,
-          reason: 'Alternative move found for Agent B'
-        };
-      }
-    }
-
+  findCooperativeSolution(proposalA, proposalB, conflict, state) {
+    // Strategy 1: Resource conflict - DISABLED
+    // Finding alternatives from global goal chain causes conflicts with other agent's goals
+    // Alternative moves can undo the other agent's work, creating infinite loops
+    // TODO: Re-enable when we have per-agent goal chain access in negotiation protocol
+    
     // Strategy 2: Ordering conflict - suggest sequential execution
     if (conflict.type === 'ORDERING_CONFLICT') {
+      const { proposalA, proposalB } = conflict;
+      const moveA = proposalA.move;
+      const moveB = proposalB.move;
+
+      let first = proposalA;
+      let second = proposalB;
+
+      // If proposalB depends on destination of proposalA, let B go first
+      if (moveB && moveA && moveB.block === moveA.to) {
+        first = proposalB;
+        second = proposalA;
+      } else if (moveA && moveB && moveA.block === moveB.to) {
+        // Otherwise keep original ordering (A clears resource for B)
+        first = proposalA;
+        second = proposalB;
+      }
+
       return {
         type: 'cooperative-sequential',
-        first: proposalA,  // A goes first
-        second: proposalB, // B waits and replans
+        first,
+        second,
         reason: 'Sequential execution resolves ordering conflict'
       };
     }
@@ -326,6 +365,22 @@ class NegotiationProtocol {
         move: resolution.second.move,
         status: 'deferred',
         reason: 'cooperative-wait',
+        negotiationId: negotiation.conflictId
+      });
+    } else if (resolution.type === 'clear-priority') {
+      decisions.push({
+        agentId: resolution.winner.agentId,
+        move: resolution.winner.move,
+        status: 'approved',
+        reason: 'clear-priority',
+        negotiationId: negotiation.conflictId
+      });
+
+      decisions.push({
+        agentId: resolution.loser.agentId,
+        move: resolution.loser.move,
+        status: 'blocked',
+        reason: resolution.reason,
         negotiationId: negotiation.conflictId
       });
     }
