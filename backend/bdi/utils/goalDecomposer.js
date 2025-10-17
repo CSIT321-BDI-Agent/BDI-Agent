@@ -8,12 +8,12 @@
 /**
  * Decomposes goal chain into two subsets for parallel work
  * 
- * Strategy: Horizontal split with overlap on middle block
- * 
+ * Strategy: staged split with shared overlap window
+ *
  * Example: ['A', 'B', 'C', 'D', 'E', 'Table']
- *   Agent A: ['A', 'B', 'C']  → Achieve (A on B on C)
- *   Agent B: ['C', 'D', 'E']  → Achieve (C on D on E)
- *   Overlap: Block C requires coordination
+ *   Foundation (shared): ['C', 'D', 'E', 'Table']
+ *   Assembly (top): ['A', 'B', 'C']
+ *   Overlap: ['C'] keeps both agents aligned on the staging pivot
  * 
  * @param {string[]} goalChain - Full goal chain including 'Table'
  * @returns {{goalChainA: string[], goalChainB: string[], overlap: string|null}}
@@ -44,22 +44,40 @@ function decomposeGoals(goalChain) {
     };
   }
 
-  // Multiple blocks - horizontal split with overlap
-  const midpoint = Math.ceil((normalizedChain.length - 1) / 2);
-  
-  // Agent A gets first half (includes midpoint)
-  const goalChainA = normalizedChain.slice(0, midpoint + 1);
-  
-  // Agent B gets second half (starts at midpoint for overlap)
-  const goalChainB = normalizedChain.slice(midpoint);
-  
-  // Overlap block is the middle block where agents coordinate
-  const overlap = normalizedChain[midpoint];
+  // Multiple blocks - staged split (foundation + assembly)
+  const relationCount = normalizedChain.length - 1; // Number of on-relations to satisfy
+  const foundationRelations = Math.max(1, Math.ceil(relationCount / 2));
+  const foundationStartIndex = Math.max(0, relationCount - foundationRelations);
+
+  const foundationChain = normalizedChain.slice(foundationStartIndex);
+  const assemblyChain = normalizedChain.slice(0, foundationStartIndex + 1);
+
+  // Ensure both chains remain valid (at least two entries)
+  const resolvedAssemblyChain = assemblyChain.length >= 2
+    ? assemblyChain
+    : ensureTableAnchor(assemblyChain);
+
+  const resolvedFoundationChain = foundationChain.length >= 2
+    ? foundationChain
+    : ensureTableAnchor(foundationChain);
+
+  const sharedBlocks = resolvedAssemblyChain.filter(block => resolvedFoundationChain.includes(block));
+  const pivotBlock = sharedBlocks.length > 0
+    ? sharedBlocks[sharedBlocks.length - 1]
+    : resolvedFoundationChain[0];
 
   return {
-    goalChainA: goalChainA.length >= 2 ? goalChainA : ensureTableAnchor(goalChainA),
-    goalChainB: ensureTableAnchor(goalChainB),
-    overlap
+    goalChainA: resolvedAssemblyChain,
+    goalChainB: resolvedFoundationChain,
+    overlap: {
+      pivot: pivotBlock,
+      blocks: sharedBlocks
+    },
+    stages: {
+      foundationChain: resolvedFoundationChain,
+      assemblyChain: resolvedAssemblyChain,
+      pivot: pivotBlock
+    }
   };
 }
 

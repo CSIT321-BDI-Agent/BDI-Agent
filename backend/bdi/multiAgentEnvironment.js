@@ -56,22 +56,41 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
     options
   );
 
-  // Decompose goals between agents
-  const { goalChainA, goalChainB, overlap } = decomposeGoals(fullGoalChain);
+  // Decompose goals between agents with staging information
+  const decomposition = decomposeGoals(fullGoalChain);
+  const goalChainA = decomposition.goalChainA;
+  const goalChainB = decomposition.goalChainB;
+  const stageBlueprint = decomposition.stages || {
+    foundationChain: goalChainB,
+    assemblyChain: goalChainA,
+    pivot: Array.isArray(decomposition.overlap?.blocks)
+      ? decomposition.overlap.blocks[decomposition.overlap.blocks.length - 1]
+      : decomposition.overlap
+  };
+  const foundationCompleteInitial = goalAchieved(normalizedStacks, stageBlueprint.foundationChain);
+  const assemblyCompleteInitial = goalAchieved(normalizedStacks, stageBlueprint.assemblyChain);
+  const initialStage = foundationCompleteInitial ? 'assembly' : 'foundation';
 
   // Create initial state for Agent A
-  const stateResultA = createInitialPlannerState(normalizedStacks, goalChainA);
+  const initialGoalChainA = initialStage === 'foundation'
+    ? stageBlueprint.foundationChain
+    : stageBlueprint.assemblyChain;
+
+  const stateResultA = createInitialPlannerState(normalizedStacks, initialGoalChainA);
   const initialStateA = stateResultA.alreadySatisfied 
     ? {
         stacks: normalizedStacks,
-        goalChain: goalChainA,
+        goalChain: [...initialGoalChainA],
         moves: [],
         goalAchieved: true,
         iterations: 0,
         intentionLog: [],
-        ...computeStateFacts(normalizedStacks, goalChainA)
+        ...computeStateFacts(normalizedStacks, initialGoalChainA)
       }
-    : stateResultA.initialState;
+    : {
+        ...stateResultA.initialState,
+        goalChain: [...initialGoalChainA]
+      };
 
   // Create initial state for Agent B  
   const stateResultB = createInitialPlannerState(normalizedStacks, goalChainB);
@@ -105,12 +124,20 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
     conflicts: [],
     negotiations: [],
     deliberations: [],
-  pendingProposals: [],
+    pendingProposals: [],
     onMap: globalFacts.onMap,
     clearBlocks: globalFacts.clearBlocks,
     pendingRelation: globalFacts.pendingRelation,
     goalAchieved: goalAchieved(normalizedStacks, fullGoalChain),
-    iterations: 0
+    iterations: 0,
+    staging: {
+      currentStage: initialStage,
+      foundationChain: [...stageBlueprint.foundationChain],
+      assemblyChain: [...stageBlueprint.assemblyChain],
+      pivotBlock: stageBlueprint.pivot,
+      foundationComplete: foundationCompleteInitial,
+      assemblyComplete: assemblyCompleteInitial
+    }
   };
 
   // Create deliberation manager
@@ -157,7 +184,17 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
       intentionLog: Array.isArray(currentState.intentionLog) ? [...currentState.intentionLog] : [],
       conflicts: Array.isArray(currentState.conflicts) ? [...currentState.conflicts] : [],
       negotiations: Array.isArray(currentState.negotiations) ? [...currentState.negotiations] : [],
-      deliberations: Array.isArray(currentState.deliberations) ? [...currentState.deliberations] : []
+      deliberations: Array.isArray(currentState.deliberations) ? [...currentState.deliberations] : [],
+      staging: currentState.staging
+        ? {
+            currentStage: currentState.staging.currentStage,
+            foundationChain: [...currentState.staging.foundationChain],
+            assemblyChain: [...currentState.staging.assemblyChain],
+            pivotBlock: currentState.staging.pivotBlock,
+            foundationComplete: currentState.staging.foundationComplete,
+            assemblyComplete: currentState.staging.assemblyComplete
+          }
+        : null
     };
 
     const proposals = pendingProposals.filter(entry => entry.move);
@@ -168,6 +205,26 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
       nextState.clearBlocks = facts.clearBlocks;
       nextState.pendingRelation = facts.pendingRelation;
       nextState.goalAchieved = goalAchieved(nextState.stacks, nextState.goalChain);
+
+      if (nextState.staging) {
+        const foundationComplete = goalAchieved(nextState.stacks, nextState.staging.foundationChain);
+        const assemblyComplete = goalAchieved(nextState.stacks, nextState.staging.assemblyChain);
+        let stageLabel = nextState.staging.currentStage;
+
+        if (stageLabel === 'foundation' && foundationComplete) {
+          stageLabel = 'assembly';
+        }
+        if (assemblyComplete && nextState.goalAchieved) {
+          stageLabel = 'complete';
+        }
+
+        nextState.staging = {
+          ...nextState.staging,
+          currentStage: stageLabel,
+          foundationComplete,
+          assemblyComplete
+        };
+      }
 
       if (!nextState.goalAchieved) {
         throw new PlanningError('Planner stalled before achieving the goal.', 422);
@@ -261,6 +318,26 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
     nextState.pendingRelation = finalFacts.pendingRelation;
     nextState.goalAchieved = goalAchieved(nextState.stacks, nextState.goalChain);
 
+    if (nextState.staging) {
+      const foundationComplete = goalAchieved(nextState.stacks, nextState.staging.foundationChain);
+      const assemblyComplete = goalAchieved(nextState.stacks, nextState.staging.assemblyChain);
+      let stageLabel = nextState.staging.currentStage;
+
+      if (stageLabel === 'foundation' && foundationComplete) {
+        stageLabel = 'assembly';
+      }
+      if (assemblyComplete && nextState.goalAchieved) {
+        stageLabel = 'complete';
+      }
+
+      nextState.staging = {
+        ...nextState.staging,
+        currentStage: stageLabel,
+        foundationComplete,
+        assemblyComplete
+      };
+    }
+
     proposals.forEach(proposal => {
       if (appliedActors.has(proposal.agentId)) {
         return;
@@ -293,7 +370,21 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
   };
 
   const stateFilter = (state, agentId, agentBeliefs) => {
-    const agentGoalChain = agentId === 'agent-a' ? goalChainA : goalChainB;
+    const staging = state?.staging;
+    let agentGoalChain;
+
+    if (agentId === 'agent-a') {
+      if (staging?.currentStage === 'foundation') {
+        agentGoalChain = staging?.foundationChain || goalChainB;
+      } else if (staging?.currentStage === 'complete') {
+        agentGoalChain = fullGoalChain;
+      } else {
+        agentGoalChain = stageBlueprint.assemblyChain || goalChainA;
+      }
+    } else {
+      agentGoalChain = staging?.foundationChain || goalChainB;
+    }
+
     const facts = computeStateFacts(state.stacks, agentGoalChain);
 
     const filtered = {
@@ -308,6 +399,15 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
       filtered.pendingRelation = { ...facts.pendingRelation };
     } else if (agentBeliefs && Object.prototype.hasOwnProperty.call(agentBeliefs, 'pendingRelation')) {
       delete agentBeliefs.pendingRelation;
+    }
+
+    if (staging) {
+      filtered.staging = {
+        currentStage: staging.currentStage,
+        foundationComplete: staging.foundationComplete,
+        assemblyComplete: staging.assemblyComplete,
+        pivotBlock: staging.pivotBlock
+      };
     }
 
     return filtered;
@@ -340,7 +440,12 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
     environment,
     deliberationManager,
     agents: { agentA, agentB },
-    goalDecomposition: { goalChainA, goalChainB, overlap }
+    goalDecomposition: {
+      goalChainA,
+      goalChainB,
+      overlap: decomposition.overlap,
+      stages: stageBlueprint
+    }
   };
 }
 /**

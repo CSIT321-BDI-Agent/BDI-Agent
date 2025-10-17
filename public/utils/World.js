@@ -78,11 +78,6 @@ export class World {
       return false;
     }
 
-    if (!this.isClear(blockName)) {
-      this.setMessage(`Block "${blockName}" is not clear. Remove blocks on top first.`, 'warning');
-      return false;
-    }
-
     const stackIndex = this.stacks.findIndex(s => s.includes(blockName));
     if (stackIndex === -1) {
       this.setMessage(`Could not locate block "${blockName}" in stacks.`, 'error');
@@ -90,9 +85,18 @@ export class World {
     }
 
     const stack = this.stacks[stackIndex];
-    stack.pop();
+    const position = stack.indexOf(blockName);
+    if (position === -1) {
+      this.setMessage(`Block "${blockName}" not found in expected stack.`, 'error');
+      return false;
+    }
+
+    stack.splice(position, 1);
+
     if (stack.length === 0) {
       this.stacks.splice(stackIndex, 1);
+    } else {
+      this.rebuildSupportForStack(stackIndex);
     }
 
     this.blocks = this.blocks.filter(b => b !== blockName);

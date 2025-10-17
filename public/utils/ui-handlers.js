@@ -391,14 +391,13 @@ class SimulationController {
 
   getTopmostBlock() {
     if (!this.world) return null;
-    const stacks = this.world.getCurrentStacks();
-    for (let i = stacks.length - 1; i >= 0; i -= 1) {
-      const stack = stacks[i];
-      if (Array.isArray(stack) && stack.length > 0) {
-        return stack[stack.length - 1];
-      }
+    const blocks = this.world.getCurrentBlocks();
+    if (!Array.isArray(blocks) || blocks.length === 0) {
+      return null;
     }
-    return null;
+
+    const sorted = [...blocks].sort((a, b) => b.localeCompare(a));
+    return sorted.length > 0 ? sorted[0] : null;
   }
 
   syncBlockControls(forceDisabled = this.controlsDisabled && !this.allowManualDuringRun) {

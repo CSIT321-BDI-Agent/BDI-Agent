@@ -310,11 +310,14 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
       markTimelineStep({ type: 'PICK_UP', block: blockName, stepNumber: 2 });
     }
 
-    // === STEP 3: Apply the move in world state ===
-    // Update logical world state (but defer DOM position updates to avoid race conditions)
-    world.moveBlock(blockName, dest);
-    
-    // Calculate destination position based on new world state
+  // === STEP 3: Apply the move in world state ===
+  // Update logical world state first so downstream consumers (timeline, stats) stay in sync
+  world.moveBlock(blockName, dest);
+  // Realign every other block immediately (skip the one currently attached to the claw)
+  // so the destination stack is already in place when the claw arrives.
+  world.updatePositions(blockName);
+
+  // Calculate destination position based on new world state
     const destPos = getBlockPosition(world, blockName);
     if (!destPos) {
       throw new Error(`Block ${blockName} not found after move`);
