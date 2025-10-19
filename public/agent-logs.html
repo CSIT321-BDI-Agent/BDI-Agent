@@ -132,7 +132,7 @@
           <a
             href="admin.html"
             data-route="admin"
-            class="sidebar__link admin-nav-link hidden flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white relative z-10"
+            class="sidebar__link admin-nav-link hidden items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white relative z-10"
             title="Admin Dashboard"
             aria-label="Admin Dashboard"
           >
@@ -168,7 +168,7 @@
           </div>
           <ul class="space-y-2 text-white/70" data-sidebar-collapsible="text">
             <li>Use stats to compare agent efficiency across runs.</li>
-            <li>Timeline cycle counts highlight complex worlds.</li>
+            <li>Step counts highlight execution complexity.</li>
             <li>Delete worlds you no longer need to stay organised.</li>
           </ul>
         </div>
@@ -220,10 +220,6 @@
                     <span class="material-icons text-base text-brand-primary" aria-hidden="true">person</span>
                     <span>Profile</span>
                   </a>
-                  <a href="admin.html" id="adminMenuItem" class="profile-menu-item hidden items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
-                    <span class="material-icons text-base text-brand-primary" aria-hidden="true">admin_panel_settings</span>
-                    <span>Admin Dashboard</span>
-                  </a>
                   <a href="#" onclick="logout(); return false;" class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
                     <span class="material-icons text-base text-brand-primary" aria-hidden="true">logout</span>
                     <span>Logout</span>
@@ -253,7 +249,7 @@
             </div>
             <div class="space-y-1 text-right text-sm text-brand-dark/70">
               <p><strong>Total Worlds:</strong> <span id="worldCount">--</span></p>
-              <p><strong>Total Actions Logged:</strong> <span id="actionCount">--</span></p>
+              <p><strong>Total Moves Logged:</strong> <span id="actionCount">--</span></p>
             </div>
           </div>
 

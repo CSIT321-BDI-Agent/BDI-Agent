@@ -16,7 +16,8 @@ const {
   extractMove,
   expandMoveToClawSteps,
   sanitizePlannerInputs,
-  createInitialPlannerState
+  createInitialPlannerState,
+  planBlocksWorld
 } = require('./blocksWorldAgent');
 const createBlocksHelpers = require('./utils/blocks');
 
@@ -33,6 +34,195 @@ const {
   goalAchieved,
   applyMove
 } = createBlocksHelpers(PlanningError);
+
+/**
+ * Check if goal chains have interdependencies in the current state.
+ * Returns true if blocks from different goal chains are in the same stack
+ * where one blocks another, making independent planning impossible.
+ */
+function hasTowerDependencies(stacks, goalChains) {
+  if (goalChains.length < 2) return false;
+
+  // Extract blocks from each goal chain (excluding 'Table')
+  const towerBlocks = goalChains.map(chain => 
+    new Set(chain.filter(block => block && block !== 'Table'))
+  );
+
+  // Check each stack for interdependencies
+  for (const stack of stacks) {
+    if (stack.length < 2) continue; // Single blocks can't block each other
+
+    // For each position in the stack (except the top)
+    for (let i = 0; i < stack.length - 1; i++) {
+      const lowerBlock = stack[i];
+      const upperBlocks = stack.slice(i + 1); // All blocks above this one
+
+      // Check which tower owns the lower block
+      const lowerTowerIndex = towerBlocks.findIndex(set => set.has(lowerBlock));
+      if (lowerTowerIndex === -1) continue; // Block not in any goal
+
+      // Check if any upper block belongs to a different tower
+      for (const upperBlock of upperBlocks) {
+        const upperTowerIndex = towerBlocks.findIndex(set => set.has(upperBlock));
+        if (upperTowerIndex === -1) continue; // Block not in any goal
+
+        // If blocks from different towers are stacked, we have a dependency
+        if (upperTowerIndex !== lowerTowerIndex) {
+          console.log(`[Independent Tower Check] Dependency detected: Block "${upperBlock}" (Tower ${upperTowerIndex + 1}) is above "${lowerBlock}" (Tower ${lowerTowerIndex + 1})`);
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+function planIndependentTowers(initialStacks, goalChains, options = {}) {
+  if (!Array.isArray(goalChains) || goalChains.length === 0) {
+    throw new PlanningError('Independent tower planning requires at least one goal chain.', 400);
+  }
+
+  if (goalChains.length > 2) {
+    throw new PlanningError('Independent tower planning currently supports up to two towers.', 400);
+  }
+
+  let normalizedReferenceStacks = null;
+
+  const sanitizedChains = goalChains.map((chain, index) => {
+    const { goalChain, normalizedStacks } = sanitizePlannerInputs(initialStacks, chain, options);
+    if (!normalizedReferenceStacks) {
+      normalizedReferenceStacks = normalizedStacks;
+    }
+    if (!goalChain || goalChain.length === 0) {
+      throw new PlanningError(`Goal chain ${index + 1} is invalid.`, 400);
+    }
+    return goalChain;
+  });
+
+  const agentIds = ['Agent-A', 'Agent-B'];
+  const towerPlans = sanitizedChains.map((goalChainForTower, idx) => {
+    const response = planBlocksWorld(initialStacks, goalChainForTower, options);
+    if (!response.goalAchieved) {
+      throw new PlanningError(`Unable to achieve tower goal ${idx + 1} with provided configuration.`, 422);
+    }
+
+    const agentId = agentIds[idx] || `Agent-${String.fromCharCode(67 + idx)}`;
+    const towerBlocks = goalChainForTower.filter(token => token && token !== 'Table');
+    const towerSummary = towerBlocks.length ? towerBlocks.join(', ') : 'Table';
+    const towerLabel = `Tower ${idx + 1}: ${towerSummary}`;
+
+    const moves = Array.isArray(response.moves)
+      ? response.moves.map(move => ({ ...move, actor: agentId }))
+      : [];
+
+    const intentionLog = Array.isArray(response.intentionLog)
+      ? response.intentionLog.map((entry, entryIdx) => {
+          const movesForEntry = Array.isArray(entry.moves)
+            ? entry.moves.map(move => ({ ...move, actor: agentId }))
+            : [];
+          const clonedEntry = {
+            ...entry,
+            cycle: entryIdx + 1,
+            moves: movesForEntry
+          };
+          if (entryIdx === 0) {
+            clonedEntry.sequenceLabel = towerLabel;
+          }
+          return clonedEntry;
+        })
+      : [];
+
+    return {
+      agentId,
+      towerLabel,
+      goalChain: goalChainForTower,
+      raw: response,
+      moves,
+      intentionLog
+    };
+  });
+
+  const maxMoveLength = Math.max(...towerPlans.map(plan => plan.moves.length));
+  const combinedMoves = [];
+  let cycleIndex = 1;
+
+  for (let idx = 0; idx < maxMoveLength; idx += 1) {
+    const cycleMoves = [];
+    towerPlans.forEach(plan => {
+      const move = plan.moves[idx];
+      if (move) {
+        cycleMoves.push({ ...move });
+      }
+    });
+
+    if (cycleMoves.length === 0) {
+      continue;
+    }
+
+    combinedMoves.push({
+      cycle: cycleIndex,
+      moves: cycleMoves
+    });
+    cycleIndex += 1;
+  }
+
+  // Interleave intention logs to show concurrent execution properly
+  const combinedIntentionLog = [];
+  const maxLogLength = Math.max(...towerPlans.map(plan => plan.intentionLog.length));
+  
+  for (let logIdx = 0; logIdx < maxLogLength; logIdx += 1) {
+    towerPlans.forEach(plan => {
+      const entry = plan.intentionLog[logIdx];
+      if (entry) {
+        combinedIntentionLog.push({
+          ...entry,
+          cycle: combinedIntentionLog.length + 1
+        });
+      }
+    });
+  }
+
+  const finalStacks = towerPlans.reduce((stacksAcc, plan) => {
+    const nextStacks = deepCloneStacks(stacksAcc);
+    plan.moves.forEach(move => {
+      applyMove(nextStacks, move.block, move.to);
+    });
+    return nextStacks;
+  }, deepCloneStacks(normalizedReferenceStacks || initialStacks));
+
+  const parallelExecutions = combinedMoves.filter(entry => Array.isArray(entry.moves) && entry.moves.length > 1).length;
+
+  return {
+    moves: combinedMoves,
+    iterations: Math.max(...towerPlans.map(plan => plan.raw.iterations || 0)),
+    goalAchieved: true,
+    intentionLog: combinedIntentionLog,
+    finalStacks,
+    planningApproach: 'multi-tower-independent',
+    agentCount: towerPlans.length,
+    relationsResolved: sanitizedChains.reduce((total, chain) => total + Math.max(chain.length - 1, 0), 0),
+    goalDecomposition: {
+      agentA: towerPlans[0]?.goalChain.join(' -> ') || null,
+      agentB: towerPlans[1]?.goalChain.join(' -> ') || null,
+      overlap: null
+    },
+    statistics: {
+      agentAMoves: towerPlans[0]?.moves.length || 0,
+      agentBMoves: towerPlans[1]?.moves.length || 0,
+      totalConflicts: 0,
+      totalNegotiations: 0,
+      totalDeliberations: 0,
+      totalParallelExecutions: parallelExecutions,
+      conflictDetails: [],
+      negotiationDetails: []
+    },
+    plannerOptionsUsed: {
+      maxIterations: options.maxIterations || 2500
+    },
+    deliberationHistory: []
+  };
+}
 
 /**
  * Main entry point: Create multi-agent environment
@@ -451,12 +641,36 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
 /**
  * Runs the true multi-agent BDI planner and formats the planning report.
  */
-async function trueBDIPlan(initialStacks, goalChain, options = {}) {
+async function trueBDIPlan(initialStacks, goalPayload, options = {}) {
   const {
     maxIterations = 2500,
     deliberationTimeout = 5000,
     enableNegotiation = true
   } = options;
+
+  const isNestedGoal = Array.isArray(goalPayload) && goalPayload.length > 0 && Array.isArray(goalPayload[0]);
+
+  if (isNestedGoal) {
+    if (goalPayload.length > 1) {
+      // Check if towers have dependencies that prevent independent planning
+      const hasDependencies = hasTowerDependencies(initialStacks, goalPayload);
+      
+      if (hasDependencies) {
+        console.log('[Multi-Agent] Towers have dependencies, using negotiation-based planning');
+        // Flatten goal chains for negotiation-based planning
+        const flattenedGoal = goalPayload.flat().filter(block => block && block !== 'Table');
+        flattenedGoal.push('Table');
+        goalPayload = flattenedGoal;
+      } else {
+        console.log('[Multi-Agent] No dependencies detected, using independent tower planning');
+        return planIndependentTowers(initialStacks, goalPayload, options);
+      }
+    } else {
+      goalPayload = goalPayload[0];
+    }
+  }
+
+  const goalChain = goalPayload;
 
   const { environment, goalDecomposition } = createMultiAgentEnvironment(
     initialStacks,

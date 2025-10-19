@@ -56,7 +56,7 @@ function createBlocksHelpers(PlanningError) {
 
   function sanitizeGoalChain(rawGoalChain, availableBlocks) {
     if (!Array.isArray(rawGoalChain) || rawGoalChain.length < 2) {
-      throw new PlanningError('Goal chain must include at least two identifiers (e.g., "A on B").');
+  throw new PlanningError('Goal chain must include at least two identifiers (e.g., "A, B").');
     }
 
     const chain = rawGoalChain.map((token, index) => {

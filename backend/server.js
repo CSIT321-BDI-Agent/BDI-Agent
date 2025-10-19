@@ -403,6 +403,23 @@ const validateGoalChain = (goalChain) => {
   });
 };
 
+const validateGoalChainSet = (goalChains) => {
+  if (goalChains == null) {
+    return null;
+  }
+
+  if (!Array.isArray(goalChains)) {
+    throw new HttpError(400, 'Goal chains must be an array of goal definitions.');
+  }
+
+  return goalChains.map((chain, index) => {
+    if (!Array.isArray(chain)) {
+      throw new HttpError(400, `Goal chain at index ${index} must be an array.`);
+    }
+    return validateGoalChain(chain);
+  });
+};
+
 const sanitizePlannerOptions = (options = {}) => {
   const sanitized = {};
   if (options.maxIterations !== undefined) {
@@ -672,10 +689,19 @@ app.post('/plan', requireAuth, withRoute((req, res) => {
 
 // ------------------ Multi-Agent Planning ------------------
 app.post('/multi-agent-plan', requireAuth, withRoute(async (req, res) => {
-  const { stacks, goalChain, options = {} } = req.body || {};
+  const { stacks, goalChain, goalChains, options = {} } = req.body || {};
 
   const validatedStacks = validateStacksPayload(stacks);
-  const validatedGoalChain = validateGoalChain(goalChain);
+  const validatedGoalChainSet = validateGoalChainSet(goalChains);
+  const validatedGoalChain = goalChain != null ? validateGoalChain(goalChain) : null;
+
+  const plannerGoalInput = Array.isArray(validatedGoalChainSet) && validatedGoalChainSet.length > 0
+    ? validatedGoalChainSet
+    : validatedGoalChain;
+
+  if (!plannerGoalInput || (Array.isArray(plannerGoalInput) && plannerGoalInput.length === 0)) {
+    throw new HttpError(400, 'Goal chain is required for multi-agent planning.');
+  }
 
   const {
     maxIterations = 2500,
@@ -688,12 +714,12 @@ app.post('/multi-agent-plan', requireAuth, withRoute(async (req, res) => {
   const { trueBDIPlan } = require('./bdi/multiAgentEnvironment');
   console.log('[API] /multi-agent-plan called (TRUE BDI)');
   console.log('[API] Stacks payload:', JSON.stringify(validatedStacks));
-  console.log('[API] Goal chain payload:', JSON.stringify(validatedGoalChain));
+  console.log('[API] Goal chain payload:', JSON.stringify(plannerGoalInput));
   console.log('[API] Options:', { maxIterations, deliberationTimeout, enableNegotiation });
   
   const result = await trueBDIPlan(
     validatedStacks,
-    validatedGoalChain,
+    plannerGoalInput,
     { maxIterations, deliberationTimeout, enableNegotiation }
   );
 

@@ -115,7 +115,7 @@
             <span class="sidebar__label" data-sidebar-collapsible="text">Dashboard</span>
           </a>
           <a href="admin.html" data-route="admin"
-            class="sidebar__link admin-nav-link hidden flex items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white relative z-10"
+            class="sidebar__link admin-nav-link hidden items-center gap-3 px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white relative z-10"
             title="Admin Dashboard" aria-label="Admin Dashboard">
             <span class="material-icons text-lg" aria-hidden="true">admin_panel_settings</span>
             <span class="sidebar__label" data-sidebar-collapsible="text">Admin Dashboard</span>
@@ -140,9 +140,10 @@
             <span data-sidebar-collapsible="text">Quick Help</span>
           </div>
           <ul class="space-y-2 text-white/70" data-sidebar-collapsible="text">
-            <li>Drag blocks directly within the world.</li>
-            <li>Use goal syntax like on(A,B) to stack blocks.</li>
-            <li>Start the BDI planner to animate the claw.</li>
+            <li>Drag blocks or use the +/- controls to reshape towers quickly.</li>
+            <li>Describe stacks from top to bottom using commas, e.g. A, B, C.</li>
+            <li>Chain multiple towers with "and" or the | symbol to plan multi-tower sequences.</li>
+            <li>Start the BDI planner to animate the claws and intention timeline.</li>
             <li>Save interesting worlds and load them later.</li>
           </ul>
         </div>
@@ -182,12 +183,6 @@
                     class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
                     <span class="material-icons text-base text-brand-primary" aria-hidden="true">person</span>
                     <span>Profile</span>
-                  </a>
-                  <a href="admin.html" id="adminMenuItem"
-                    class="profile-menu-item hidden items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
-                    <span class="material-icons text-base text-brand-primary"
-                      aria-hidden="true">admin_panel_settings</span>
-                    <span>Admin Dashboard</span>
                   </a>
                   <a href="#" onclick="logout(); return false;"
                     class="profile-menu-item flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-brand-primary/10">
@@ -273,7 +268,7 @@
               <div class="border border-slate-200 bg-brand-dark/5 p-3">
                 <label for="goalInput" class="text-xs font-semibold uppercase tracking-[0.2em] text-brand-dark/70">Goal stack</label>
                 <div class="mt-2 flex flex-col gap-3">
-                  <input type="text" id="goalInput" placeholder="e.g. A on C on D"
+                  <input type="text" id="goalInput" placeholder="e.g. A, B | C, D"
                     class="w-full border border-slate-300 bg-white px-3 py-2 text-sm text-brand-dark shadow-sm transition placeholder:text-brand-dark/50 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary" />
 
                   <label class="flex items-start gap-2 text-sm text-brand-dark cursor-pointer">

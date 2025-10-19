@@ -9,7 +9,7 @@
  */
 
 import { randomColour, showMessage } from './helpers.js';
-import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, STACK_MARGIN, BLOCK_COLOUR_PALETTE } from './constants.js';
+import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, STACK_MARGIN, BLOCK_COLOUR_PALETTE, MIN_WORLD_WIDTH } from './constants.js';
 
 export class World {
   constructor(container) {
@@ -276,7 +276,7 @@ export class World {
    */
   updatePositions(skipBlock) {
     if (!this.container) return;
-    const width = this.stacks.length * (BLOCK_WIDTH + STACK_MARGIN);
+  const width = Math.max(this.stacks.length * (BLOCK_WIDTH + STACK_MARGIN), MIN_WORLD_WIDTH);
     this.container.style.width = `${width}px`;
     this.stacks.forEach((stack, index) => {
       stack.forEach((blockName, posIdx) => {

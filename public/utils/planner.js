@@ -53,9 +53,14 @@ export async function requestMultiAgentPlan(stacks, goalChain, options = {}) {
     options: {
       maxIterations: options.maxIterations || 1000,
       deliberationTimeout: options.deliberationTimeout || 5000,
-      enableNegotiation: options.enableNegotiation !== false
+      enableNegotiation: options.enableNegotiation !== false,
+      goalChains: Array.isArray(options.goalChains) ? options.goalChains : undefined
     }
   };
+
+  if (Array.isArray(options.goalChains)) {
+    payload.goalChains = options.goalChains;
+  }
 
   const response = await authenticatedFetch(`${API_BASE}/multi-agent-plan`, {
     method: 'POST',

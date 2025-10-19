@@ -39,6 +39,77 @@ const resolveStatsDisplay = (stats) => {
   return { steps, time, status };
 };
 
+const countPlanMoves = (plan = []) => {
+  if (!Array.isArray(plan) || !plan.length) {
+    return 0;
+  }
+
+  return plan.reduce((total, group) => {
+    if (!group || typeof group !== 'object') {
+      return total;
+    }
+
+    if (Array.isArray(group.moves)) {
+      const moveCount = group.moves.filter((move) => move && move.block && !move.skipped).length;
+      return total + moveCount;
+    }
+
+    return group.block ? total + 1 : total;
+  }, 0);
+};
+
+const countTimelineMoves = (timeline) => {
+  if (!timeline || typeof timeline !== 'object') {
+    return 0;
+  }
+
+  const planMoves = countPlanMoves(timeline.plan);
+  if (planMoves > 0) {
+    return planMoves;
+  }
+
+  const logEntries = Array.isArray(timeline.log) ? timeline.log : [];
+  if (!logEntries.length) {
+    return 0;
+  }
+
+  let completedMoves = 0;
+
+  logEntries.forEach((entry) => {
+    if (!entry || !Array.isArray(entry.moves)) {
+      return;
+    }
+    entry.moves.forEach((move) => {
+      if (!move || move.skipped) {
+        return;
+      }
+      if (typeof move.stepType === 'string') {
+        if (move.stepType.toUpperCase() === 'DROP') {
+          completedMoves += 1;
+        }
+        return;
+      }
+      if (Number.isFinite(move.stepNumber) && Number.isFinite(move.totalSteps)) {
+        if (move.stepNumber === move.totalSteps) {
+          completedMoves += 1;
+        }
+        return;
+      }
+    });
+  });
+
+  if (completedMoves > 0) {
+    return completedMoves;
+  }
+
+  return logEntries.reduce((total, entry) => {
+    if (!entry || !Array.isArray(entry.moves)) {
+      return total;
+    }
+    return total + entry.moves.filter((move) => move && move.block && !move.skipped).length;
+  }, 0);
+};
+
 const normalizeWorldIdentifier = (raw) => {
   if (!raw) return null;
   if (typeof raw === 'string') return raw;
@@ -110,15 +181,13 @@ function renderWorldLogs(worlds = []) {
 
     const timelineLog = Array.isArray(timeline?.log) ? timeline.log : [];
     const cycleCount = timelineLog.length;
-    const actionCount = timelineLog.reduce((total, cycle) => {
-      if (!cycle || !Array.isArray(cycle.moves)) return total;
-      return total + cycle.moves.filter(move => move && move.block).length;
-    }, 0);
+    const actionCount = countTimelineMoves(timeline || {});
     aggregateActions += actionCount;
 
     const { steps: statSteps, time: statTime, status: statStatus } = resolveStatsDisplay(stats);
 
     const row = document.createElement('tr');
+    row.className = 'transition-colors hover:bg-brand-dark/5';
     row.innerHTML = `
       <td class="px-4 py-3">
         <div class="flex flex-col">
@@ -127,11 +196,11 @@ function renderWorldLogs(worlds = []) {
         </div>
       </td>
       <td class="px-4 py-3">${blockCount}</td>
-      <td class="px-4 py-3 text-sm text-brand-dark/80">${savedAtText}</td>
+      <td class="px-4 py-3 text-brand-dark/70">${savedAtText}</td>
       <td class="px-4 py-3">${statSteps}</td>
       <td class="px-4 py-3">${statTime}</td>
       <td class="px-4 py-3">
-        <span class="inline-flex items-center rounded bg-brand-primary/10 px-2 py-1 text-xs font-semibold text-brand-primary">${statStatus}</span>
+        <span class="inline-flex items-center rounded bg-brand-primary/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-brand-primary">${statStatus}</span>
       </td>
       <td class="px-4 py-3">${cycleCount}</td>
       <td class="px-4 py-3">${actionCount}</td>

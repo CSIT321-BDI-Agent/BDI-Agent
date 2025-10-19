@@ -7,11 +7,12 @@ import { DOM } from './constants.js';
  * dashboard "Action Log" panel.
  */
 
-const ENTRY_BASE_CLASS = 'flex items-start gap-3 px-3 py-2 font-mono text-[12px] leading-5 text-emerald-300';
+const ENTRY_BASE_CLASS = 'flex items-center px-3 py-2 font-mono text-[13px] leading-5 text-emerald-300';
+const LABEL_BASE_CLASS = 'log-badge mr-6 flex-none w-40 pr-3 text-right text-[11px] font-semibold uppercase tracking-[0.18em] whitespace-nowrap overflow-hidden text-ellipsis';
 const LABEL_CLASSES = {
-  agent: 'log-badge font-semibold uppercase tracking-[0.18em] text-emerald-400',
-  user: 'log-badge font-semibold uppercase tracking-[0.18em] text-sky-300',
-  system: 'log-badge font-semibold uppercase tracking-[0.18em] text-slate-400'
+  agent: `${LABEL_BASE_CLASS} text-emerald-400`,
+  user: `${LABEL_BASE_CLASS} text-sky-300`,
+  system: `${LABEL_BASE_CLASS} text-slate-400`
 };
 
 let logContainer = null;
@@ -49,7 +50,7 @@ export function logAction(action, type = 'agent') {
       : 'System';
 
   const message = document.createElement('span');
-  message.className = 'log-message flex-1 text-emerald-200';
+  message.className = 'log-message min-w-0 flex-1 pl-2 text-left text-[13px] text-emerald-200';
   message.textContent = action;
 
   entry.appendChild(label);

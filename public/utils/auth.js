@@ -280,6 +280,9 @@ export function updateUIWithUserInfo(selectors = {}) {
       adminNavElems.forEach(elem => {
         elem.classList.remove('hidden');
         elem.removeAttribute('hidden');
+        if (elem.classList.contains('sidebar__link') || elem.classList.contains('mobile-menu-link')) {
+          elem.classList.add('flex');
+        }
         elem.style.display = '';
       });
     }

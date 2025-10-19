@@ -242,7 +242,7 @@ function getBlockPosition(world, blockName) {
 
 /**
  * Simulate a single block move with 4-step claw animation
- * Each step counts as a separate cycle action in the timeline
+ * Each step is treated as a single timeline update for the plan
  * @param {Object} move - Move object {block, to, clawSteps}
  * @param {Object} world - World instance
  * @param {HTMLElement} worldElem - World container element
@@ -297,7 +297,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     
     // Mark step 1 complete in timeline
     if (typeof markTimelineStep === 'function') {
-      markTimelineStep({ type: 'MOVE_CLAW', to: blockName, block: blockName, stepNumber: 1 });
+      markTimelineStep({ type: 'MOVE_CLAW', to: blockName, block: blockName, actor, stepNumber: 1 });
     }
     
     // === STEP 2: Pick up block (attach to claw) ===
@@ -307,7 +307,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     
     // Mark step 2 complete in timeline
     if (typeof markTimelineStep === 'function') {
-      markTimelineStep({ type: 'PICK_UP', block: blockName, stepNumber: 2 });
+      markTimelineStep({ type: 'PICK_UP', block: blockName, actor, stepNumber: 2 });
     }
 
   // === STEP 3: Apply the move in world state ===
@@ -361,7 +361,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     
     // Mark step 3 complete in timeline
     if (typeof markTimelineStep === 'function') {
-      markTimelineStep({ type: 'MOVE_CLAW', to: dest, block: blockName, carrying: blockName, stepNumber: 3 });
+      markTimelineStep({ type: 'MOVE_CLAW', to: dest, block: blockName, carrying: blockName, actor, stepNumber: 3 });
     }
 
     // === STEP 4: Drop block (detach from claw) ===
@@ -377,7 +377,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     
     // Mark step 4 complete in timeline
     if (typeof markTimelineStep === 'function') {
-      markTimelineStep({ type: 'DROP', block: blockName, at: dest, stepNumber: 4 });
+      markTimelineStep({ type: 'DROP', block: blockName, at: dest, actor, stepNumber: 4 });
     }
 
     const raiseAfterDrop = [];

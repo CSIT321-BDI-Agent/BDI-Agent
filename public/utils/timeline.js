@@ -1,571 +1,619 @@
-/**
- * Timeline Management System
- *
- * Handles planner timeline rendering, state transitions, and clock display.
- */
-
 import { DOM } from './constants.js';
 import { incrementStep } from './stats.js';
 import { formatPlannerDuration } from './helpers.js';
 
 const ENTRY_BASE_CLASS = 'border border-slate-200 bg-white/95 p-4 shadow-card transition-all duration-200';
-const ENTRY_ACTIVE_CLASSES = ['border-brand-primary', 'ring-2', 'ring-brand-primary/40'];
-const ENTRY_COMPLETED_CLASSES = ['border-green-300', 'bg-green-50'];
-const ENTRY_NO_ACTION_CLASSES = ['border-dashed', 'border-slate-300', 'bg-slate-100'];
+const EMPTY_PLACEHOLDER_CLASS = 'border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs font-medium text-slate-500';
+const ENTRY_STATE_CLASSES = {
+  pending: ['opacity-80'],
+  active: ['border-brand-primary', 'bg-brand-primary/15', 'shadow-lg', 'ring-2', 'ring-brand-primary/30', 'opacity-100'],
+  completed: ['border-emerald-300', 'bg-emerald-50', 'opacity-100']
+};
+const STEP_LABEL_CLASS = 'text-xs font-semibold uppercase tracking-[0.2em] text-brand-dark/60';
+const SUMMARY_CLASS = 'mt-1 text-sm font-semibold text-brand-dark';
+const META_CLASS = 'mt-2 text-xs text-brand-dark/70';
+const BADGE_BASE_CLASS = 'inline-flex items-center gap-2 rounded border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] shadow-sm';
+const AGENT_A_BADGE_CLASS = `${BADGE_BASE_CLASS} border-teal-500/50 bg-teal-500/20 text-teal-800`;
+const AGENT_A_DOT_CLASS = 'h-2 w-2 rounded-full bg-teal-600 shadow-[0_0_0_1px_rgba(20,184,166,0.35)]';
+const AGENT_B_BADGE_CLASS = `${BADGE_BASE_CLASS} border-purple-500/50 bg-purple-500/20 text-purple-800`;
+const AGENT_B_DOT_CLASS = 'h-2 w-2 rounded-full bg-purple-600 shadow-[0_0_0_1px_rgba(168,85,247,0.35)]';
+const DEFAULT_BADGE_CLASS = `${BADGE_BASE_CLASS} border-slate-300 bg-slate-100 text-brand-dark`;
+const DEFAULT_DOT_CLASS = 'h-2 w-2 rounded-full bg-slate-400 shadow-[0_0_0_1px_rgba(148,163,184,0.35)]';
+const CONCURRENT_BADGE_CLASS = 'inline-flex items-center gap-1 rounded bg-brand-dark/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.26em] text-brand-dark/70';
+const TIME_LABEL_CLASS = 'text-xs font-mono font-semibold text-brand-dark/40';
+const TIME_ACTIVE_CLASS = 'text-brand-primary';
+const TIME_COMPLETED_CLASS = 'text-emerald-600';
 
-const MOVE_BASE_CLASS = 'border-l-2 border-transparent pl-2 text-xs leading-5 text-slate-600 transition-colors duration-150';
-const MOVE_PENDING_CLASSES = ['border-slate-200', 'text-slate-600'];
-const MOVE_DONE_CLASSES = ['border-brand-primary', 'text-brand-dark', 'font-semibold'];
-const MOVE_SKIP_CLASSES = ['border-slate-300', 'text-slate-400', 'italic'];
-const MOVE_INFO_CLASSES = ['text-slate-400'];
+const timelineState = {
+  entries: [],
+  container: null,
+  lastRenderedLog: null,
+  lastRenderedPlan: null,
+  lastRenderedAgentCount: 0,
+  lastRenderedOptions: {}
+};
 
-const TIMELINE_EMPTY_CLASS = 'border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs font-medium text-slate-500';
-const STEP_BADGE_CLASS = 'mt-2 inline-flex w-fit items-center justify-center rounded-full bg-brand-primary/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-brand-primary';
-const SKIP_BADGE_CLASS = 'mt-2 inline-flex w-fit items-center justify-center rounded-full bg-slate-200 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600';
-const BELIEF_META_CLASS = 'mt-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-4 text-slate-600';
-
-// Timeline state
-let intentionTimelineState = null;
-let plannerClockInterval = null;
 let plannerClockStart = null;
-let lastRenderedLog = null;
-let lastRenderedAgentCount = 0;
-let lastRenderedOptions = {};
+let plannerClockInterval = null;
+let lastKnownEmptyMessage = 'No planner data yet.';
 
-const applyClasses = (element, classes, shouldApply) => {
-  classes.forEach(cls => element.classList.toggle(cls, Boolean(shouldApply)));
-};
-
-const setEntryVisualState = (entry, visual = {}) => {
-  const { active = false, completed = false, noActions = false } = visual;
-  applyClasses(entry, ENTRY_ACTIVE_CLASSES, active && !completed);
-  applyClasses(entry, ENTRY_COMPLETED_CLASSES, completed);
-  applyClasses(entry, ENTRY_NO_ACTION_CLASSES, noActions);
-  entry.dataset.state = completed ? 'completed' : active ? 'active' : 'pending';
-  entry.dataset.noActions = noActions ? 'true' : 'false';
-};
-
-const setMoveVisualState = (element, state = 'pending') => {
-  applyClasses(element, MOVE_PENDING_CLASSES, state === 'pending');
-  applyClasses(element, MOVE_DONE_CLASSES, state === 'done');
-  applyClasses(element, MOVE_SKIP_CLASSES, state === 'skip');
-  applyClasses(element, MOVE_INFO_CLASSES, state === 'informational');
-  element.dataset.state = state;
-};
-
-const humanizeTimelineLabel = (input) => {
-  if (!input) return '';
-  const normalized = String(input)
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (!normalized) return '';
-  return normalized
-    .split(' ')
-    .map(segment => segment ? segment[0].toUpperCase() + segment.slice(1).toLowerCase() : '')
-    .join(' ');
-};
-
-const formatPendingRelation = (pendingRelation) => {
-  if (!pendingRelation || typeof pendingRelation !== 'object') {
-    return 'none';
+function ensureContainer() {
+  const container = DOM.intentionTimeline();
+  if (!container) {
+    console.warn('[Timeline] Unable to locate intention timeline container.');
   }
-  const block = pendingRelation.block || '?';
-  const destination = pendingRelation.destination || 'Table';
-  return `${block} -> ${destination}`;
-};
+  return container;
+}
 
-/**
- * Update planner clock display
- * @param {string} text - Text to display
- */
-export function updatePlannerClockDisplay(text) {
-  const elem = DOM.plannerClock();
-  if (elem) {
-    elem.textContent = text ?? '--:--';
+function clearTimeline(message = lastKnownEmptyMessage) {
+  const container = ensureContainer();
+  if (!container) {
+    return;
+  }
+  container.innerHTML = '';
+  if (message) {
+    const placeholder = document.createElement('div');
+    placeholder.className = EMPTY_PLACEHOLDER_CLASS;
+    placeholder.textContent = message;
+    container.appendChild(placeholder);
+  }
+  timelineState.entries = [];
+  timelineState.container = container;
+}
+
+function humanizeLabel(input) {
+  if (!input || typeof input !== 'string') return '';
+  const cleaned = input.replace(/[\s_\-]+/g, ' ').trim();
+  if (!cleaned) return '';
+  return cleaned
+    .split(' ')
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function normalizeActor(actor, fallbackIndex = 0) {
+  if (typeof actor === 'string' && actor.trim().length > 0) {
+    return actor.trim();
+  }
+  return `Agent-${String.fromCharCode(65 + fallbackIndex)}`;
+}
+
+function formatDestination(destination) {
+  if (!destination) return 'Table';
+  const value = String(destination).trim();
+  if (!value) return 'Table';
+  if (value.toLowerCase() === 'table') return 'Table';
+  return value;
+}
+
+function clonePlanMoves(plan) {
+  if (!Array.isArray(plan)) return [];
+  return plan
+    .map((group) => {
+      if (!group || typeof group !== 'object') return null;
+      const cloned = { ...group };
+      if (Array.isArray(group.moves)) {
+        cloned.moves = group.moves
+          .map((move) => (move && typeof move === 'object' ? { ...move } : null))
+          .filter(Boolean);
+      }
+      return cloned;
+    })
+    .filter(Boolean);
+}
+
+function cloneLog(log) {
+  if (!Array.isArray(log)) return [];
+  return log.map((entry) => {
+    if (!entry || typeof entry !== 'object') return entry;
+    const clone = { ...entry };
+    if (Array.isArray(entry.moves)) {
+      clone.moves = entry.moves.map((move) => (move && typeof move === 'object' ? { ...move } : move));
+    }
+    if (Array.isArray(entry.resultingStacks)) {
+      clone.resultingStacks = entry.resultingStacks.map((stack) => (Array.isArray(stack) ? [...stack] : stack));
+    }
+    if (entry.beliefs && typeof entry.beliefs === 'object') {
+      clone.beliefs = {
+        pendingRelation: entry.beliefs.pendingRelation ? { ...entry.beliefs.pendingRelation } : null,
+        clearBlocks: Array.isArray(entry.beliefs.clearBlocks) ? [...entry.beliefs.clearBlocks] : [],
+        onMap: entry.beliefs.onMap ? { ...entry.beliefs.onMap } : {}
+      };
+    }
+    return clone;
+  });
+}
+
+function formatDurationLabel(durationMs) {
+  return Number.isFinite(durationMs) && durationMs >= 0
+    ? formatPlannerDuration(durationMs)
+    : '--:--.--';
+}
+
+function setTimeDisplay(entry, text, modifierClass = '') {
+  if (!entry?.timeElement) {
+    return;
+  }
+  const modifier = modifierClass ? ` ${modifierClass}` : '';
+  entry.timeElement.className = `${TIME_LABEL_CLASS}${modifier}`;
+  entry.timeElement.textContent = text;
+}
+
+function getBaselineDuration(entry) {
+  if (!entry || !Array.isArray(timelineState.entries)) {
+    return 0;
+  }
+  const previous = timelineState.entries[entry.index - 1];
+  if (!previous) {
+    return 0;
+  }
+  return Number.isFinite(previous.cumulativeMs) ? previous.cumulativeMs : 0;
+}
+
+function derivePlanFromLog(intentionLog) {
+  if (!Array.isArray(intentionLog)) return [];
+  return intentionLog
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const moves = Array.isArray(entry.moves) ? entry.moves.filter((move) => move && move.block) : [];
+      if (!moves.length) return null;
+      return {
+        moves: moves.map((move) => (move && typeof move === 'object' ? { ...move } : move)),
+        deliberation: entry.deliberation
+      };
+    })
+    .filter(Boolean);
+}
+
+function normalizePlan(planMoves, intentionLog) {
+  const basePlan = Array.isArray(planMoves) && planMoves.length > 0 ? planMoves : derivePlanFromLog(intentionLog);
+  return basePlan
+    .map((group) => {
+      if (!group) return null;
+      const rawMoves = Array.isArray(group.moves)
+        ? group.moves
+        : group.block
+          ? [group]
+          : [];
+      const moves = rawMoves
+        .map((move) => (move && typeof move === 'object' ? { ...move } : null))
+        .filter((move) => move && typeof move.block === 'string');
+      if (!moves.length) return null;
+      return { ...group, moves };
+    })
+    .filter(Boolean);
+}
+
+function findLogContext(intentionLog, block, destination) {
+  if (!Array.isArray(intentionLog)) return '';
+  for (const entry of intentionLog) {
+    if (!entry || typeof entry !== 'object' || !Array.isArray(entry.moves)) continue;
+    const match = entry.moves.find((move) => move && move.block === block && (!destination || formatDestination(move.to) === destination));
+    if (!match) continue;
+    const reason = match.reason || match.stepDescription || (entry.deliberation && entry.deliberation.reason);
+    if (reason) {
+      return humanizeLabel(reason);
+    }
+  }
+  return '';
+}
+
+function buildEntries(planGroups, intentionLog) {
+  const entries = [];
+  planGroups.forEach((group, groupIndex) => {
+    const moves = Array.isArray(group.moves) ? group.moves : [];
+    const groupSize = moves.length;
+    const stepNumber = groupIndex + 1;
+    moves.forEach((move, moveIndex) => {
+      const actor = normalizeActor(move.actor, moveIndex);
+      const destination = formatDestination(move.to);
+      const reason = humanizeLabel(move.stepDescription || move.reason || group.reason || '');
+      const context = findLogContext(intentionLog, move.block, destination);
+      const summary = `Move ${move.block} → ${destination}`;
+
+      entries.push({
+        id: `step-${stepNumber}-${moveIndex}-${move.block}-${actor}`,
+        index: entries.length,
+        stepNumber,
+        actor,
+        block: move.block,
+        to: destination,
+        summary,
+        reason: reason || null,
+        context: context && context !== reason ? context : null,
+        concurrent: groupSize > 1,
+        groupSize,
+        status: 'pending',
+        started: false,
+        completed: false,
+        element: null,
+        timeElement: null,
+        startedAt: null,
+        durationMs: null,
+        cumulativeMs: null
+      });
+    });
+  });
+  entries.forEach((entry, idx) => {
+    entry.index = idx;
+  });
+  return entries;
+}
+
+function createAgentBadge(actor) {
+  const badge = document.createElement('span');
+  const indicator = document.createElement('span');
+  const label = document.createElement('span');
+  const normalized = actor.toLowerCase();
+
+  if (normalized.includes('agent-b')) {
+    badge.className = AGENT_B_BADGE_CLASS;
+    indicator.className = AGENT_B_DOT_CLASS;
+  } else if (normalized.includes('agent-a')) {
+    badge.className = AGENT_A_BADGE_CLASS;
+    indicator.className = AGENT_A_DOT_CLASS;
+  } else {
+    badge.className = DEFAULT_BADGE_CLASS;
+    indicator.className = DEFAULT_DOT_CLASS;
+  }
+
+  indicator.setAttribute('aria-hidden', 'true');
+  label.textContent = actor;
+
+  badge.dataset.role = 'timeline-agent';
+  badge.dataset.agentType = normalized.includes('agent-b') ? 'Agent-B' : normalized.includes('agent-a') ? 'Agent-A' : actor;
+  badge.appendChild(indicator);
+  badge.appendChild(label);
+  return badge;
+}
+
+function createConcurrentBadge(groupSize) {
+  const badge = document.createElement('span');
+  badge.className = CONCURRENT_BADGE_CLASS;
+  badge.textContent = `Concurrent · ${groupSize}`;
+  return badge;
+}
+
+function createEntryElement(entry) {
+  const card = document.createElement('article');
+  card.className = ENTRY_BASE_CLASS;
+  card.dataset.entryId = entry.id;
+  card.dataset.stepNumber = String(entry.stepNumber);
+  card.dataset.actor = entry.actor;
+  card.dataset.block = entry.block;
+  card.dataset.status = entry.status;
+  ENTRY_STATE_CLASSES.pending.forEach((cls) => card.classList.add(cls));
+
+  const header = document.createElement('div');
+  header.className = 'flex items-start gap-3';
+
+  const titleGroup = document.createElement('div');
+  titleGroup.className = 'flex flex-1 flex-col';
+
+  const stepLabel = document.createElement('span');
+  stepLabel.className = STEP_LABEL_CLASS;
+  stepLabel.textContent = entry.concurrent ? `Step ${entry.stepNumber} · Concurrent` : `Step ${entry.stepNumber}`;
+
+  const summary = document.createElement('span');
+  summary.className = SUMMARY_CLASS;
+  summary.textContent = entry.summary;
+
+  titleGroup.appendChild(stepLabel);
+  titleGroup.appendChild(summary);
+
+  const rightColumn = document.createElement('div');
+  rightColumn.className = 'ml-auto flex min-h-[56px] flex-col items-end gap-2';
+
+  const timeDisplay = document.createElement('span');
+  timeDisplay.className = TIME_LABEL_CLASS;
+  timeDisplay.textContent = '--:--.--';
+
+  const badgeGroup = document.createElement('div');
+  badgeGroup.className = 'mt-auto flex items-center gap-2';
+  badgeGroup.appendChild(createAgentBadge(entry.actor));
+  if (entry.concurrent && entry.groupSize > 1) {
+    badgeGroup.appendChild(createConcurrentBadge(entry.groupSize));
+  }
+
+  header.appendChild(titleGroup);
+  rightColumn.appendChild(timeDisplay);
+  rightColumn.appendChild(badgeGroup);
+  header.appendChild(rightColumn);
+  card.appendChild(header);
+
+  const details = [];
+  if (entry.reason) details.push(entry.reason);
+  if (entry.context && entry.context !== entry.reason) details.push(entry.context);
+  if (details.length) {
+    const meta = document.createElement('p');
+    meta.className = META_CLASS;
+    meta.textContent = details.join(' · ');
+    card.appendChild(meta);
+  }
+
+  entry.timeElement = timeDisplay;
+
+  return card;
+}
+
+function setEntryStatus(entry, status, { increment = false } = {}) {
+  if (!entry || !entry.element) return;
+  const baselineMs = getBaselineDuration(entry);
+
+  if (entry.status === status) {
+    if (status === 'completed') {
+      const total = Number.isFinite(entry.cumulativeMs) ? entry.cumulativeMs : baselineMs;
+      entry.cumulativeMs = total;
+      setTimeDisplay(entry, formatDurationLabel(total), TIME_COMPLETED_CLASS);
+    } else if (status === 'active') {
+      const runningTotal = baselineMs + (entry.startedAt != null ? Math.max(0, Date.now() - entry.startedAt) : 0);
+      entry.cumulativeMs = baselineMs;
+      setTimeDisplay(entry, formatDurationLabel(runningTotal), TIME_ACTIVE_CLASS);
+    } else {
+      entry.cumulativeMs = baselineMs;
+      setTimeDisplay(entry, formatDurationLabel(baselineMs));
+    }
+    return;
+  }
+
+  Object.values(ENTRY_STATE_CLASSES).forEach((classes) => {
+    classes.forEach((cls) => entry.element.classList.remove(cls));
+  });
+
+  const classesToApply = ENTRY_STATE_CLASSES[status] || ENTRY_STATE_CLASSES.pending;
+  classesToApply.forEach((cls) => entry.element.classList.add(cls));
+
+  entry.status = status;
+  entry.element.dataset.status = status;
+
+  if (status === 'active') {
+    if (entry.startedAt == null) {
+      entry.startedAt = Date.now();
+    }
+    entry.started = true;
+    entry.completed = false;
+    entry.durationMs = null;
+    entry.cumulativeMs = baselineMs;
+    setTimeDisplay(entry, formatDurationLabel(entry.cumulativeMs), TIME_ACTIVE_CLASS);
+  } else if (status === 'completed') {
+    let stepDuration = Number.isFinite(entry.durationMs) ? entry.durationMs : null;
+    if (stepDuration == null) {
+      stepDuration = entry.startedAt != null ? Math.max(0, Date.now() - entry.startedAt) : 0;
+    }
+    entry.durationMs = stepDuration;
+    const cumulative = Number.isFinite(entry.cumulativeMs) ? entry.cumulativeMs : baselineMs + stepDuration;
+    entry.cumulativeMs = cumulative;
+    entry.startedAt = null;
+    entry.started = true;
+    entry.completed = true;
+    setTimeDisplay(entry, formatDurationLabel(entry.cumulativeMs), TIME_COMPLETED_CLASS);
+    if (increment) {
+      incrementStep();
+    }
+  } else {
+    entry.startedAt = null;
+    entry.durationMs = null;
+    entry.cumulativeMs = baselineMs;
+    entry.started = false;
+    entry.completed = false;
+    setTimeDisplay(entry, formatDurationLabel(entry.cumulativeMs));
   }
 }
 
-/**
- * Stop the planner clock
- * @param {boolean} finalize - Whether to finalize with current time
- */
+function findEntryForStep(step) {
+  if (!step || typeof step !== 'object') return null;
+  const { block } = step;
+  if (!block) return null;
+  const actor = typeof step.actor === 'string' && step.actor.trim().length > 0 ? step.actor.trim() : null;
+  return timelineState.entries.find((entry) => {
+    if (entry.completed) return false;
+    if (entry.block !== block) return false;
+    if (actor && entry.actor !== actor) return false;
+    return true;
+  });
+}
+
+function applyEntryStatusSnapshot(entryStatusList) {
+  if (!Array.isArray(entryStatusList) || !entryStatusList.length) {
+    return;
+  }
+
+  entryStatusList.forEach((snapshot) => {
+    if (!snapshot || typeof snapshot !== 'object') return;
+    const target = timelineState.entries.find((entry) => {
+      if (entry.stepNumber !== snapshot.stepNumber) return false;
+      if (entry.block !== snapshot.block) return false;
+      if (snapshot.actor && entry.actor !== snapshot.actor) return false;
+      return true;
+    });
+
+    if (!target) return;
+
+    const status = snapshot.status || 'pending';
+    target.durationMs = Number.isFinite(snapshot.durationMs) && snapshot.durationMs >= 0 ? snapshot.durationMs : null;
+    target.cumulativeMs = Number.isFinite(snapshot.cumulativeMs) && snapshot.cumulativeMs >= 0 ? snapshot.cumulativeMs : null;
+    target.startedAt = null;
+    target.started = status === 'active' || status === 'completed';
+    target.completed = status === 'completed';
+    setEntryStatus(target, status, { increment: false });
+  });
+}
+
+export function updatePlannerClockDisplay(text) {
+  const elem = DOM.plannerClock();
+  if (!elem) return;
+  elem.textContent = typeof text === 'string' ? text : '--:--';
+}
+
 export function stopPlannerClock(finalize = false) {
   if (plannerClockInterval) {
     clearInterval(plannerClockInterval);
     plannerClockInterval = null;
   }
-  if (plannerClockStart && finalize) {
-    updatePlannerClockDisplay(formatPlannerDuration(Date.now() - plannerClockStart));
-  } else if (!finalize) {
-    updatePlannerClockDisplay('--:--');
-  }
-  plannerClockStart = null;
-}
 
-/**
- * Start the planner clock
- */
-export function startPlannerClock() {
-  stopPlannerClock(false);
-  plannerClockStart = Date.now();
-  updatePlannerClockDisplay('00:00.00');
-  plannerClockInterval = setInterval(() => {
-    if (!plannerClockStart) return;
-    updatePlannerClockDisplay(formatPlannerDuration(Date.now() - plannerClockStart));
-  }, 125);
-}
-
-/**
- * Reset intention timeline to initial state
- * @param {string} message - Message to display
- */
-export function resetIntentionTimeline(message = 'No planner data yet.') {
-  intentionTimelineState = null;
-  lastRenderedLog = null;
-  lastRenderedAgentCount = 0;
-  lastRenderedOptions = {};
-  const container = DOM.intentionTimeline();
-  if (!container) return;
-  container.innerHTML = '';
-  const empty = document.createElement('div');
-  empty.className = TIMELINE_EMPTY_CLASS;
-  empty.textContent = message;
-  container.appendChild(empty);
-}
-
-/**
- * Render the intention timeline from planner log
- * @param {Array} intentionLog - Array of planner cycles
- * @param {number} agentCount - Number of agents
- * @param {Object} options - Rendering options
- */
-export function renderIntentionTimeline(intentionLog = [], agentCount = 0, options = {}) {
-  const container = DOM.intentionTimeline();
-  intentionTimelineState = null;
-  if (!container) return;
-  container.innerHTML = '';
-
-  const optionsCopy = { ...(options || {}) };
-  const durationsFromOptions = Array.isArray(optionsCopy.prefillDurations)
-    ? [...optionsCopy.prefillDurations]
-    : null;
-  delete optionsCopy.prefillDurations;
-
-  const emptyMessage = optionsCopy.emptyMessage || 'Planner has not produced any cycles yet.';
-
-  if (!Array.isArray(intentionLog) || intentionLog.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = TIMELINE_EMPTY_CLASS;
-    empty.textContent = emptyMessage;
-    container.appendChild(empty);
+  const clockElem = DOM.plannerClock();
+  if (!clockElem) {
+    plannerClockStart = null;
     return;
   }
 
-  const state = {
-    agentCount,
-    cycles: [],
-    currentCycle: 0
-  };
+  if (plannerClockStart && finalize) {
+    const elapsed = Date.now() - plannerClockStart;
+    clockElem.textContent = formatPlannerDuration(elapsed);
+  } else if (!finalize) {
+    clockElem.textContent = '--:--';
+  }
 
-  intentionLog.forEach((cycle, idx) => {
-    const entry = document.createElement('div');
-    entry.className = ENTRY_BASE_CLASS;
-    entry.dataset.cycleIndex = String(idx);
+  plannerClockStart = null;
+}
 
-    const header = document.createElement('div');
-    header.className = 'flex items-start justify-between gap-3';
+export function startPlannerClock() {
+  stopPlannerClock(false);
+  const clockElem = DOM.plannerClock();
+  if (!clockElem) return;
 
-    const titleGroup = document.createElement('div');
-    titleGroup.className = 'flex flex-col';
+  plannerClockStart = Date.now();
+  clockElem.textContent = '00:00.00';
 
-    const title = document.createElement('span');
-    title.className = 'text-sm font-semibold text-brand-dark';
-    const cycleNumber = Number.isFinite(cycle?.cycle) ? cycle.cycle : idx + 1;
-    title.textContent = `Cycle ${cycleNumber}`;
-    titleGroup.appendChild(title);
+  plannerClockInterval = window.setInterval(() => {
+    if (!plannerClockStart) return;
+    const elapsed = Date.now() - plannerClockStart;
+    clockElem.textContent = formatPlannerDuration(elapsed);
+  }, 125);
+}
 
-    const chosenAgents = Array.isArray(cycle?.deliberation?.chosenAgents)
-      ? cycle.deliberation.chosenAgents
-      : null;
-    const chosenAgentDisplay = chosenAgents && chosenAgents.length
-      ? chosenAgents.join(' & ')
-      : cycle?.deliberation?.chosenAgent;
+export function resetIntentionTimeline(message = 'No planner data yet.') {
+  lastKnownEmptyMessage = message;
+  clearTimeline(message);
+  timelineState.lastRenderedLog = null;
+  timelineState.lastRenderedPlan = null;
+  timelineState.lastRenderedAgentCount = 0;
+  timelineState.lastRenderedOptions = { emptyMessage: message };
+}
 
-    if (chosenAgentDisplay) {
-      const agentBadge = document.createElement('span');
-      agentBadge.className = 'text-[11px] font-semibold uppercase tracking-wide text-brand-primary/80';
-      const conflictLabel = cycle.deliberation.conflict ? 'Conflict resolved' : 'Selected agent';
-      agentBadge.textContent = `${conflictLabel}: ${chosenAgentDisplay}`;
-      titleGroup.appendChild(agentBadge);
-    }
+export function renderIntentionTimeline(intentionLog = [], agentCount = 0, options = {}) {
+  const container = ensureContainer();
+  if (!container) return;
 
-    const moves = Array.isArray(cycle?.moves) ? cycle.moves : [];
-    const primaryMove = moves.find(move => move && (move.block || move.skipped));
+  const {
+    planMoves = [],
+    emptyMessage = 'No planner data yet.',
+    entryStatus = null
+  } = options;
 
-    if (primaryMove && (primaryMove.stepType || primaryMove.stepDescription || primaryMove.stepNumber != null)) {
-      const badge = document.createElement('span');
-      const labelSource = primaryMove.stepDescription || primaryMove.stepType || primaryMove.reason;
-      const label = humanizeTimelineLabel(labelSource || 'Action');
-      const hasStepInfo = Number.isFinite(primaryMove.stepNumber) && Number.isFinite(primaryMove.totalSteps);
-      badge.className = STEP_BADGE_CLASS;
-      badge.textContent = hasStepInfo
-        ? `Step ${primaryMove.stepNumber}/${primaryMove.totalSteps} | ${label}`
-        : label;
-      titleGroup.appendChild(badge);
-    } else if (primaryMove && primaryMove.skipped) {
-      const badge = document.createElement('span');
-      const reasonLabel = humanizeTimelineLabel(primaryMove.reason || 'Skipped');
-    badge.className = SKIP_BADGE_CLASS;
-    badge.textContent = `Skipped | ${reasonLabel}`;
-      titleGroup.appendChild(badge);
-    }
+  lastKnownEmptyMessage = emptyMessage;
 
-    header.appendChild(titleGroup);
+  const clonedPlan = clonePlanMoves(planMoves);
+  const normalizedPlan = normalizePlan(clonedPlan, intentionLog);
+  const entries = buildEntries(normalizedPlan, intentionLog);
 
-    const time = document.createElement('span');
-    time.className = 'text-xs font-mono text-brand-dark/60';
-    time.textContent = '--:--';
-    header.appendChild(time);
+  container.innerHTML = '';
 
-    entry.appendChild(header);
-
-    const list = document.createElement('ul');
-    list.className = 'mt-3 flex flex-col gap-2';
-
-    const moveStates = [];
-    let totalActionMoves = 0;
-
-    if (cycle?.proposals && typeof cycle.proposals === 'object') {
-      const proposalsItem = document.createElement('li');
-      proposalsItem.className = MOVE_BASE_CLASS;
-      const summaries = [];
-      const summarize = (label, proposal) => {
-        if (!proposal) return;
-        const fragments = [label];
-        if (proposal.block) fragments.push(proposal.block);
-        if (proposal.to) fragments.push(`-> ${proposal.to}`);
-        if (proposal.reason) fragments.push(humanizeTimelineLabel(proposal.reason));
-        summaries.push(fragments.filter(Boolean).join(' '));
-      };
-      summarize('Agent A', cycle.proposals.agentA);
-      summarize('Agent B', cycle.proposals.agentB);
-      proposalsItem.textContent = summaries.length
-        ? `Proposals | ${summaries.join(' | ')}`
-        : 'Proposals | None';
-      setMoveVisualState(proposalsItem, 'informational');
-      proposalsItem.dataset.infoType = 'proposals';
-      list.appendChild(proposalsItem);
-    }
-
-    if (cycle?.deliberation && typeof cycle.deliberation === 'object') {
-      const deliberationItem = document.createElement('li');
-      deliberationItem.className = MOVE_BASE_CLASS;
-      const deliberationAgents = Array.isArray(cycle.deliberation.chosenAgents) && cycle.deliberation.chosenAgents.length
-        ? cycle.deliberation.chosenAgents.join(' & ')
-        : cycle.deliberation.chosenAgent || 'Unknown agent';
-      const reasonLabel = humanizeTimelineLabel(cycle.deliberation.reason || 'Selected');
-    const conflictLabel = cycle.deliberation.conflict ? 'conflict resolved' : 'agreement';
-    deliberationItem.textContent = `Deliberation | ${deliberationAgents} | ${conflictLabel} | ${reasonLabel}`;
-      setMoveVisualState(deliberationItem, 'informational');
-      deliberationItem.dataset.infoType = 'deliberation';
-      list.appendChild(deliberationItem);
-    }
-
-    moves.forEach((move, moveIdx) => {
-      const metadata = { ...(move || {}) };
-      const item = document.createElement('li');
-      item.className = MOVE_BASE_CLASS;
-
-      let description = 'No planner actions recorded.';
-      let moveState = 'informational';
-      const isAction = Boolean(metadata.block);
-
-      if (isAction) {
-        totalActionMoves += 1;
-        const actor = metadata.actor || `Agent ${moveIdx + 1}`;
-        const stepLabel = humanizeTimelineLabel(metadata.stepDescription || metadata.stepType || metadata.reason || 'Action');
-        const hasStepInfo = Number.isFinite(metadata.stepNumber) && Number.isFinite(metadata.totalSteps);
-        const stepInfo = hasStepInfo
-          ? `Step ${metadata.stepNumber}/${metadata.totalSteps}`
-          : Number.isFinite(metadata.stepNumber)
-            ? `Step ${metadata.stepNumber}`
-            : null;
-        const destinationLabel = metadata.to && metadata.to !== 'claw'
-          ? `-> ${metadata.to}`
-          : metadata.to === 'claw'
-            ? 'Holding'
-            : null;
-
-        const summaryParts = [actor];
-        if (stepInfo) summaryParts.push(stepInfo);
-        summaryParts.push(stepLabel);
-        if (destinationLabel) summaryParts.push(destinationLabel);
-        description = summaryParts.filter(Boolean).join(' | ');
-
-        if (metadata.stepDescription && metadata.stepDescription !== stepLabel) {
-          description += ` - ${metadata.stepDescription}`;
-        }
-
-        moveState = 'pending';
-      } else if (metadata.skipped) {
-        const actor = metadata.actor || `Agent ${moveIdx + 1}`;
-        const reasonLabel = humanizeTimelineLabel(metadata.reason || 'No Action');
-        description = `${actor} | Skipped (${reasonLabel})`;
-        moveState = 'skip';
-      } else if (metadata.reason) {
-        description = humanizeTimelineLabel(metadata.reason);
-      }
-
-      item.textContent = description;
-      if (metadata.stepNumber != null) {
-        item.dataset.stepNumber = String(metadata.stepNumber);
-      }
-      if (metadata.stepType) {
-        item.dataset.stepType = metadata.stepType;
-      }
-      if (metadata.block) {
-        item.dataset.block = metadata.block;
-      }
-
-      setMoveVisualState(item, moveState);
-      list.appendChild(item);
-
-      moveStates.push({
-        meta: metadata,
-        element: item,
-        completed: moveState !== 'pending',
-        isAction
-      });
+  if (!entries.length) {
+    clearTimeline(emptyMessage);
+  } else {
+    const fragment = document.createDocumentFragment();
+    entries.forEach((entry) => {
+      entry.element = createEntryElement(entry);
+      fragment.appendChild(entry.element);
     });
-
-    entry.appendChild(list);
-
-    if (cycle?.beliefs) {
-      const beliefMeta = document.createElement('div');
-      beliefMeta.className = BELIEF_META_CLASS;
-      const pendingRelation = formatPendingRelation(cycle.beliefs.pendingRelation);
-      const clearBlocks = Array.isArray(cycle.beliefs.clearBlocks) && cycle.beliefs.clearBlocks.length
-        ? cycle.beliefs.clearBlocks.join(', ')
-        : 'none';
-    beliefMeta.textContent = `Beliefs | Pending: ${pendingRelation} | Clear: ${clearBlocks}`;
-      entry.appendChild(beliefMeta);
-    }
-
-    container.appendChild(entry);
-
-    const cycleState = {
-      index: idx,
-      entryElement: entry,
-      timeElement: time,
-      moveStates,
-      totalMoves: totalActionMoves,
-      processedMoves: moveStates.filter(ms => ms.isAction && ms.completed).length,
-      visual: {
-        active: false,
-        completed: false,
-        noActions: totalActionMoves === 0
-      }
-    };
-
-    if (cycleState.visual.noActions) {
-      cycleState.visual.completed = true;
-    }
-
-    setEntryVisualState(entry, cycleState.visual);
-
-    if (durationsFromOptions && (typeof durationsFromOptions[idx] === 'string' || typeof durationsFromOptions[idx] === 'number')) {
-      const rawDuration = durationsFromOptions[idx];
-      const formattedDuration =
-        typeof rawDuration === 'number' ? formatPlannerDuration(rawDuration) : String(rawDuration);
-      cycleState.timeElement.textContent = formattedDuration;
-    }
-
-    state.cycles.push(cycleState);
-  });
-
-  intentionTimelineState = state;
-  const firstActionIndex = state.cycles.findIndex(cycle => cycle.totalMoves > 0);
-  if (firstActionIndex >= 0) {
-    setActiveTimelineCycle(firstActionIndex);
+    container.appendChild(fragment);
+    timelineState.entries = entries;
+    timelineState.container = container;
+    entries.forEach((entry) => {
+      setEntryStatus(entry, entry.status, { increment: false });
+    });
+    applyEntryStatusSnapshot(entryStatus);
   }
 
-  try {
-    lastRenderedLog = JSON.parse(JSON.stringify(intentionLog));
-  } catch (error) {
-    lastRenderedLog = Array.isArray(intentionLog) ? [...intentionLog] : null;
-  }
-  lastRenderedAgentCount = agentCount;
-  lastRenderedOptions = { ...optionsCopy };
+  timelineState.lastRenderedLog = cloneLog(intentionLog);
+  timelineState.lastRenderedPlan = clonePlanMoves(normalizedPlan);
+  timelineState.lastRenderedAgentCount = agentCount;
+  timelineState.lastRenderedOptions = { emptyMessage };
 }
 
-/**
- * Set active timeline cycle
- * @param {number} index - Cycle index
- */
-function setActiveTimelineCycle(index) {
-  if (!intentionTimelineState || !Array.isArray(intentionTimelineState.cycles)) return;
-  intentionTimelineState.cycles.forEach((cycle, idx) => {
-    const shouldBeActive = idx === index && cycle.totalMoves > 0 && !cycle.visual.completed;
-    cycle.visual.active = shouldBeActive;
-    setEntryVisualState(cycle.entryElement, cycle.visual);
-  });
-}
-
-/**
- * Complete a timeline cycle
- * @param {Object} cycleState - Cycle state object
- */
-function completeTimelineCycle(cycleState) {
-  if (!cycleState) return;
-  cycleState.visual.completed = true;
-  cycleState.visual.active = false;
-  setEntryVisualState(cycleState.entryElement, cycleState.visual);
-  if (plannerClockStart) {
-    cycleState.timeElement.textContent = formatPlannerDuration(Date.now() - plannerClockStart);
-  }
-}
-
-function matchesTimelineMove(step, moveMeta) {
-  if (!step || !moveMeta) {
-    return false;
-  }
-
-  const stepNumber = Number.isFinite(step.stepNumber) ? Number(step.stepNumber) : null;
-  const metaStepNumber = Number.isFinite(moveMeta.stepNumber) ? Number(moveMeta.stepNumber) : null;
-  if (stepNumber !== null && metaStepNumber !== null && stepNumber !== metaStepNumber) {
-    return false;
-  }
-
-  const stepType = (step.type || step.stepType || '').toUpperCase();
-  const metaStepType = (moveMeta.stepType || '').toUpperCase();
-  if (stepType && metaStepType && stepType !== metaStepType) {
-    return false;
-  }
-
-  const stepBlock = (step.block || '').toUpperCase();
-  const metaBlock = (moveMeta.block || '').toUpperCase();
-  if (stepBlock && metaBlock && stepBlock !== metaBlock) {
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Mark a claw step as completed in the timeline
- * Each claw action (move/pick/move/drop) counts as one cycle
- * @param {Object} step - Step object {type, block, to, stepNumber}
- */
 export function markTimelineStep(step) {
-  if (!step || !intentionTimelineState) return;
+  if (!timelineState.entries.length) return;
 
-  incrementStep();
+  const entry = findEntryForStep(step);
+  if (!entry) return;
 
-  for (const cycleState of intentionTimelineState.cycles) {
-    if (cycleState.totalMoves === 0) continue;
-    if (cycleState.processedMoves >= cycleState.totalMoves) continue;
+  if (entry.status !== 'active') {
+    setEntryStatus(entry, 'active');
+  }
 
-    let matcher = cycleState.moveStates.find(ms => ms.isAction && !ms.completed && matchesTimelineMove(step, ms.meta));
-
-    if (!matcher) {
-      matcher = cycleState.moveStates.find(ms => ms.isAction && !ms.completed);
-    }
-
-    if (matcher) {
-      matcher.completed = true;
-      setMoveVisualState(matcher.element, 'done');
-      cycleState.processedMoves += 1;
-
-      if (cycleState.processedMoves >= cycleState.totalMoves) {
-        completeTimelineCycle(cycleState);
-        const nextIndex = cycleState.index + 1;
-        const nextActionIndex = intentionTimelineState.cycles.findIndex((c, idx) =>
-          idx >= nextIndex && c.totalMoves > 0 && c.processedMoves < c.totalMoves
-        );
-        if (nextActionIndex >= 0) {
-          setActiveTimelineCycle(nextActionIndex);
-        }
-      } else {
-        setActiveTimelineCycle(cycleState.index);
+  if (step && step.type === 'DROP' && !entry.completed) {
+    setEntryStatus(entry, 'completed', { increment: true });
+    for (let idx = entry.index + 1; idx < timelineState.entries.length; idx += 1) {
+      const follower = timelineState.entries[idx];
+      if (!follower) continue;
+      if (follower.status === 'pending' || follower.status === 'active') {
+        setEntryStatus(follower, follower.status, { increment: false });
       }
-      return;
     }
   }
 }
 
-/**
- * Finalize all timeline cycles
- */
 export function finalizeTimeline() {
-  if (!intentionTimelineState) return;
-  intentionTimelineState.cycles.forEach(cycle => {
-    if (cycle.totalMoves === 0) {
-      cycle.timeElement.textContent =
-        cycle.timeElement.textContent === '--:--' && plannerClockStart
-          ? formatPlannerDuration(Date.now() - plannerClockStart)
-          : cycle.timeElement.textContent;
-      return;
-    }
-
-    if (cycle.processedMoves >= cycle.totalMoves) {
-      if (!cycle.visual.completed) {
-        completeTimelineCycle(cycle);
-      }
+  timelineState.entries.forEach((entry) => {
+    if (!entry.completed) {
+      entry.completed = true;
+      entry.started = true;
+      setEntryStatus(entry, 'completed', { increment: false });
     }
   });
 }
 
 export function getIntentionTimelineSnapshot() {
-  if (!lastRenderedLog || !Array.isArray(lastRenderedLog)) {
+  if (!timelineState.lastRenderedLog) {
     return null;
   }
 
-  let durations = null;
-  if (intentionTimelineState && Array.isArray(intentionTimelineState.cycles)) {
-    durations = intentionTimelineState.cycles.map(cycle => {
-      const text = cycle?.timeElement?.textContent;
-      return typeof text === 'string' && text.trim().length > 0 ? text : '--:--';
-    });
-  } else {
-    durations = lastRenderedLog.map(() => '--:--');
-  }
+  const clockElem = DOM.plannerClock();
+  const clockDisplay = clockElem && typeof clockElem.textContent === 'string'
+    ? clockElem.textContent
+    : '--:--';
 
-  const clockDisplay = (() => {
-    const clockElem = DOM.plannerClock();
-    return clockElem && typeof clockElem.textContent === 'string'
-      ? clockElem.textContent
-      : '--:--';
-  })();
+  const entryStatus = timelineState.entries.map((entry) => ({
+    stepNumber: entry.stepNumber,
+    block: entry.block,
+    actor: entry.actor,
+    status: entry.status,
+    durationMs: entry.durationMs ?? null,
+    cumulativeMs: entry.cumulativeMs ?? null
+  }));
 
   return {
-    log: lastRenderedLog,
-    agentCount: lastRenderedAgentCount,
-    options: lastRenderedOptions,
-    durations,
+    log: cloneLog(timelineState.lastRenderedLog),
+    plan: clonePlanMoves(timelineState.lastRenderedPlan || []),
+    agentCount: timelineState.lastRenderedAgentCount,
+    options: { ...timelineState.lastRenderedOptions },
+    entryStatus,
     clockDisplay
   };
 }
 
 export function restoreTimelineFromSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') {
-    resetIntentionTimeline();
+    resetIntentionTimeline(lastKnownEmptyMessage);
     return;
   }
 
-  const { log, agentCount = 0, options = {} } = snapshot;
-  if (!Array.isArray(log) || log.length === 0) {
-    resetIntentionTimeline(options.emptyMessage);
-    return;
-  }
+  const log = Array.isArray(snapshot.log) ? snapshot.log : [];
+  const plan = Array.isArray(snapshot.plan) ? snapshot.plan : [];
+  const agentCount = Number.isFinite(snapshot.agentCount) ? snapshot.agentCount : 0;
+  const options = snapshot.options && typeof snapshot.options === 'object'
+    ? { ...snapshot.options }
+    : {};
+  const entryStatus = Array.isArray(snapshot.entryStatus) ? snapshot.entryStatus : null;
 
-  const { durations = null, clockDisplay } = snapshot;
-  const renderOptions = durations && Array.isArray(durations) && durations.length > 0
-    ? { ...options, prefillDurations: durations }
-    : options;
+  renderIntentionTimeline(log, agentCount, {
+    ...options,
+    planMoves: plan,
+    entryStatus
+  });
 
-  renderIntentionTimeline(log, agentCount, renderOptions);
-  if (typeof clockDisplay === 'string' && clockDisplay.trim().length > 0) {
-    updatePlannerClockDisplay(clockDisplay);
+  if (typeof snapshot.clockDisplay === 'string' && snapshot.clockDisplay.trim().length > 0) {
+    updatePlannerClockDisplay(snapshot.clockDisplay);
   }
 }

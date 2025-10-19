@@ -11,6 +11,91 @@ import { DOM } from './constants.js';
 let dashboardInitialized = false;
 let boundWorld = null;
 
+const STACK_PLACEHOLDER = '( - )';
+
+function normalizeGoalTokens(tokens = []) {
+  return tokens
+    .map((token) => (typeof token === 'string' ? token.trim() : ''))
+    .filter(Boolean)
+    .map((token) => (token.toLowerCase() === 'table' ? 'Table' : token.toUpperCase()))
+    .filter(Boolean);
+}
+
+function formatTokensTopDown(tokens = []) {
+  const normalized = normalizeGoalTokens(tokens);
+  const filtered = normalized.filter((token) => token !== 'Table');
+  if (filtered.length === 0) {
+    return normalized.includes('Table') ? 'Table' : null;
+  }
+  return filtered.join(', ');
+}
+
+function formatWorldStack(stack) {
+  if (!Array.isArray(stack) || stack.length === 0) {
+    return null;
+  }
+  const topDownTokens = [...stack].reverse();
+  const formatted = formatTokensTopDown(topDownTokens);
+  return formatted && formatted !== 'Table' ? formatted : null;
+}
+
+function formatStacksForDisplay(stacks) {
+  if (!Array.isArray(stacks) || stacks.length === 0) {
+    return STACK_PLACEHOLDER;
+  }
+
+  const formattedStacks = stacks
+    .map((stack) => formatWorldStack(stack))
+    .filter(Boolean);
+
+  if (!formattedStacks.length) {
+    return STACK_PLACEHOLDER;
+  }
+
+  return `(${formattedStacks.join(' | ')})`;
+}
+
+function parseGoalSegments(rawInput) {
+  const sanitized = (rawInput || '').trim();
+  if (!sanitized) {
+    return [];
+  }
+
+  const normalized = sanitized.replace(/\s+/g, ' ');
+  const segments = normalized
+    .split(/\s*(?:\band\b|&|;|\|)\s*/i)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  const resolvedSegments = segments.length ? segments : [normalized];
+
+  return resolvedSegments
+    .map((segment) => {
+      const tokens = /\bon\b/i.test(segment)
+        ? segment.split(/\s*on\s*/i)
+        : segment.split(/\s*,\s*/);
+      return normalizeGoalTokens(tokens);
+    })
+    .filter((tokens) => tokens.length > 0);
+}
+
+function formatGoalInputForDisplay(rawInput) {
+  const goalSegments = parseGoalSegments(rawInput);
+  if (!goalSegments.length) {
+    return STACK_PLACEHOLDER;
+  }
+
+  const formatted = goalSegments
+    .map((tokens) => formatTokensTopDown(tokens))
+    .filter(Boolean);
+
+  if (!formatted.length) {
+    return STACK_PLACEHOLDER;
+  }
+
+  return `(${formatted.join(' | ')})`;
+}
+
 export function initializeDashboardUI(world) {
   if (world) {
     boundWorld = world;
@@ -52,10 +137,7 @@ function bindGoalPreview() {
   if (!goalInput || !infoGoal) return;
 
   const updateGoalText = () => {
-    const goalText = goalInput.value.trim();
-    infoGoal.textContent = goalText
-      ? `(${goalText.split(/\s*on\s*/i).join(', ')})`
-      : '( - )';
+    infoGoal.textContent = formatGoalInputForDisplay(goalInput.value);
   };
 
   goalInput.addEventListener('input', updateGoalText);
@@ -78,15 +160,7 @@ export function updateWorldInfoFromStacks(stacks) {
   const infoCurrent = DOM.infoCurrent();
   if (!infoCurrent) return;
 
-  if (!Array.isArray(stacks) || stacks.length === 0) {
-    infoCurrent.textContent = '( - )';
-    return;
-  }
-
-  const formatted = stacks
-    .map(stack => (Array.isArray(stack) && stack.length ? stack.join(' -> ') : 'Table'))
-    .join(' | ');
-  infoCurrent.textContent = `(${formatted})`;
+  infoCurrent.textContent = formatStacksForDisplay(stacks);
 }
 
 function updateWorldInfo() {

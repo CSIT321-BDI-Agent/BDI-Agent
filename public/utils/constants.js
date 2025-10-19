@@ -61,6 +61,7 @@ export const BLOCK_WIDTH = 80;
 export const BLOCK_HEIGHT = 30;
 export const WORLD_HEIGHT = 320;
 export const STACK_MARGIN = 10;
+export const MIN_WORLD_WIDTH = 300; // Minimum width for world container (prevents collapse)
 
 export const BLOCK_COLOUR_PALETTE = [
   '#ff6b6b', '#f06595', '#845ef7', '#5c7cfa', '#339af0', '#22b8cf',
@@ -75,13 +76,7 @@ export const CLAW_HEIGHT = 25;
 export const CLAW_WIDTH = 60; // Must match --claw-width in CSS
 export const CLAW_OFFSET = (BLOCK_WIDTH - CLAW_WIDTH) / 2; // Center claw over blocks (10px)
 export const CLAW_ARM_WIDTH = 8;
-export const CLAW_ARM_HEIGHT = (() => {
-  const configured = window.APP_CONFIG?.SIMULATION?.CLAW_ARM_HEIGHT;
-  if (Number.isFinite(configured)) {
-    return Math.max(20, Math.round(configured));
-  }
-  return 280;
-})();
+export const CLAW_ARM_HEIGHT = 2000;
 
 // Claw Home Position (top center of world)
 export const CLAW_HOME_TOP = 10; // Visible at top of world area
@@ -250,14 +245,17 @@ export function resetClawToHome(claw, durationOverride = null) {
   const worldElem = DOM.world();
   if (!worldElem) return;
   
-  const worldWidth = worldElem.offsetWidth || 400;
+  // Use fixed positioning independent of world width to prevent claw overlap
   const siblings = getAllAgentClaws();
   const count = siblings.length || parseIndex(claw.dataset.clawCount, 1);
   const indexFromDataset = parseIndex(claw.dataset.clawIndex, -1);
   const siblingIndex = siblings.indexOf(claw);
   const resolvedIndex = indexFromDataset >= 0 ? indexFromDataset : Math.max(0, siblingIndex);
-  const slotWidth = count > 0 ? worldWidth / (count + 1) : worldWidth / 2;
-  const targetLeft = slotWidth * (resolvedIndex + 1) - (CLAW_WIDTH / 2);
+  
+  // Fixed positions to prevent overlap regardless of world width
+  const CLAW_SPACING = 180; // Fixed horizontal spacing between claws
+  const CLAW_START_OFFSET = 60; // Fixed left offset for first claw
+  const targetLeft = CLAW_START_OFFSET + (resolvedIndex * CLAW_SPACING);
   
   const duration = durationOverride ?? window.APP_CONFIG?.ANIMATION_DURATION ?? 550;
   claw.style.transition = `left ${duration}ms ease, top ${duration}ms ease`;
