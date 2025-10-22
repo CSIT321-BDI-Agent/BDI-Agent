@@ -6,7 +6,7 @@ import {
 } from './auth.js';
 import { initializeMobileNavigation, initializeSidebarNavigation } from './navigation.js';
 import { initializeProfileMenu } from './profile.js';
-import { showMessage, handleError } from './helpers.js';
+import { showMessage, handleError, normalizeWorldIdentifier } from './helpers.js';
 import { API_BASE } from './constants.js';
 
 const worldLogsBody = document.getElementById('worldLogs');
@@ -108,21 +108,6 @@ const countTimelineMoves = (timeline) => {
     }
     return total + entry.moves.filter((move) => move && move.block && !move.skipped).length;
   }, 0);
-};
-
-const normalizeWorldIdentifier = (raw) => {
-  if (!raw) return null;
-  if (typeof raw === 'string') return raw;
-  if (typeof raw === 'object') {
-    if (typeof raw.$oid === 'string') return raw.$oid;
-    if (typeof raw.toString === 'function') {
-      const candidate = raw.toString();
-      if (candidate && candidate !== '[object Object]') {
-        return candidate;
-      }
-    }
-  }
-  return null;
 };
 
 async function fetchWorldLogs() {

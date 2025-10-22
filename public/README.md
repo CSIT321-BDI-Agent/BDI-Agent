@@ -1,67 +1,57 @@
-# Frontend (public/)
+# Frontend (`public/`)
 
-Browser-facing portion of the Blocks World simulator. The dashboard UI now serves as the canonical reference for layout—other pages (admin, auth, debug) reuse the same design tokens, typography, and component patterns.
-
----
+## Highlights
+- Dashboard-driven Blocks World simulator with live stats, intention timeline, and claw animations.
+- Authenticated workflow that mirrors backend capabilities: saved worlds, admin console, profile management, and agent log viewer.
+- ES-module architecture—modules stay focused (`World`, `timeline`, `stats`, `persistence`, `ui-handlers`, etc.) and share selectors via `constants.js`.
+- Tailwind-powered styling with a single generated bundle (`assets/app.css`).
 
 ## Pages
+- `index.html` – primary simulator (planner controls, stacks viewport, saved worlds sidebar).
+- `admin.html` – admin console that surfaces user management and saved-world summaries.
+- `profile.html` – account overview with credential update flows.
+- `agent-logs.html` – saved-world and execution log browser for quick auditing.
+- `import-export.html` – JSON import/export utility for backups and sharing.
+- `login.html` / `signup.html` – authentication forms with shared messaging UI.
+- `debug.html` – lightweight API tester for planner and persistence endpoints.
 
-- `index.html` – main simulator dashboard (planner controls, saved worlds, stats, timeline)
-- `admin.html` – admin panel shell using the same responsive sidebar & profile menu
-- `profile.html` – authenticated account overview with editable credentials
-- `agent-logs.html` – agent execution logs and statistics viewer
-- `import-export.html` – JSON import/export for world configurations (backup, sharing, migration)
-- `login.html` / `signup.html` – compact auth cards with shared message styling
-- `debug.html` – lightweight developer utilities for manual API checks
+## Build & Serve
+1. Install dependencies at the repository root: `npm install`
+2. Build or watch Tailwind output:
+   ```bash
+   npm run build:css   # single build
+   npm run watch:css   # rebuild on file change
+   ```
+3. Run the backend (Docker or `npm start` inside `backend/`) so the static files and API share the same origin.
+4. Visit <http://localhost:3000> while the backend is running, or open the HTML files directly for static-only exploration (authenticated features require the API).
 
-Each page depends on the generated Tailwind bundle (`assets/app.css`) and the runtime modules in `utils/`.
-
----
-
-## Modules of Note (`public/utils/`)
+## Key Modules (`public/utils/`)
 
 | Module | Responsibility |
 |--------|----------------|
-| `main.js` | Boots the dashboard, wiring world state, handlers, and persistence |
-| `ui-handlers.js` | Simulation controller (planner requests, animation sequence, save/load) |
-| `persistence.js` | Saves worlds with stacks, colours, and intention timelines |
-| `timeline.js` | Renders and restores the intention timeline + planner clock |
-| `stats.js` | Tracks steps/time/status during simulation runs |
-| `auth.js` | Login/signup helpers, JWT storage, admin guard |
-| `navigation.js` | Mobile menu & collapsible sidebar |
-| `profile.js` | Shared profile button/menu logic |
-| `import-export.js` | World JSON export/import with validation and file handling |
-| `agent-logs.js` | Agent log retrieval and display |
-| `helpers.js` | Message helpers, checksum utility, etc. |
+| `main.js` | Boots the dashboard: creates `World`, wires handlers, resets timeline/stats |
+| `ui-handlers.js` | Simulation controller (planner calls, animation orchestration, drag/drop) |
+| `World.js` | Stack representation, DOM synchronisation, block colour management |
+| `timeline.js` | Intention timeline rendering, clock, snapshot/restore |
+| `stats.js` | Tracks planner steps, elapsed time, and status badges |
+| `persistence.js` | Save/load helpers, rebuilds snapshots into live `World` + timeline/stats |
+| `auth.js` | Login/signup helpers, JWT storage, route guards, authenticated fetch |
+| `navigation.js` | Sidebar + mobile navigation set-up |
+| `profile.js` | Shared profile dropdown and account update flows |
+| `import-export.js` | JSON validation, clipboard export, file import |
+| `agent-logs.js` | Fetches per-user saved worlds and summarises planner runs |
 
----
+Shared selectors live in `constants.js`, ensuring modules touch the DOM consistently.
 
 ## Styling
+- Source file: `tailwind.css`
+- Output: `assets/app.css`
+- Token definitions (colours, fonts, shadows) live in `tailwind.config.js` and `app.css`.
+- Re-run `npm run build:css` whenever Tailwind utilities change if you are not running the watcher.
 
-- Tailwind utilities only—no bespoke stylesheet beyond the generated bundle.
-- Source file: `tailwind.css`; output written to `assets/app.css`.
-- Common tokens live in `tailwind.config.js` (brand palette, shadows, typography).
-- Run `npm run build:css` for a one-off build or `npm run watch:css` for live updates.
-
-Cards, alerts, and timeline entries share class maps defined in the modules (`helpers.js`, `timeline.js`), so adjust there when tweaking colours/states.
-
----
-
-## Development Workflow
-
-1. Install dependencies at the repo root: `npm install`
-2. Tailwind:
-   ```bash
-   npm run watch:css   # rebuild on change
-   # or
-   npm run build:css   # production build
-   ```
-3. Run the backend (Docker or manual) so API endpoints are available.
-4. Open `public/index.html` in a browser (or serve via the Express static middleware when running the backend).
-
-The simulator writes planner results, world timelines, and UI stats to the browser; the backend persists the same data for reloads. Keep the saved-world schema (`models/World.js`) and `persistence.js` in sync when evolving the UI.
-
----
-
-Need more backend details? See [`../backend/README.md`](../backend/README.md). For overall project setup, refer to the [root README](../README.md).
-
+## Development Tips
+- The frontend expects `window.APP_CONFIG` from the backend `/config.js` endpoint; ensure the server is running when debugging auth or API URLs.
+- Timeline, stats, and persistence snapshots should always advance together—`persistence.js` coordinates the trio.
+- Drag and drop interactions live in `drag-drop.js` and feed into `ui-handlers.js`; lock/unlock blocks when extending manual mutation logic.
+- Use `helpers.js` (`showMessage`, `handleError`, `normalizeWorldIdentifier`) instead of bespoke messaging or error handling.
+- For module-level work, start at `main.js` to see how each piece is initialised during dashboard bootstrap.

@@ -1,109 +1,93 @@
-﻿# BDI Blocks World (BDI-Agent)
-
-Belief-Desire-Intention planning for the classic Blocks World, shipped as a full-stack playground. The project now favours a container-first workflow so you can be exploring the simulator in minutes - no local MongoDB, no manual dependency wrangling.
-
----
+# BDI Blocks World (BDI-Agent)
 
 ## TL;DR
+- Container-first Blocks World simulator pairing an Express/Mongo backend with an ES-module frontend.
+- Planner dashboard streams belief/desire/intention cycles with animated claw moves, live stats, and saved-world persistence.
+- Authenticated workflow with per-user storage, admin console, profile management, and JSON import/export utilities.
+- Runs cleanly in Docker; manual Node.js + MongoDB setup remains supported for debugging or custom integrations.
 
-- Interactive planner dashboard with live stats, timeline playback, and saved-world persistence (including intention logs).
-- Authenticated persistence per user; admins can promote/demote accounts from the in-app console.
-- Self-serve profile page summarises account details and supports credential updates.
-- Clean ES-module frontend, Express/Mongo backend, both tailored to run together inside Docker.
+## Install & Run
 
----
-
-## BDI Architecture at a Glance
-
-The planner centres on a single js-son-agent (`backend/bdi/blocksWorldAgent.js`) that follows the classic Belief-Desire-Intention loop.
-
-- **Beliefs**: Current stacks, goal chain, derived `onMap`, `clearBlocks`, and the pending relation to resolve. Captured in the intention log and echoed to the frontend so animations stay in sync.
-- **Desires**: One achievement goal (`achieveGoal`) that remains active while the stacks fail to satisfy the requested goal chain.
-- **Intentions**: A single plan (`planAchieveGoal`) that performs goal-regression. It clears blocking pieces, prepares the destination, then performs the stack, emitting four distinct claw steps per logical move.
-
-**Planner loop**:
-1. **Perceive** - `stateFilter()` recomputes beliefs after each action.
-2. **Deliberate** - evaluate `achieveGoal`; if unsatisfied, stick with the current plan.
-3. **Plan** - decide between `CLEAR_BLOCK`, `CLEAR_TARGET`, or `STACK` actions.
-4. **Act** - apply the move, expand it to four claw steps, and append entries to the intention log for frontend replay.
-
-You can inspect the full cycle by running `npm run test:planner` and reviewing the generated intention logs.
-
----
----
-
-## Quick Start (Docker - Recommended)
-
-1. **Clone the repo**
+### Docker (recommended)
+1. Clone the repo:
    ```bash
    git clone https://github.com/CSIT321-BDI-Agent/BDI-Agent.git
    cd BDI-Agent
    ```
-2. **Launch the stack**
+2. Launch the stack (app + MongoDB):
    ```bash
    docker compose up --build -d
    ```
-   The default Compose file bundles the Node/Express app and MongoDB with sensible defaults.
-3. **Open the simulator** at <http://localhost:3000> and create an account. The UI runs entirely in the browser; the API is proxied through the same port.
-4. **Shut down** when you are done:
+3. Open the simulator at <http://localhost:3000>, create an account, and explore the planner.
+4. Shut everything down when finished:
    ```bash
    docker compose down
    ```
+   Need live reload while developing? Use `docker compose -f docker-compose.dev.yml up --build` for hot-reload mounts.
 
-> Need live-reload while you code? Use `docker compose -f docker-compose.dev.yml up --build` for watch mode.
+### Manual setup (when Docker is not an option)
+1. Install dependencies at the project root: `npm install`
+2. Create backend environment config:
+   ```bash
+   cp backend/.env.example backend/.env
+   # provide MONGODB_URI and JWT_SECRET at minimum
+   ```
+3. Start MongoDB locally (or point `MONGODB_URI` at an Atlas/hosted instance).
+4. Build Tailwind styles once (`npm run build:css`) or keep them hot (`npm run watch:css`).
+5. Run the API from `backend/`:
+   ```bash
+   cd backend
+   npm start
+   ```
+   The Express server serves the frontend from `public/` and proxies API routes on the same port (`3000`).
 
-### Useful Docker Commands
-
+### Useful commands
 ```bash
-# Stream logs
-docker compose logs -f
+# Tailwind rebuild while styling
+npm run watch:css
 
-# Restart only the app service
-docker compose restart app
+# Follow container logs
+docker compose logs -f app
 
-# Drop containers + volumes (cold reset)
+# Reset containers + volumes
 docker compose down -v
 ```
 
-Environment overrides live in `.env` at the project root (see examples inside `backend/.env.example`). Compose automatically maps it into the containers.
+Environment overrides live in a project-level `.env`; Compose mounts it automatically. See `backend/.env.example` for supported keys.
+
+## Architecture Overview
+
+Belief-Desire-Intention (BDI) planning drives the simulator. A single js-son agent (`backend/bdi/blocksWorldAgent.js`) expands logical moves into four claw steps (move, pick, move, drop) so the frontend can animate every action.
+
+- **Beliefs**: Current stacks, pending relations, derived `onMap`, and `clearBlocks` snapshots. Captured per iteration for later playback.
+- **Desires**: Achieve the requested goal chain; remains active until the stacks satisfy the target configuration.
+- **Intentions**: A regression-based plan decides whether to clear blockers, prep destinations, or stack the target block. Each choice surfaces on the intention timeline.
+
+Planner loop highlights:
+1. **Perceive** – recompute beliefs after each action.
+2. **Deliberate** – evaluate whether the goal remains unsatisfied.
+3. **Plan** – choose the next action (`CLEAR_BLOCK`, `CLEAR_TARGET`, `STACK`).
+4. **Act** – apply the move, expand it into four claw steps, append to the intention log.
+
+Run `npm run test:planner` inside `backend/` to inspect regression cases and generated logs.
 
 ## Railway Deployment
 
-Railway picks up this repo without extra build steps: it runs `npm ci` in the root, then launches `node backend/server.js`. To keep deployments healthy:
+Railway builds from the repo root (`npm ci`) and launches `node backend/server.js`. Keep deployments healthy by providing:
 
-- Add a **MongoDB service** or supply a hosted connection string. Railway exposes it as `MONGO_URL`, `MONGODB_URL`, `DATABASE_URL`, or split credentials like `MONGOHOST`/`MONGOPORT`; the server now resolves them automatically.
-- Populate `JWT_SECRET` (required), plus any bootstrap admin credentials you need (`ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`).
-- Surface the backend URL to the frontend with `FRONTEND_API_BASE=https://${{ MONGOHOST }}:${{ MONGOPORT }}`. Railway expands service-scoped variables (`MONGO_URL`, `MONGOHOST`, `MONGOPORT`, `MONGOUSER`, `MONGOPASSWORD`) so the browser points at the correct service.
-- Leave `PORT` unset - Railway injects its own `PORT` value and the server already binds to `0.0.0.0`.
-- If you enable a static frontend on another domain, set `ALLOWED_ORIGINS` with a comma-separated list so CORS stays open in production.
+- **MongoDB connection** – Railway service (`MONGO_URL`, `MONGO{HOST|PORT|USER|PASSWORD}`) or a managed URI (`MONGODB_URI`, `DATABASE_URL`).
+- **JWT secret** – `JWT_SECRET` is mandatory outside local dev.
+- **Optional admin bootstrap** – `ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`.
+- **Frontend config** – expose `FRONTEND_API_BASE` when serving the UI from a different domain.
 
-No `.env` file is required in the repo - manage secrets from the Railway dashboard so automated deployments stay in sync.
-
----
-
-## Manual Setup (When You Really Need It)
-
-The repo still supports a traditional setup (Node.js >= 18 and MongoDB >= 5). High-level steps:
-
-1. `npm install`
-2. Copy `backend/.env.example` to `backend/.env` and supply `MONGODB_URI` & `JWT_SECRET`
-3. Start MongoDB locally or point to Atlas
-4. `npm run build:css` (or `npm run watch:css`) for the Tailwind bundle
-5. From `backend/`: `npm start`
-
-Detailed backend/frontend guidance now lives in each subdirectory:
-
-- [`backend/README.md`](backend/README.md) – routes, env vars, testing, and architecture notes
-- [`public/README.md`](public/README.md) – UI structure, modules, and styling workflow
-
----
+Let Railway supply `PORT`; the server listens on `0.0.0.0` automatically. Manage secrets in Railway, not in-code.
 
 ## Project Layout
 
 ```
 BDI-Agent/
 ├── backend/            # Express API, BDI planner, persistence layer
-├── public/             # Frontend (dashboard, auth screens, debug tools)
+├── public/             # Frontend (dashboard, auth screens, admin tools)
 ├── docker-compose.yml  # Production-friendly stack
 ├── docker-compose.dev.yml
 └── README.md           # You're here
@@ -111,17 +95,15 @@ BDI-Agent/
 
 Key frontend documents:
 
-- `public/index.html` - primary dashboard (reference layout for the app)
-- `public/admin.html` - admin console using the same responsive shell
-- `public/profile.html` - account overview with editable credentials and saved-world count
-- `public/login.html` / `public/signup.html` - auth surfaces with shared styling
-- `public/utils/` - ES modules for animation, persistence, stats, timeline, etc.
+- `public/index.html` – primary dashboard and simulation controls
+- `public/admin.html` – admin console with responsive navigation
+- `public/profile.html` – account overview and credential management
+- `public/utils/` – ES modules for animation, persistence, stats, timeline, auth, etc.
 
----
+## Contributing & Tips
 
-## Contributing & Guidance
-
-- Run `npm run watch:css` while tweaking Tailwind utilities.
-- Linting is lightweight; focus on keeping modules pure and adding doc comments where behaviour is non-obvious.
-- Planner regression tests live in `backend/planner-debug.js` (`npm run test:planner`). The suite covers table anchoring, claw-step expansion, iteration caps, and invalid planner configurations so backend and frontend stay in lockstep.
-- Saved worlds capture blocks, colours, and timelines. When editing persistence, update both the frontend helper and the `World` schema.
+- Run `npm run watch:css` while iterating on Tailwind utilities.
+- Keep planner and persistence changes mirrored between frontend (`public/utils/persistence.js`, `timeline.js`, `stats.js`) and backend schemas.
+- Route handlers should leverage `withRoute` and validation helpers (`backend/utils/validators.js`) for consistent error handling.
+- Saved worlds capture stacks, colours, stats, and intention logs—update both the schema and UI helpers when adding fields.
+- Need more detail? See [`backend/README.md`](backend/README.md) and [`public/README.md`](public/README.md) for subsystem specifics.

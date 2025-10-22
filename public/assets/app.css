@@ -2177,3 +2177,17 @@ select {
     min-height: 450px;
   }
 
+  /* Fixed height containers with strict constraints */
+  #actionLog,
+  #intentionTimeline {
+    height: 600px !important;
+    max-height: 600px !important;
+    min-height: 600px !important;
+    overflow-y: auto !important;
+  }
+
+  /* Ensure the containers never grow beyond bounds */
+  #actionLog > *,
+  #intentionTimeline > * {
+    flex-shrink: 0;
+  }

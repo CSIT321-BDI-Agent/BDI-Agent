@@ -5,7 +5,7 @@
  */
 
 import { DOM, API_BASE } from './constants.js';
-import { showMessage, handleError } from './helpers.js';
+import { showMessage, handleError, normalizeWorldIdentifier } from './helpers.js';
 import { getCurrentUser, authenticatedFetch } from './auth.js';
 import { logAction } from './logger.js';
 import { getIntentionTimelineSnapshot, restoreTimelineFromSnapshot, resetIntentionTimeline } from './timeline.js';
@@ -59,22 +59,6 @@ const LOAD_SELECT_MESSAGES = {
   login: 'Log in to see saved worlds',
   error: 'Error loading worlds',
   failed: 'Failed to fetch worlds'
-};
-
-const normalizeWorldIdentifier = (doc) => {
-  const raw = doc?._id ?? doc?.id ?? null;
-  if (!raw) return null;
-  if (typeof raw === 'string') return raw;
-  if (typeof raw === 'object') {
-    if (typeof raw.$oid === 'string') return raw.$oid;
-    if (typeof raw.toString === 'function') {
-      const candidate = raw.toString();
-      if (candidate && candidate !== '[object Object]') {
-        return candidate;
-      }
-    }
-  }
-  return null;
 };
 
 const loadSelectManager = {

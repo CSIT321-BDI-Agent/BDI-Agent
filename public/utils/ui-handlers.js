@@ -64,6 +64,8 @@ class SimulationController {
     this.pendingViewportRealign = false;
     this.timelineHistory = [];
     this.timelinePlan = [];
+    this.manualTimelineLog = [];
+    this.lastAgentCount = 1;
 
     const simulationConfig = window.APP_CONFIG?.SIMULATION || {};
     this.speedController = new SpeedController({
@@ -144,6 +146,13 @@ class SimulationController {
 
   getClawForAgent(agentKey = 'Agent-A') {
     return this.claws[agentKey] || this.getAllClaws()[0] || null;
+  }
+
+  getWorldStacksSnapshot() {
+    if (!this.world || typeof this.world.getCurrentStacks !== 'function') {
+      return [];
+    }
+    return this.world.getCurrentStacks().map((stack) => [...stack]);
   }
 
   refreshClawLayout(options = {}) {
@@ -628,14 +637,34 @@ class SimulationController {
       ? this.clonePlanMovesForTimeline(planMoves)
       : null;
 
+    let effectiveAgentCount = Number.isFinite(agentCount) && agentCount > 0
+      ? agentCount
+      : this.lastAgentCount || 1;
+    this.lastAgentCount = effectiveAgentCount;
+
     if (append && !annotatedLog.length && !(clonedPlanMoves && clonedPlanMoves.length)) {
       return;
     }
 
     const previousSnapshot = append ? getIntentionTimelineSnapshot() : null;
 
+    const manualPrefix = (!append && this.manualTimelineLog.length)
+      ? this.cloneIntentionLogEntries(this.manualTimelineLog)
+      : [];
+
     if (!append || !this.timelineHistory.length) {
-      this.timelineHistory = annotatedLog;
+      if (manualPrefix.length) {
+        const lastManualCycle = manualPrefix[manualPrefix.length - 1]?.cycle ?? manualPrefix.length;
+        const normalizedLog = annotatedLog.map((entry, idx) => {
+          const clone = { ...entry };
+          const baseCycle = Number.isFinite(clone.cycle) ? clone.cycle : idx + 1;
+          clone.cycle = baseCycle + lastManualCycle;
+          return clone;
+        });
+        this.timelineHistory = [...manualPrefix, ...normalizedLog];
+      } else {
+        this.timelineHistory = annotatedLog;
+      }
       this.timelinePlan = clonedPlanMoves ?? [];
     } else {
       if (annotatedLog.length) {
@@ -652,10 +681,147 @@ class SimulationController {
       this.timelinePlan = this.clonePlanMovesForTimeline(this.activePlan);
     }
 
-    renderIntentionTimeline(this.timelineHistory, agentCount, {
+    renderIntentionTimeline(this.timelineHistory, effectiveAgentCount, {
       planMoves: this.timelinePlan,
       emptyMessage,
       entryStatus: previousSnapshot?.entryStatus || null
+    });
+  }
+
+  cloneStacksForTimeline(stacks = []) {
+    if (!Array.isArray(stacks)) {
+      return [];
+    }
+    return stacks.map((stack) => (Array.isArray(stack) ? [...stack] : stack));
+  }
+
+  convertMutationToTimelineMove(mutation) {
+    if (!mutation || typeof mutation !== 'object') {
+      return null;
+    }
+
+    const base = {
+      actor: 'User',
+      manual: true,
+      manualType: mutation.type || 'MANUAL',
+      stepType: 'MANUAL',
+      timestamp: mutation.timestamp || Date.now(),
+      stepLabel: 'Manual Update'
+    };
+
+    const block = typeof mutation.block === 'string' && mutation.block.trim().length
+      ? mutation.block.trim()
+      : 'Manual';
+
+    switch (mutation.type) {
+      case 'MOVE': {
+        const destination = typeof mutation.to === 'string' && mutation.to.trim().length
+          ? mutation.to.trim()
+          : 'Table';
+        return {
+          ...base,
+          block,
+          to: destination,
+          reason: 'manual-move',
+          stepDescription: `User moved ${block} to ${destination}`,
+          summary: `Manual move: ${block} → ${destination}`,
+          detail: mutation.from ? `Source: ${mutation.from}` : undefined
+        };
+      }
+      case 'BLOCK_ADD': {
+        const destination = 'Table';
+        return {
+          ...base,
+          block,
+          to: destination,
+          reason: 'manual-add',
+          stepDescription: `User added block ${block}`,
+          summary: `Block ${block} added`
+        };
+      }
+      case 'BLOCK_REMOVE': {
+        const destination = 'Removed';
+        return {
+          ...base,
+          block,
+          to: destination,
+          reason: 'manual-remove',
+          stepDescription: `User removed block ${block}`,
+          summary: `Block ${block} removed`
+        };
+      }
+      case 'GOAL_SET': {
+        const goalLabel = this.formatGoalChains(mutation.goalChains || []);
+        return {
+          ...base,
+          block: 'Goal',
+          to: 'Updated',
+          reason: 'manual-goal-update',
+          stepDescription: `User updated goal to ${goalLabel}`,
+          summary: 'Goal updated',
+          detail: goalLabel
+        };
+      }
+      default: {
+        const typeLabel = typeof mutation.type === 'string'
+          ? mutation.type.replace(/_/g, ' ')
+          : 'change';
+        return {
+          ...base,
+          block,
+          to: 'Update',
+          reason: 'manual-change',
+          stepDescription: `User triggered a ${typeLabel}`,
+          summary: `Manual update: ${typeLabel}`,
+          detail: mutation.detail || mutation.reason
+        };
+      }
+    }
+  }
+
+  appendManualTimelineEvents(mutations = []) {
+    if (!Array.isArray(mutations) || !mutations.length) {
+      return;
+    }
+
+    let lastCycle = this.timelineHistory.length
+      ? (this.timelineHistory[this.timelineHistory.length - 1]?.cycle || this.timelineHistory.length)
+      : (this.manualTimelineLog.length
+        ? this.manualTimelineLog[this.manualTimelineLog.length - 1]?.cycle || this.manualTimelineLog.length
+        : 0);
+
+    const manualEntries = [];
+
+    mutations.forEach((mutation) => {
+      const move = this.convertMutationToTimelineMove(mutation);
+      if (!move) {
+        return;
+      }
+      lastCycle += 1;
+      const stacks = Array.isArray(mutation.timelineSnapshot)
+        ? this.cloneStacksForTimeline(mutation.timelineSnapshot)
+        : this.getWorldStacksSnapshot();
+
+      manualEntries.push({
+        cycle: lastCycle,
+        manual: true,
+        timestamp: mutation.timestamp || Date.now(),
+        moves: [move],
+        resultingStacks: stacks
+      });
+    });
+
+    if (!manualEntries.length) {
+      return;
+    }
+
+    this.manualTimelineLog = [
+      ...this.manualTimelineLog,
+      ...this.cloneIntentionLogEntries(manualEntries)
+    ];
+
+    this.renderPlannerTimeline(manualEntries, this.lastAgentCount || 1, {
+      append: true
     });
   }
 
@@ -830,12 +996,17 @@ class SimulationController {
       return;
     }
 
+    const enriched = {
+      ...mutation,
+      timelineSnapshot: this.getWorldStacksSnapshot()
+    };
+
     if (!this.isRunning) {
-      this.logMutations([mutation]);
+      this.logMutations([enriched]);
       return;
     }
 
-    this.mutationQueue.add(mutation);
+    this.mutationQueue.add(enriched);
   }
 
   requestReplan(reason = 'manual-change') {
@@ -958,8 +1129,17 @@ class SimulationController {
   }
 
   logMutations(mutations) {
+    if (!Array.isArray(mutations) || !mutations.length) {
+      return;
+    }
+
+    const timelineEligible = [];
+
     mutations.forEach((mutation) => {
       if (!mutation || typeof mutation !== 'object') return;
+
+      timelineEligible.push(mutation);
+
       switch (mutation.type) {
         case 'MOVE':
           logAction(`Manual move: ${mutation.block} -> ${mutation.to}`, 'user');
@@ -988,6 +1168,10 @@ class SimulationController {
           break;
       }
     });
+
+    if (timelineEligible.length) {
+      this.appendManualTimelineEvents(timelineEligible);
+    }
   }
 
   async requestPlan(goalTokens) {
@@ -1087,8 +1271,10 @@ class SimulationController {
     this.mutationQueue.clear();
     this.isRunning = true;
     this.executedMoveCount = 0;
-  this.timelineHistory = [];
-  this.timelinePlan = [];
+    this.timelineHistory = [];
+    this.timelinePlan = [];
+    this.manualTimelineLog = [];
+    this.lastAgentCount = 1;
 
     this.setControlsDisabled(true, { allowManualInteractions: true });
     this.setManualControlsEnabled(true);
@@ -1120,6 +1306,8 @@ class SimulationController {
       resetIntentionTimeline('Planner request failed.');
       this.timelineHistory = [];
       this.timelinePlan = [];
+      this.manualTimelineLog = [];
+      this.lastAgentCount = 1;
       stopStatsTimer(false);
       updateStats(undefined, 'Unexpected Error');
       this.setControlsDisabled(false);
@@ -1147,6 +1335,8 @@ class SimulationController {
     showMessage('Planner could not achieve the goal within the iteration limit.', 'warning');
     this.timelineHistory = [];
     this.timelinePlan = [];
+    this.manualTimelineLog = [];
+    this.lastAgentCount = 1;
     this.renderPlannerTimeline(
       plannerResponse.intentionLog || [],
       plannerResponse.agentCount || 1,
@@ -1254,6 +1444,8 @@ class SimulationController {
           resetIntentionTimeline('Planner request failed.');
           this.timelineHistory = [];
           this.timelinePlan = [];
+          this.manualTimelineLog = [];
+          this.lastAgentCount = 1;
           stopStatsTimer(false);
           updateStats(undefined, 'Unexpected Error');
           this.setControlsDisabled(false);
@@ -1434,22 +1626,8 @@ class SimulationController {
   }
 }
 
-let controllerInstance = null;
-
 export function initializeHandlers(world) {
-  controllerInstance = new SimulationController(world);
-  controllerInstance.initialize();
-  return controllerInstance;
-}
-
-export function setControlsDisabled(disabled, options = {}) {
-  controllerInstance?.setControlsDisabled(disabled, options);
-}
-
-export function runSimulation() {
-  return controllerInstance?.runSimulation();
-}
-
-export function getSimulationController() {
-  return controllerInstance;
+  const controller = new SimulationController(world);
+  controller.initialize();
+  return controller;
 }

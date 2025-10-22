@@ -19,7 +19,6 @@ const AGENT_B_BADGE_CLASS = `${BADGE_BASE_CLASS} border-purple-500/50 bg-purple-
 const AGENT_B_DOT_CLASS = 'h-2 w-2 rounded-full bg-purple-600 shadow-[0_0_0_1px_rgba(168,85,247,0.35)]';
 const DEFAULT_BADGE_CLASS = `${BADGE_BASE_CLASS} border-slate-300 bg-slate-100 text-brand-dark`;
 const DEFAULT_DOT_CLASS = 'h-2 w-2 rounded-full bg-slate-400 shadow-[0_0_0_1px_rgba(148,163,184,0.35)]';
-const CONCURRENT_BADGE_CLASS = 'inline-flex items-center gap-1 rounded bg-brand-dark/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.26em] text-brand-dark/70';
 const TIME_LABEL_CLASS = 'text-xs font-mono font-semibold text-brand-dark/40';
 const TIME_ACTIVE_CLASS = 'text-brand-primary';
 const TIME_COMPLETED_CLASS = 'text-emerald-600';
@@ -166,22 +165,63 @@ function derivePlanFromLog(intentionLog) {
 }
 
 function normalizePlan(planMoves, intentionLog) {
-  const basePlan = Array.isArray(planMoves) && planMoves.length > 0 ? planMoves : derivePlanFromLog(intentionLog);
-  return basePlan
-    .map((group) => {
-      if (!group) return null;
-      const rawMoves = Array.isArray(group.moves)
-        ? group.moves
-        : group.block
-          ? [group]
-          : [];
-      const moves = rawMoves
-        .map((move) => (move && typeof move === 'object' ? { ...move } : null))
-        .filter((move) => move && typeof move.block === 'string');
-      if (!moves.length) return null;
-      return { ...group, moves };
-    })
+  const normalizeGroup = (group) => {
+    if (!group) return null;
+    const rawMoves = Array.isArray(group.moves)
+      ? group.moves
+      : group.block
+        ? [group]
+        : [];
+    const moves = rawMoves
+      .map((move) => (move && typeof move === 'object' ? { ...move } : null))
+      .filter((move) => move && typeof move.block === 'string');
+    if (!moves.length) return null;
+    return { ...group, moves };
+  };
+
+  const hasPlanMoves = Array.isArray(planMoves) && planMoves.length > 0;
+  if (!hasPlanMoves) {
+    return derivePlanFromLog(intentionLog)
+      .map(normalizeGroup)
+      .filter(Boolean);
+  }
+
+  const normalizedPlan = planMoves
+    .map(normalizeGroup)
     .filter(Boolean);
+
+  if (!Array.isArray(intentionLog) || !intentionLog.length) {
+    return normalizedPlan;
+  }
+
+  const logDerived = derivePlanFromLog(intentionLog)
+    .map(normalizeGroup)
+    .filter(Boolean);
+
+  const hasManual = logDerived.some((group) => group.moves.some((move) => move.manual));
+  if (!hasManual) {
+    return normalizedPlan;
+  }
+
+  const planQueue = [...normalizedPlan];
+  const merged = [];
+
+  logDerived.forEach((group) => {
+    const isManual = group.moves.some((move) => move.manual);
+    if (isManual) {
+      merged.push(group);
+    } else if (planQueue.length) {
+      merged.push(planQueue.shift());
+    } else {
+      merged.push(group);
+    }
+  });
+
+  while (planQueue.length) {
+    merged.push(planQueue.shift());
+  }
+
+  return merged;
 }
 
 function findLogContext(intentionLog, block, destination) {
@@ -205,11 +245,22 @@ function buildEntries(planGroups, intentionLog) {
     const groupSize = moves.length;
     const stepNumber = groupIndex + 1;
     moves.forEach((move, moveIndex) => {
+      const isManual = Boolean(move?.manual);
       const actor = normalizeActor(move.actor, moveIndex);
       const destination = formatDestination(move.to);
-      const reason = humanizeLabel(move.stepDescription || move.reason || group.reason || '');
-      const context = findLogContext(intentionLog, move.block, destination);
-      const summary = `Move ${move.block} → ${destination}`;
+      const reasonSource = move.stepDescription || move.reason || group.reason || '';
+      const reason = humanizeLabel(reasonSource);
+      const manualDetail = typeof move.detail === 'string' ? move.detail.trim() : '';
+      const context = isManual
+        ? (manualDetail || null)
+        : findLogContext(intentionLog, move.block, destination);
+      const summary = (typeof move.summary === 'string' && move.summary.trim().length)
+        ? move.summary.trim()
+        : `Move ${move.block} → ${destination}`;
+      const stepLabel = typeof move.stepLabel === 'string' && move.stepLabel.trim().length
+        ? move.stepLabel.trim()
+        : null;
+      const initialStatus = isManual ? 'completed' : 'pending';
 
       entries.push({
         id: `step-${stepNumber}-${moveIndex}-${move.block}-${actor}`,
@@ -221,15 +272,20 @@ function buildEntries(planGroups, intentionLog) {
         summary,
         reason: reason || null,
         context: context && context !== reason ? context : null,
+        detail: isManual && manualDetail ? manualDetail : null,
         concurrent: groupSize > 1,
         groupSize,
         status: 'pending',
+        initialStatus,
+        manual: isManual,
+        manualType: isManual && typeof move.manualType === 'string' ? move.manualType : null,
+        stepLabel,
         started: false,
         completed: false,
         element: null,
         timeElement: null,
         startedAt: null,
-        durationMs: null,
+        durationMs: isManual && Number.isFinite(move.durationMs) ? move.durationMs : (isManual ? 0 : null),
         cumulativeMs: null
       });
     });
@@ -267,13 +323,6 @@ function createAgentBadge(actor) {
   return badge;
 }
 
-function createConcurrentBadge(groupSize) {
-  const badge = document.createElement('span');
-  badge.className = CONCURRENT_BADGE_CLASS;
-  badge.textContent = `Concurrent · ${groupSize}`;
-  return badge;
-}
-
 function createEntryElement(entry) {
   const card = document.createElement('article');
   card.className = ENTRY_BASE_CLASS;
@@ -292,7 +341,8 @@ function createEntryElement(entry) {
 
   const stepLabel = document.createElement('span');
   stepLabel.className = STEP_LABEL_CLASS;
-  stepLabel.textContent = entry.concurrent ? `Step ${entry.stepNumber} · Concurrent` : `Step ${entry.stepNumber}`;
+  const defaultLabel = entry.concurrent ? `Step ${entry.stepNumber} · Concurrent` : `Step ${entry.stepNumber}`;
+  stepLabel.textContent = entry.stepLabel || defaultLabel;
 
   const summary = document.createElement('span');
   summary.className = SUMMARY_CLASS;
@@ -308,12 +358,14 @@ function createEntryElement(entry) {
   timeDisplay.className = TIME_LABEL_CLASS;
   timeDisplay.textContent = '--:--.--';
 
+  if (entry.manual) {
+    card.dataset.entryType = 'manual';
+    card.classList.add('border-dashed', 'border-brand-primary/40', 'bg-brand-primary/10');
+  }
+
   const badgeGroup = document.createElement('div');
   badgeGroup.className = 'mt-auto flex items-center gap-2';
   badgeGroup.appendChild(createAgentBadge(entry.actor));
-  if (entry.concurrent && entry.groupSize > 1) {
-    badgeGroup.appendChild(createConcurrentBadge(entry.groupSize));
-  }
 
   header.appendChild(titleGroup);
   rightColumn.appendChild(timeDisplay);
@@ -324,6 +376,7 @@ function createEntryElement(entry) {
   const details = [];
   if (entry.reason) details.push(entry.reason);
   if (entry.context && entry.context !== entry.reason) details.push(entry.context);
+  if (entry.detail && entry.detail !== entry.context) details.push(entry.detail);
   if (details.length) {
     const meta = document.createElement('p');
     meta.className = META_CLASS;
@@ -381,7 +434,7 @@ function setEntryStatus(entry, status, { increment = false } = {}) {
       stepDuration = entry.startedAt != null ? Math.max(0, Date.now() - entry.startedAt) : 0;
     }
     entry.durationMs = stepDuration;
-    const cumulative = Number.isFinite(entry.cumulativeMs) ? entry.cumulativeMs : baselineMs + stepDuration;
+    const cumulative = baselineMs + stepDuration;
     entry.cumulativeMs = cumulative;
     entry.startedAt = null;
     entry.started = true;
@@ -521,7 +574,8 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
     timelineState.entries = entries;
     timelineState.container = container;
     entries.forEach((entry) => {
-      setEntryStatus(entry, entry.status, { increment: false });
+      const targetStatus = entry.initialStatus || entry.status;
+      setEntryStatus(entry, targetStatus, { increment: false });
     });
     applyEntryStatusSnapshot(entryStatus);
   }

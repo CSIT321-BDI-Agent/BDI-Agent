@@ -209,7 +209,7 @@
           <div id="adminNav"
             class="mt-6 hidden items-center gap-2 border border-brand-primary/60 bg-brand-primary/10 px-4 py-3 text-sm font-semibold text-brand-dark">
             <span class="material-icons text-base text-brand-primary" aria-hidden="true">verified</span>
-            <span>Administrator tools available. Use the profile menu to open the admin dashboard.</span>
+            <span>Administrator tools available.</span>
           </div>
         </div>
 
@@ -348,28 +348,31 @@
             </div>
           </section>
 
-          <section class="flex flex-col border border-slate-200 bg-white shadow-card xl:col-span-1">
+          <section class="border border-slate-200 bg-white shadow-card xl:col-span-1">
             <div class="border-b border-slate-200 px-6 py-4">
               <h3 class="text-lg font-semibold text-brand-dark">Action Log</h3>
             </div>
-            <div class="flex-1 px-6 py-6">
+            <div class="px-6 py-6">
               <div id="actionLog"
-                class="h-full min-h-[18rem] max-h-[450px] space-y-2 overflow-y-auto bg-slate-950/95 p-4 font-mono text-[13px] text-emerald-300 scrollbar-hide">
+                class="h-[600px] max-h-[600px] min-h-[600px] space-y-2 overflow-y-auto bg-slate-950/95 p-4 font-mono text-[13px] text-emerald-300 scrollbar-hide">
               </div>
             </div>
           </section>
 
-          <section class="flex flex-col border border-slate-200 bg-white shadow-card xl:col-span-1">
-            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-              <h3 class="text-lg font-semibold text-brand-dark">Intention Timeline</h3>
-              <div
-                class="flex items-center gap-2 rounded-full border border-slate-200 bg-brand-soft/60 px-3 py-1 text-xs font-semibold text-brand-dark">
-                <span id="plannerClock" class="clock-display font-mono">--:--</span>
+          <section class="border border-slate-200 bg-white shadow-card xl:col-span-1">
+            <div class="border-b border-slate-200 px-6 py-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-brand-dark">Intention Timeline</h3>
+                <div
+                  class="flex items-center gap-2 rounded-full border border-slate-200 bg-brand-soft/60 px-3 py-1 text-xs font-semibold text-brand-dark">
+                  <span id="plannerClock" class="clock-display font-mono">--:--</span>
+                </div>
               </div>
             </div>
-            <div class="flex-1 px-6 py-6">
+            <div class="px-6 py-6">
               <div id="intentionTimeline"
-                class="flex h-full min-h-[18rem] max-h-[450px] flex-col gap-3 overflow-y-auto scrollbar-hide"></div>
+                class="flex h-[600px] max-h-[600px] min-h-[600px] flex-col gap-3 overflow-y-auto scrollbar-hide">
+              </div>
             </div>
           </section>
         </div>

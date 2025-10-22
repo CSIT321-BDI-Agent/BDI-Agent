@@ -12,7 +12,7 @@ import {
   logout as authLogout,
   updateUIWithUserInfo 
 } from './auth.js';
-import { showMessage, handleError } from './helpers.js';
+import { showMessage, handleError, normalizeWorldIdentifier } from './helpers.js';
 import { initializeMobileNavigation, initializeSidebarNavigation } from './navigation.js';
 import { initializeProfileMenu } from './profile.js';
 
@@ -89,25 +89,6 @@ async function loadWorldsList() {
     handleError(error, 'loading worlds list');
     exportSelect.innerHTML = '<option value="">Error loading worlds</option>';
   }
-}
-
-/**
- * Normalize world identifier from various formats
- */
-function normalizeWorldIdentifier(doc) {
-  const raw = doc?._id ?? doc?.id ?? null;
-  if (!raw) return null;
-  if (typeof raw === 'string') return raw;
-  if (typeof raw === 'object') {
-    if (typeof raw.$oid === 'string') return raw.$oid;
-    if (typeof raw.toString === 'function') {
-      const candidate = raw.toString();
-      if (candidate && candidate !== '[object Object]') {
-        return candidate;
-      }
-    }
-  }
-  return null;
 }
 
 /**
