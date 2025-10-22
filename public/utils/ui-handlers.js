@@ -1530,8 +1530,22 @@ class SimulationController {
         break;
       }
 
+      // Cancel any active drags before starting animations
+      const blocksToAnimate = preparedMoves.map(({ move }) => move.block);
+      const hadActiveDrag = blocksToAnimate.some(block => 
+        this.dragManager?.isBlockBeingDragged(block)
+      );
+      
+      if (hadActiveDrag) {
+        console.log('[EXEC] Cancelling active drag before animation');
+        this.dragManager.forceCancelDrag();
+        // Small delay to ensure block is reattached properly
+        await this.wait(50);
+      }
+
       const promises = preparedMoves.map(({ move, claw }) => {
         const blockToLock = move?.block;
+        
         if (blockToLock) {
           this.dragManager?.lockBlocks([blockToLock]);
         }

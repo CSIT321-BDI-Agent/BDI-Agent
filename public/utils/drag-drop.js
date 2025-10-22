@@ -288,6 +288,20 @@ export class BlockDragManager {
     return this.lockedBlocks.has(blockName);
   }
 
+  isBlockBeingDragged(blockName) {
+    return this.dragState !== null && this.dragState.block === blockName;
+  }
+
+  isDragging() {
+    return this.dragState !== null;
+  }
+
+  forceCancelDrag() {
+    if (this.dragState) {
+      this.cancelDrag();
+    }
+  }
+
   lockBlocks(blocks = []) {
     blocks.forEach(block => {
       if (!block) return;
