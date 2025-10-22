@@ -18,11 +18,13 @@ import { showMessage, handleError } from './helpers.js';
 import {
   resetIntentionTimeline,
   renderIntentionTimeline,
+  appendNextGoalToTimeline,
   startPlannerClock,
   stopPlannerClock,
   finalizeTimeline,
   markTimelineStep,
-  getIntentionTimelineSnapshot
+  getIntentionTimelineSnapshot,
+  handleManualIntervention
 } from './timeline.js';
 import { requestBDIPlan, requestMultiAgentPlan } from './planner.js';
 import { simulateMove } from './animation.js';
@@ -632,59 +634,24 @@ class SimulationController {
   }
 
   renderPlannerTimeline(log = [], agentCount = 1, { append = false, emptyMessage, planMoves = null } = {}) {
-    const annotatedLog = this.cloneIntentionLogEntries(log);
+    // Store plan for timeline rendering
     const clonedPlanMoves = Array.isArray(planMoves)
       ? this.clonePlanMovesForTimeline(planMoves)
-      : null;
+      : Array.isArray(this.activePlan) && this.activePlan.length
+        ? this.clonePlanMovesForTimeline(this.activePlan)
+        : [];
 
     let effectiveAgentCount = Number.isFinite(agentCount) && agentCount > 0
       ? agentCount
       : this.lastAgentCount || 1;
     this.lastAgentCount = effectiveAgentCount;
 
-    if (append && !annotatedLog.length && !(clonedPlanMoves && clonedPlanMoves.length)) {
-      return;
-    }
+    this.timelinePlan = clonedPlanMoves;
 
-    const previousSnapshot = append ? getIntentionTimelineSnapshot() : null;
-
-    const manualPrefix = (!append && this.manualTimelineLog.length)
-      ? this.cloneIntentionLogEntries(this.manualTimelineLog)
-      : [];
-
-    if (!append || !this.timelineHistory.length) {
-      if (manualPrefix.length) {
-        const lastManualCycle = manualPrefix[manualPrefix.length - 1]?.cycle ?? manualPrefix.length;
-        const normalizedLog = annotatedLog.map((entry, idx) => {
-          const clone = { ...entry };
-          const baseCycle = Number.isFinite(clone.cycle) ? clone.cycle : idx + 1;
-          clone.cycle = baseCycle + lastManualCycle;
-          return clone;
-        });
-        this.timelineHistory = [...manualPrefix, ...normalizedLog];
-      } else {
-        this.timelineHistory = annotatedLog;
-      }
-      this.timelinePlan = clonedPlanMoves ?? [];
-    } else {
-      if (annotatedLog.length) {
-        this.timelineHistory = [...this.timelineHistory, ...annotatedLog];
-      }
-      if (clonedPlanMoves && clonedPlanMoves.length) {
-        this.timelinePlan = [...this.timelinePlan, ...clonedPlanMoves];
-      }
-    }
-
-    if (!this.timelinePlan.length && clonedPlanMoves?.length) {
-      this.timelinePlan = clonedPlanMoves;
-    } else if (!this.timelinePlan.length && Array.isArray(this.activePlan) && this.activePlan.length) {
-      this.timelinePlan = this.clonePlanMovesForTimeline(this.activePlan);
-    }
-
-    renderIntentionTimeline(this.timelineHistory, effectiveAgentCount, {
+    // Render the entire plan as cards
+    renderIntentionTimeline(log, effectiveAgentCount, {
       planMoves: this.timelinePlan,
-      emptyMessage,
-      entryStatus: previousSnapshot?.entryStatus || null
+      emptyMessage
     });
   }
 
@@ -784,45 +751,22 @@ class SimulationController {
       return;
     }
 
-    let lastCycle = this.timelineHistory.length
-      ? (this.timelineHistory[this.timelineHistory.length - 1]?.cycle || this.timelineHistory.length)
-      : (this.manualTimelineLog.length
-        ? this.manualTimelineLog[this.manualTimelineLog.length - 1]?.cycle || this.manualTimelineLog.length
-        : 0);
-
-    const manualEntries = [];
-
-    mutations.forEach((mutation) => {
-      const move = this.convertMutationToTimelineMove(mutation);
-      if (!move) {
-        return;
-      }
-      lastCycle += 1;
-      const stacks = Array.isArray(mutation.timelineSnapshot)
-        ? this.cloneStacksForTimeline(mutation.timelineSnapshot)
-        : this.getWorldStacksSnapshot();
-
-      manualEntries.push({
-        cycle: lastCycle,
-        manual: true,
-        timestamp: mutation.timestamp || Date.now(),
-        moves: [move],
-        resultingStacks: stacks
-      });
-    });
-
-    if (!manualEntries.length) {
+    // Convert first mutation to manual move for timeline
+    const mutation = mutations[0];
+    const manualMove = this.convertMutationToTimelineMove(mutation);
+    
+    if (!manualMove) {
       return;
     }
 
-    this.manualTimelineLog = [
-      ...this.manualTimelineLog,
-      ...this.cloneIntentionLogEntries(manualEntries)
-    ];
-
-    this.renderPlannerTimeline(manualEntries, this.lastAgentCount || 1, {
-      append: true
+    // Track manual intervention
+    this.manualTimelineLog.push({
+      manual: true,
+      timestamp: mutation.timestamp || Date.now(),
+      move: manualMove
     });
+
+    // Timeline will be updated when replan completes via handleManualIntervention
   }
 
   setGoalSequence(goalChains = []) {
@@ -1109,16 +1053,29 @@ class SimulationController {
 
     const moves = Array.isArray(plannerResponse.moves) ? [...plannerResponse.moves] : [];
     this.activePlan = moves;
-    this.timelineHistory = [];
-    this.timelinePlan = [];
-    this.renderPlannerTimeline(
-      plannerResponse.intentionLog || [],
-      plannerResponse.agentCount || 1,
-      {
-        emptyMessage: 'No planner steps required after manual update.',
-        planMoves: plannerResponse.moves || []
-      }
-    );
+    
+    // Get the most recent manual move from the log
+    const manualMove = this.manualTimelineLog.length > 0
+      ? this.manualTimelineLog[this.manualTimelineLog.length - 1].move
+      : null;
+
+    // Use handleManualIntervention to update timeline
+    if (manualMove) {
+      handleManualIntervention(manualMove, moves);
+    } else {
+      // No manual intervention, just render the new plan
+      this.timelineHistory = [];
+      this.timelinePlan = [];
+      this.renderPlannerTimeline(
+        plannerResponse.intentionLog || [],
+        plannerResponse.agentCount || 1,
+        {
+          emptyMessage: 'No planner steps required after manual update.',
+          planMoves: plannerResponse.moves || []
+        }
+      );
+    }
+    
     updateStats(undefined, moves.length === 0 ? 'Idle' : 'Running');
 
     if (moves.length === 0) {
@@ -1379,10 +1336,16 @@ class SimulationController {
       this.currentGoalChains = this.cloneGoalChains(this.goalSequence);
     }
 
-    this.renderPlannerTimeline(normalizedLog, agentCount, {
-      append: appendTimeline,
-      planMoves: plannerResponse.moves || []
-    });
+    // For next goal in sequence, append to existing timeline with transition card
+    if (appendTimeline && goalLabel) {
+      appendNextGoalToTimeline(goalLabel, plannerResponse.moves || []);
+    } else {
+      // Initial goal or non-sequence - render fresh timeline
+      this.renderPlannerTimeline(normalizedLog, agentCount, {
+        append: appendTimeline,
+        planMoves: plannerResponse.moves || []
+      });
+    }
 
     if (isMultiAgent) {
       this.updateMultiAgentStats(plannerResponse.statistics);
