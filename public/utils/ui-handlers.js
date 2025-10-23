@@ -1481,15 +1481,12 @@ class SimulationController {
       }
 
       const nextMoveGroup = this.activePlan.shift();
-      console.log('[EXEC] nextMoveGroup:', nextMoveGroup);
       
       const moveBatch = Array.isArray(nextMoveGroup?.moves)
         ? nextMoveGroup.moves.filter(Boolean)
         : nextMoveGroup
           ? [nextMoveGroup]
           : [];
-
-      console.log('[EXEC] moveBatch.length:', moveBatch.length);
 
       if (!moveBatch.length) {
         continue;
@@ -1498,12 +1495,9 @@ class SimulationController {
       const preparedMoves = moveBatch.map((move) => {
         const agentKey = move?.actor || move?.agent || 'Agent-A';
         const claw = this.getClawForAgent(agentKey) || this.getClawForAgent('Agent-A');
-        console.log(`[EXEC] Preparing ${agentKey}: ${move.block} → ${move.to}, claw:`, claw?.id);
         return { move, agentKey, claw };
       });
       
-      console.log('[EXEC] Will execute', preparedMoves.length, 'moves in parallel');
-
       const missingClaw = preparedMoves.some(({ claw }) => !claw);
       if (missingClaw) {
         showMessage('No available robotic arm to execute the next move batch. Stopping simulation.', 'error');
@@ -1532,7 +1526,6 @@ class SimulationController {
       );
       
       if (hadActiveDrag) {
-        console.log('[EXEC] Cancelling active drag before animation');
         this.dragManager.forceCancelDrag();
         // Small delay to ensure block is reattached properly
         await this.wait(50);
@@ -1545,7 +1538,6 @@ class SimulationController {
           this.dragManager?.lockBlocks([blockToLock]);
         }
 
-        console.log(`[EXEC] Launching simulateMove for ${move.actor || 'unknown'}: ${move.block} → ${move.to}`);
 
         return new Promise((resolve) => {
           simulateMove(
@@ -1555,7 +1547,6 @@ class SimulationController {
             claw,
             markTimelineStep,
             () => {
-              console.log(`[EXEC] Completed simulateMove for ${move.actor || 'unknown'}: ${move.block}`);
               if (blockToLock) {
                 this.dragManager?.unlockBlocks([blockToLock]);
               }
@@ -1566,13 +1557,10 @@ class SimulationController {
         });
       });
 
-      console.log('[EXEC] Waiting for', promises.length, 'parallel animations...');
       await Promise.all(promises);
-      console.log('[EXEC] All parallel animations completed');
       
       // Update all DOM positions after parallel animations complete
       this.world.updatePositions();
-      console.log('[EXEC] World positions synchronized');
       
       this.executedMoveCount += moveBatch.length;
     }

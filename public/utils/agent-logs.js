@@ -209,7 +209,7 @@ function renderWorldLogs(worlds = []) {
       <td class="px-4 py-3">
         <span class="inline-flex items-center rounded bg-brand-primary/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-brand-primary">${statStatus}</span>
       </td>
-      <td class="px-4 py-3">${agentModeLabel} · ${stepCount}</td>
+      <td class="px-4 py-3">${agentModeLabel}</td>
       <td class="px-4 py-3">${actionCount}</td>
       <td class="px-4 py-3 text-right">
         <button

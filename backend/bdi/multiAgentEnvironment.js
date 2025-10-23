@@ -36,6 +36,10 @@ const {
   deriveOnMap
 } = createBlocksHelpers(PlanningError);
 
+const isTowerBlockToken = (block) => typeof block === 'string' && block !== 'Table';
+const extractTowerBlockSet = (chain) => new Set((Array.isArray(chain) ? chain : []).filter(isTowerBlockToken));
+const flattenGoalChains = (chains) => chains.flat().filter(isTowerBlockToken);
+
 /**
  * Check if goal chains have interdependencies in the current state.
  * Returns true if blocks from different goal chains are in the same stack
@@ -45,9 +49,7 @@ function hasTowerDependencies(stacks, goalChains) {
   if (goalChains.length < 2) return false;
 
   // Extract blocks from each goal chain (excluding 'Table')
-  const towerBlocks = goalChains.map(chain => 
-    new Set(chain.filter(block => block && block !== 'Table'))
-  );
+  const towerBlocks = goalChains.map(extractTowerBlockSet);
 
   // Require each tower's base block to rest on the table before allowing independence
   const onMap = deriveOnMap(stacks);
@@ -126,7 +128,7 @@ function planIndependentTowers(initialStacks, goalChains, options = {}) {
     }
 
     const agentId = agentIds[idx] || `Agent-${String.fromCharCode(67 + idx)}`;
-    const towerBlocks = goalChainForTower.filter(token => token && token !== 'Table');
+    const towerBlocks = goalChainForTower.filter(isTowerBlockToken);
     const towerSummary = towerBlocks.length ? towerBlocks.join(', ') : 'Table';
     const towerLabel = `Tower ${idx + 1}: ${towerSummary}`;
 
@@ -676,7 +678,7 @@ async function trueBDIPlan(initialStacks, goalPayload, options = {}) {
       if (hasDependencies) {
         console.log('[Multi-Agent] Towers have dependencies, using negotiation-based planning');
         // Flatten goal chains for negotiation-based planning
-        const flattenedGoal = goalPayload.flat().filter(block => block && block !== 'Table');
+        const flattenedGoal = flattenGoalChains(goalPayload);
         flattenedGoal.push('Table');
         goalPayload = flattenedGoal;
       } else {

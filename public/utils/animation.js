@@ -372,8 +372,8 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     blockDiv.style.transition = '';
     
     // Manually position block at destination (updatePositions will be called by executor after all parallel moves)
-    blockDiv.style.left = `${destLeft}px`;
-    blockDiv.style.top = `${destTop}px`;
+    blockDiv.style.left = `${destPos.left}px`;
+    blockDiv.style.top = `${destPos.top}px`;
     
     // Mark step 4 complete in timeline
     if (typeof markTimelineStep === 'function') {
