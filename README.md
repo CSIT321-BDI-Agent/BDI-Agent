@@ -3,18 +3,20 @@
 ## TL;DR
 - Quick start: `docker compose up --build -d` from the repo root, then visit <http://localhost:3000>.
 - No Docker? `npm install`, copy `backend/.env.example` to `.env`, start MongoDB, and run `npm start` inside `backend/`.
-- Multi-agent Belief-Desire-Intention planner with an Express + Mongo backend and ES module frontend.
+- Multi-agent Belief-Desire-Intention planner (two-agent execution with user-defined tower batches) with an Express + Mongo backend and ES module frontend.
 - Dashboard streams claw animations, intention timeline, live stats, and persists worlds for replay.
 
 ## Quick Start
 ### Docker (recommended)
-1. Clone the repo and switch to the project directory.
-2. Launch the stack (app + MongoDB):
+1. Install Docker Desktop Community version.
+2. Clone the repo and switch to the project directory.
+3. Launch the stack (app + MongoDB):
    ```bash
    docker compose up --build -d
    ```
-3. Open <http://localhost:3000>, create an account, and start experimenting with the planner.
-4. When finished, stop services with:
+4. If launching the stack returns errors, you are likely missing environmental values docker uses to initialise, therefore copy `backend/.env.example` and rename it to `../.env`. Then launch the stack again. 
+5. Open <http://localhost:3000>, create an account, and start experimenting with the planner.
+6. When finished, stop services with:
    ```bash
    docker compose down
    ```
