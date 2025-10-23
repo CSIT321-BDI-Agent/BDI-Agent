@@ -16,6 +16,13 @@ import { showMessage, handleError, normalizeWorldIdentifier } from './helpers.js
 import { initializeMobileNavigation, initializeSidebarNavigation } from './navigation.js';
 import { initializeProfileMenu } from './profile.js';
 
+const escapeHtml = (value = '') => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
 /**
  * Initialize the import/export page
  */
@@ -165,12 +172,56 @@ function handleExportWorldChange(event) {
 function displayExportPreview(worldData) {
   const exportPreview = document.getElementById('exportPreview');
   const exportJsonDisplay = document.getElementById('exportJsonDisplay');
+  const exportSummary = document.getElementById('exportPreviewContent');
 
   if (!exportPreview || !exportJsonDisplay) return;
 
   // Format the JSON for display
   const formattedJson = JSON.stringify(worldData, null, 2);
   exportJsonDisplay.value = formattedJson;
+
+  if (exportSummary) {
+    const timeline = worldData?.timeline || {};
+    const cards = Array.isArray(timeline.cards) ? timeline.cards : [];
+    const distinctSteps = cards.length
+      ? new Set(
+          cards
+            .map((card) => (Number.isFinite(card?.stepNumber) ? card.stepNumber : card?.id || card?.summary || ''))
+            .filter(Boolean)
+        ).size
+      : 0;
+    const agentModeEnabled = worldData?.multiAgent?.enabled ?? (timeline?.mode === 'multi');
+    const agentModeLabel = agentModeEnabled ? 'Multi-Agent' : 'Single Agent';
+    const multiAgentStats = worldData?.multiAgent?.statistics || worldData?.multiAgent?.stats || null;
+
+    let multiAgentBlock = '';
+    if (agentModeEnabled && multiAgentStats && typeof multiAgentStats === 'object') {
+      const agentAMoves = Number.isFinite(multiAgentStats.agentAMoves) ? multiAgentStats.agentAMoves : 0;
+      const agentBMoves = Number.isFinite(multiAgentStats.agentBMoves) ? multiAgentStats.agentBMoves : 0;
+      const totalConflicts = Number.isFinite(multiAgentStats.totalConflicts) ? multiAgentStats.totalConflicts : 0;
+      const totalNegotiations = Number.isFinite(multiAgentStats.totalNegotiations) ? multiAgentStats.totalNegotiations : 0;
+      const totalDeliberations = Number.isFinite(multiAgentStats.totalDeliberations) ? multiAgentStats.totalDeliberations : 0;
+
+      multiAgentBlock = `
+        <div class="pt-1 text-xs text-brand-dark/70">
+          <div class="flex justify-between"><span>Agent A Moves</span><span>${agentAMoves}</span></div>
+          <div class="flex justify-between"><span>Agent B Moves</span><span>${agentBMoves}</span></div>
+          <div class="flex justify-between"><span>Conflicts</span><span>${totalConflicts}</span></div>
+          <div class="flex justify-between"><span>Negotiations</span><span>${totalNegotiations}</span></div>
+          <div class="flex justify-between"><span>Deliberations</span><span>${totalDeliberations}</span></div>
+        </div>`;
+    }
+
+    exportSummary.innerHTML = `
+      <div class="flex justify-between"><strong>World:</strong><span>${escapeHtml(worldData?.name || 'Untitled World')}</span></div>
+      <div class="flex justify-between"><strong>Blocks:</strong><span>${Array.isArray(worldData?.blocks) ? worldData.blocks.length : 0}</span></div>
+      <div class="flex justify-between"><strong>Stacks:</strong><span>${Array.isArray(worldData?.stacks) ? worldData.stacks.length : 0}</span></div>
+      <div class="flex justify-between"><strong>Timeline Cards:</strong><span>${cards.length}</span></div>
+      <div class="flex justify-between"><strong>Distinct Steps:</strong><span>${distinctSteps}</span></div>
+      <div class="flex justify-between"><strong>Agent Mode:</strong><span>${agentModeLabel}</span></div>
+      ${multiAgentBlock}
+    `;
+  }
 
   // Show the preview
   exportPreview.classList.remove('hidden');
@@ -309,13 +360,47 @@ function handleValidateJson() {
 
     // Display preview
     if (importPreviewContent) {
+      const timeline = worldData?.timeline || {};
+      const cards = Array.isArray(timeline.cards) ? timeline.cards : [];
+      const distinctSteps = cards.length
+        ? new Set(
+            cards
+              .map((card) => (Number.isFinite(card?.stepNumber) ? card.stepNumber : card?.id || card?.summary || ''))
+              .filter(Boolean)
+          ).size
+        : 0;
+      const agentModeEnabled = worldData?.multiAgent?.enabled ?? (timeline?.mode === 'multi');
+      const agentModeLabel = agentModeEnabled ? 'Multi-Agent' : 'Single Agent';
+      const multiAgentStats = worldData?.multiAgent?.statistics || worldData?.multiAgent?.stats || null;
+
+      let multiAgentBlock = '';
+      if (agentModeEnabled && multiAgentStats && typeof multiAgentStats === 'object') {
+        const agentAMoves = Number.isFinite(multiAgentStats.agentAMoves) ? multiAgentStats.agentAMoves : 0;
+        const agentBMoves = Number.isFinite(multiAgentStats.agentBMoves) ? multiAgentStats.agentBMoves : 0;
+        const totalConflicts = Number.isFinite(multiAgentStats.totalConflicts) ? multiAgentStats.totalConflicts : 0;
+        const totalNegotiations = Number.isFinite(multiAgentStats.totalNegotiations) ? multiAgentStats.totalNegotiations : 0;
+        const totalDeliberations = Number.isFinite(multiAgentStats.totalDeliberations) ? multiAgentStats.totalDeliberations : 0;
+
+        multiAgentBlock = `
+          <div class="pt-1 text-xs text-brand-dark/70">
+            <div class="flex justify-between"><span>Agent A Moves</span><span>${agentAMoves}</span></div>
+            <div class="flex justify-between"><span>Agent B Moves</span><span>${agentBMoves}</span></div>
+            <div class="flex justify-between"><span>Conflicts</span><span>${totalConflicts}</span></div>
+            <div class="flex justify-between"><span>Negotiations</span><span>${totalNegotiations}</span></div>
+            <div class="flex justify-between"><span>Deliberations</span><span>${totalDeliberations}</span></div>
+          </div>`;
+      }
+
       importPreviewContent.innerHTML = `
-        <div class="flex justify-between"><strong>World Name:</strong> <span>${worldData.name || 'Unnamed'}</span></div>
-        <div class="flex justify-between"><strong>Blocks:</strong> <span>${worldData.blocks?.length || 0} blocks (${(worldData.blocks || []).join(', ')})</span></div>
-        <div class="flex justify-between"><strong>Stacks:</strong> <span>${worldData.stacks?.length || 0} stacks</span></div>
+        <div class="flex justify-between"><strong>World Name:</strong> <span>${escapeHtml(worldData.name || 'Unnamed')}</span></div>
+        <div class="flex justify-between"><strong>Blocks:</strong> <span>${Array.isArray(worldData.blocks) ? worldData.blocks.length : 0} (${escapeHtml((worldData.blocks || []).join(', '))})</span></div>
+        <div class="flex justify-between"><strong>Stacks:</strong> <span>${Array.isArray(worldData.stacks) ? worldData.stacks.length : 0}</span></div>
         <div class="flex justify-between"><strong>Has Colors:</strong> <span>${worldData.colours || worldData.colors ? 'Yes' : 'No'}</span></div>
-        <div class="flex justify-between"><strong>Has Timeline:</strong> <span>${worldData.timeline ? 'Yes' : 'No'}</span></div>
+        <div class="flex justify-between"><strong>Timeline Cards:</strong> <span>${cards.length}</span></div>
+        <div class="flex justify-between"><strong>Distinct Steps:</strong> <span>${distinctSteps}</span></div>
+        <div class="flex justify-between"><strong>Agent Mode:</strong> <span>${agentModeLabel}</span></div>
         <div class="flex justify-between"><strong>Has Stats:</strong> <span>${worldData.stats ? 'Yes' : 'No'}</span></div>
+        ${multiAgentBlock}
       `;
     }
 
@@ -418,6 +503,64 @@ function validateWorldStructure(worldData) {
     }
   }
 
+  if (worldData.timeline != null) {
+    if (typeof worldData.timeline !== 'object' || Array.isArray(worldData.timeline)) {
+      errors.push('Field "timeline" must be an object when provided');
+    } else {
+      const { cards, agentCount, plan } = worldData.timeline;
+      if (cards != null && !Array.isArray(cards)) {
+        errors.push('Field "timeline.cards" must be an array when provided');
+      } else if (Array.isArray(cards)) {
+        cards.forEach((card, idx) => {
+          if (!card || typeof card !== 'object') {
+            errors.push(`Timeline card at index ${idx} must be an object`);
+            return;
+          }
+          if (card.stepNumber != null && !Number.isFinite(card.stepNumber)) {
+            errors.push(`Timeline card ${idx} has invalid "stepNumber"`);
+          }
+          if (card.actor != null && typeof card.actor !== 'string') {
+            errors.push(`Timeline card ${idx} has invalid "actor" (must be a string)`);
+          }
+          if (card.status != null && typeof card.status !== 'string') {
+            errors.push(`Timeline card ${idx} has invalid "status" (must be a string)`);
+          }
+        });
+      }
+
+      if (agentCount != null && !Number.isFinite(agentCount)) {
+        errors.push('Field "timeline.agentCount" must be a number when provided');
+      }
+
+      if (plan != null && !Array.isArray(plan)) {
+        errors.push('Field "timeline.plan" must be an array when provided');
+      }
+    }
+  }
+
+  if (worldData.multiAgent != null) {
+    if (typeof worldData.multiAgent !== 'object' || Array.isArray(worldData.multiAgent)) {
+      errors.push('Field "multiAgent" must be an object when provided');
+    } else {
+      if (worldData.multiAgent.enabled != null && typeof worldData.multiAgent.enabled !== 'boolean') {
+        errors.push('Field "multiAgent.enabled" must be a boolean when provided');
+      }
+
+      const statsSource = worldData.multiAgent.statistics || worldData.multiAgent.stats;
+      if (statsSource != null) {
+        if (typeof statsSource !== 'object' || Array.isArray(statsSource)) {
+          errors.push('Field "multiAgent.statistics" must be an object when provided');
+        } else {
+          ['agentAMoves', 'agentBMoves', 'totalConflicts', 'totalNegotiations', 'totalDeliberations'].forEach((key) => {
+            if (statsSource[key] != null && !Number.isFinite(statsSource[key])) {
+              errors.push(`Field "multiAgent.statistics.${key}" must be a number when provided`);
+            }
+          });
+        }
+      }
+    }
+  }
+
   return {
     valid: errors.length === 0,
     errors
@@ -468,7 +611,8 @@ async function handleImportJson() {
       stacks: worldData.stacks,
       colours: worldData.colours || worldData.colors || {},
       timeline: worldData.timeline || null,
-      stats: worldData.stats || null
+      stats: worldData.stats || null,
+      multiAgent: worldData.multiAgent || null
     };
 
     // Save to backend

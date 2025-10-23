@@ -28,6 +28,27 @@ let statsState = {
 let simulationStartTime = null;
 let statsUpdateInterval = null;
 let initialized = false;
+let multiAgentInitialized = false;
+
+const MULTI_AGENT_DEFAULT = '--';
+const DEFAULT_MULTI_AGENT_STATE = {
+  enabled: false,
+  agentAMoves: null,
+  agentBMoves: null,
+  totalConflicts: null,
+  totalNegotiations: null,
+  totalDeliberations: null
+};
+
+let multiAgentContainer = null;
+const multiAgentElems = {
+  agentA: null,
+  agentB: null,
+  conflicts: null,
+  negotiations: null,
+  deliberations: null
+};
+let multiAgentState = { ...DEFAULT_MULTI_AGENT_STATE };
 
 const formatElapsed = (ms) => {
   if (!Number.isFinite(ms) || ms < 0) {
@@ -92,7 +113,8 @@ const renderStats = () => {
 export function initializeStatsUI({
   stepsSelector = '#stat-steps',
   timeSelector = '#stat-time',
-  statusSelector = '#stat-status'
+  statusSelector = '#stat-status',
+  multiAgent = {}
 } = {}) {
   statStepsElem = document.querySelector(stepsSelector);
   statTimeElem = document.querySelector(timeSelector);
@@ -105,7 +127,48 @@ export function initializeStatsUI({
     elapsedMs: 0,
     running: false
   };
+
+  const {
+    containerSelector = '#multiAgentStats',
+    agentASelector = '#stat-agent-a-moves',
+    agentBSelector = '#stat-agent-b-moves',
+    conflictsSelector = '#stat-conflicts',
+    negotiationsSelector = '#stat-negotiations',
+    deliberationsSelector = '#stat-deliberations'
+  } = multiAgent || {};
+
+  multiAgentContainer = typeof containerSelector === 'string'
+    ? document.querySelector(containerSelector)
+    : null;
+  multiAgentElems.agentA = typeof agentASelector === 'string'
+    ? document.querySelector(agentASelector)
+    : null;
+  multiAgentElems.agentB = typeof agentBSelector === 'string'
+    ? document.querySelector(agentBSelector)
+    : null;
+  multiAgentElems.conflicts = typeof conflictsSelector === 'string'
+    ? document.querySelector(conflictsSelector)
+    : null;
+  multiAgentElems.negotiations = typeof negotiationsSelector === 'string'
+    ? document.querySelector(negotiationsSelector)
+    : null;
+  multiAgentElems.deliberations = typeof deliberationsSelector === 'string'
+    ? document.querySelector(deliberationsSelector)
+    : null;
+
+  multiAgentInitialized = Boolean(
+    multiAgentContainer &&
+    multiAgentElems.agentA &&
+    multiAgentElems.agentB &&
+    multiAgentElems.conflicts &&
+    multiAgentElems.negotiations &&
+    multiAgentElems.deliberations
+  );
+
+  multiAgentState = { ...DEFAULT_MULTI_AGENT_STATE };
+
   renderStats();
+  renderMultiAgentStats();
 }
 
 /**
@@ -269,5 +332,126 @@ export function restoreStatsFromSnapshot(snapshot) {
   };
   simulationStartTime = null;
   renderStats();
+}
+
+function normalizeCount(value) {
+  if (Number.isFinite(value)) {
+    return Math.max(0, Math.floor(value));
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === MULTI_AGENT_DEFAULT) {
+      return null;
+    }
+    const parsed = Number.parseInt(trimmed, 10);
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, parsed);
+    }
+  }
+  return null;
+}
+
+function renderMultiAgentStats() {
+  if (!multiAgentInitialized) return;
+
+  const shouldShow = Boolean(multiAgentState.enabled);
+  if (multiAgentContainer) {
+    multiAgentContainer.classList.toggle('hidden', !shouldShow);
+  }
+
+  const toDisplay = (value) => (value == null ? MULTI_AGENT_DEFAULT : String(value));
+
+  if (multiAgentElems.agentA) {
+    multiAgentElems.agentA.textContent = toDisplay(multiAgentState.agentAMoves);
+  }
+  if (multiAgentElems.agentB) {
+    multiAgentElems.agentB.textContent = toDisplay(multiAgentState.agentBMoves);
+  }
+  if (multiAgentElems.conflicts) {
+    multiAgentElems.conflicts.textContent = toDisplay(multiAgentState.totalConflicts);
+  }
+  if (multiAgentElems.negotiations) {
+    multiAgentElems.negotiations.textContent = toDisplay(multiAgentState.totalNegotiations);
+  }
+  if (multiAgentElems.deliberations) {
+    multiAgentElems.deliberations.textContent = toDisplay(multiAgentState.totalDeliberations);
+  }
+}
+
+/**
+ * Toggle multi-agent stats panel visibility
+ * @param {boolean} enabled
+ */
+export function setMultiAgentStatsEnabled(enabled) {
+  if (!multiAgentInitialized) return;
+  multiAgentState.enabled = Boolean(enabled);
+  renderMultiAgentStats();
+}
+
+/**
+ * Update multi-agent statistics display
+ * @param {{agentAMoves?:number,agentBMoves?:number,totalConflicts?:number,totalNegotiations?:number,totalDeliberations?:number}} stats
+ */
+export function updateMultiAgentStatsDisplay(stats = {}) {
+  if (!multiAgentInitialized) return;
+
+  multiAgentState.enabled = true;
+  multiAgentState.agentAMoves = normalizeCount(stats.agentAMoves);
+  multiAgentState.agentBMoves = normalizeCount(stats.agentBMoves);
+  multiAgentState.totalConflicts = normalizeCount(stats.totalConflicts);
+  multiAgentState.totalNegotiations = normalizeCount(stats.totalNegotiations);
+  multiAgentState.totalDeliberations = normalizeCount(stats.totalDeliberations);
+
+  renderMultiAgentStats();
+}
+
+/**
+ * Reset multi-agent statistics display to defaults
+ */
+export function resetMultiAgentStats() {
+  if (!multiAgentInitialized) return;
+  multiAgentState = { ...DEFAULT_MULTI_AGENT_STATE };
+  renderMultiAgentStats();
+}
+
+/**
+ * Capture a snapshot of multi-agent statistics
+ * @returns {{enabled:boolean,agentAMoves:number,agentBMoves:number,totalConflicts:number,totalNegotiations:number,totalDeliberations:number}|null}
+ */
+export function getMultiAgentStatsSnapshot() {
+  if (!multiAgentInitialized || !multiAgentState.enabled) {
+    return null;
+  }
+
+  return {
+    enabled: true,
+    agentAMoves: multiAgentState.agentAMoves ?? 0,
+    agentBMoves: multiAgentState.agentBMoves ?? 0,
+    totalConflicts: multiAgentState.totalConflicts ?? 0,
+    totalNegotiations: multiAgentState.totalNegotiations ?? 0,
+    totalDeliberations: multiAgentState.totalDeliberations ?? 0
+  };
+}
+
+/**
+ * Restore multi-agent statistics from snapshot
+ * @param {{enabled?:boolean,agentAMoves?:number,agentBMoves?:number,totalConflicts?:number,totalNegotiations?:number,totalDeliberations?:number}|null} snapshot
+ */
+export function restoreMultiAgentStatsFromSnapshot(snapshot) {
+  if (!multiAgentInitialized) return;
+
+  if (!snapshot || typeof snapshot !== 'object') {
+    resetMultiAgentStats();
+    return;
+  }
+
+  multiAgentState.enabled = snapshot.enabled !== false;
+  multiAgentState.agentAMoves = normalizeCount(snapshot.agentAMoves);
+  multiAgentState.agentBMoves = normalizeCount(snapshot.agentBMoves);
+  multiAgentState.totalConflicts = normalizeCount(snapshot.totalConflicts);
+  multiAgentState.totalNegotiations = normalizeCount(snapshot.totalNegotiations);
+  multiAgentState.totalDeliberations = normalizeCount(snapshot.totalDeliberations);
+
+  renderMultiAgentStats();
 }
 

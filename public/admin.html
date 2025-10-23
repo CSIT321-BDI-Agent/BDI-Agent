@@ -330,7 +330,27 @@
           : 'Unknown';
         const blockCount = Array.isArray(world?.blocks) ? world.blocks.length : 0;
         const stackCount = Array.isArray(world?.stacks) ? world.stacks.length : 0;
-        const timelineEntries = Array.isArray(world?.timeline?.log) ? world.timeline.log.length : 0;
+        const timeline = world?.timeline || {};
+        const timelineCards = Array.isArray(timeline.cards) ? timeline.cards : [];
+        const distinctSteps = timelineCards.length
+          ? new Set(
+              timelineCards
+                .map((card) => (Number.isFinite(card?.stepNumber) ? card.stepNumber : card?.id || card?.summary || ''))
+                .filter(Boolean)
+            ).size
+          : Array.isArray(timeline.log) ? timeline.log.length : 0;
+        const cardCount = timelineCards.length;
+        const agentModeEnabled = world?.multiAgent?.enabled ?? (timeline?.mode === 'multi');
+        const agentModeLabel = agentModeEnabled ? 'Multi-Agent' : 'Single Agent';
+        const multiAgentStats = world?.multiAgent?.statistics || world?.multiAgent?.stats || null;
+        const agentAMoves = multiAgentStats && Number.isFinite(multiAgentStats.agentAMoves) ? multiAgentStats.agentAMoves : 0;
+        const agentBMoves = multiAgentStats && Number.isFinite(multiAgentStats.agentBMoves) ? multiAgentStats.agentBMoves : 0;
+        const multiAgentSummary = multiAgentStats && typeof multiAgentStats === 'object'
+          ? `Conflicts ${Number.isFinite(multiAgentStats.totalConflicts) ? multiAgentStats.totalConflicts : 0} • Negotiations ${Number.isFinite(multiAgentStats.totalNegotiations) ? multiAgentStats.totalNegotiations : 0}`
+          : `${cardCount} card${cardCount === 1 ? '' : 's'} / ${distinctSteps} step${distinctSteps === 1 ? '' : 's'}`;
+        const agentModeDisplay = multiAgentStats && typeof multiAgentStats === 'object'
+          ? `${agentModeLabel} • A${agentAMoves} / B${agentBMoves}`
+          : `${agentModeLabel} • ${cardCount} card${cardCount === 1 ? '' : 's'}`;
 
         return `
           <article class="rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -338,7 +358,7 @@
               <h4 class="text-sm font-semibold text-brand-dark">${name}</h4>
               <span class="text-[11px] text-brand-dark/60">${savedAt ? escapeHtml(`Saved ${savedAt}`) : 'Unknown date'}</span>
             </div>
-            <dl class="mt-3 grid gap-3 text-[11px] text-brand-dark/70 sm:grid-cols-3">
+            <dl class="mt-3 grid gap-3 text-[11px] text-brand-dark/70 sm:grid-cols-4">
               <div>
                 <dt class="font-semibold uppercase tracking-[0.18em] text-brand-dark/50">Steps</dt>
                 <dd class="mt-1 text-sm font-semibold text-brand-dark">${steps}</dd>
@@ -351,10 +371,14 @@
                 <dt class="font-semibold uppercase tracking-[0.18em] text-brand-dark/50">Status</dt>
                 <dd class="mt-1 text-sm font-semibold text-brand-dark">${status}</dd>
               </div>
+              <div>
+                <dt class="font-semibold uppercase tracking-[0.18em] text-brand-dark/50">Agent Mode</dt>
+                <dd class="mt-1 text-sm font-semibold text-brand-dark">${agentModeDisplay}</dd>
+              </div>
             </dl>
             <div class="mt-3 flex items-center justify-between text-[11px] text-brand-dark/50">
               <span>${blockCount} block${blockCount === 1 ? '' : 's'} • ${stackCount} stack${stackCount === 1 ? '' : 's'}</span>
-              <span>${timelineEntries} timeline entr${timelineEntries === 1 ? 'y' : 'ies'}</span>
+              <span>${multiAgentSummary}</span>
             </div>
           </article>
         `;

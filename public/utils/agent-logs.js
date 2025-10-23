@@ -63,6 +63,19 @@ const countTimelineMoves = (timeline) => {
     return 0;
   }
 
+  const cardEntries = Array.isArray(timeline.cards) ? timeline.cards : [];
+  if (cardEntries.length > 0) {
+    return cardEntries.reduce((total, card) => {
+      if (!card || typeof card !== 'object') {
+        return total;
+      }
+      if (card.block && typeof card.block === 'string' && card.block.trim().length > 0) {
+        return total + 1;
+      }
+      return total;
+    }, 0);
+  }
+
   const planMoves = countPlanMoves(timeline.plan);
   if (planMoves > 0) {
     return planMoves;
@@ -164,8 +177,17 @@ function renderWorldLogs(worlds = []) {
       ? new Date(savedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
       : '--';
 
+    const timelineCards = Array.isArray(timeline?.cards) ? timeline.cards : [];
     const timelineLog = Array.isArray(timeline?.log) ? timeline.log : [];
-    const cycleCount = timelineLog.length;
+    const stepCount = timelineCards.length
+      ? new Set(
+          timelineCards
+            .map((card) => (Number.isFinite(card?.stepNumber) ? card.stepNumber : card?.id || card?.summary || ''))
+            .filter(Boolean)
+        ).size
+      : timelineLog.length;
+    const agentModeEnabled = world?.multiAgent?.enabled ?? (timeline?.mode === 'multi');
+    const agentModeLabel = agentModeEnabled ? 'Multi' : 'Single';
     const actionCount = countTimelineMoves(timeline || {});
     aggregateActions += actionCount;
 
@@ -187,7 +209,7 @@ function renderWorldLogs(worlds = []) {
       <td class="px-4 py-3">
         <span class="inline-flex items-center rounded bg-brand-primary/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-brand-primary">${statStatus}</span>
       </td>
-      <td class="px-4 py-3">${cycleCount}</td>
+      <td class="px-4 py-3">${agentModeLabel} · ${stepCount}</td>
       <td class="px-4 py-3">${actionCount}</td>
       <td class="px-4 py-3 text-right">
         <button

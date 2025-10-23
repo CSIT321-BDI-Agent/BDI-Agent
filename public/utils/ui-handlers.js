@@ -29,7 +29,15 @@ import {
 import { requestBDIPlan, requestMultiAgentPlan } from './planner.js';
 import { simulateMove } from './animation.js';
 import { saveWorld, loadSelectedWorld, refreshLoadList } from './persistence.js';
-import { startStatsTimer, stopStatsTimer, updateStats, resetStats } from './stats.js';
+import {
+  startStatsTimer,
+  stopStatsTimer,
+  updateStats,
+  resetStats,
+  resetMultiAgentStats,
+  setMultiAgentStatsEnabled,
+  updateMultiAgentStatsDisplay
+} from './stats.js';
 import { logAction } from './logger.js';
 import { BlockDragManager } from './drag-drop.js';
 import { MutationQueue } from './mutation-queue.js';
@@ -101,6 +109,7 @@ class SimulationController {
     this.syncSpeedUI();
     this.setManualControlsEnabled(true);
     resetStats();
+    resetMultiAgentStats();
     refreshLoadList();
   }
 
@@ -346,6 +355,12 @@ class SimulationController {
     }
 
     if (isMultiAgent) {
+      setMultiAgentStatsEnabled(true);
+    } else {
+      resetMultiAgentStats();
+    }
+
+    if (isMultiAgent) {
       ensureAgentClaw('Agent-B');
       this.refreshClawLayout({ durationMs: 200 });
     } else {
@@ -356,32 +371,12 @@ class SimulationController {
     
     // Log mode change
     logAction(`Planner mode: ${isMultiAgent ? 'Multi-Agent enabled (negotiation: ON, timeout: 5000ms)' : 'Single Agent (default)'}`, 'user');
-    
-    // Show/hide multi-agent stats panel when switching modes
-    if (this.elements.multiAgentStats && !isMultiAgent) {
-      this.elements.multiAgentStats.classList.add('hidden');
-    }
   }
 
   updateMultiAgentStats(statistics) {
     if (!statistics) return;
-    
-    const agentAMovesEl = document.getElementById('stat-agent-a-moves');
-    const agentBMovesEl = document.getElementById('stat-agent-b-moves');
-    const conflictsEl = document.getElementById('stat-conflicts');
-    const negotiationsEl = document.getElementById('stat-negotiations');
-    const deliberationsEl = document.getElementById('stat-deliberations');
-    
-    if (agentAMovesEl) agentAMovesEl.textContent = statistics.agentAMoves || 0;
-    if (agentBMovesEl) agentBMovesEl.textContent = statistics.agentBMoves || 0;
-    if (conflictsEl) conflictsEl.textContent = statistics.totalConflicts || 0;
-    if (negotiationsEl) negotiationsEl.textContent = statistics.totalNegotiations || 0;
-    if (deliberationsEl) deliberationsEl.textContent = statistics.totalDeliberations || 0;
-    
-    // Show the stats panel
-    if (this.elements.multiAgentStats) {
-      this.elements.multiAgentStats.classList.remove('hidden');
-    }
+
+    updateMultiAgentStatsDisplay(statistics);
     
     // Log summary
     if (statistics.totalConflicts > 0) {

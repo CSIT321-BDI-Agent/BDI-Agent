@@ -40,7 +40,9 @@ const timeline = {
   cards: [],           // Array of card objects
   container: null,     // DOM container
   clockStart: null,    // When simulation started
-  clockInterval: null  // Update interval
+  clockInterval: null, // Update interval
+  agentCount: 0,
+  planMoves: []
 };
 
 /**
@@ -108,6 +110,40 @@ function getElapsedTime() {
   return Date.now() - timeline.clockStart;
 }
 
+function cloneMoveForSnapshot(move) {
+  if (!move || typeof move !== 'object') {
+    return null;
+  }
+  const cloned = { ...move };
+  if (Array.isArray(move.clawSteps)) {
+    cloned.clawSteps = move.clawSteps.map((step) =>
+      step && typeof step === 'object' ? { ...step } : step
+    );
+  }
+  return cloned;
+}
+
+function clonePlanMoves(planMoves = []) {
+  if (!Array.isArray(planMoves)) {
+    return [];
+  }
+  return planMoves
+    .map((group) => {
+      if (!group || typeof group !== 'object') {
+        return null;
+      }
+      if (Array.isArray(group.moves)) {
+        const clonedGroup = { ...group };
+        clonedGroup.moves = group.moves
+          .map((move) => cloneMoveForSnapshot(move))
+          .filter(Boolean);
+        return clonedGroup;
+      }
+      return cloneMoveForSnapshot(group);
+    })
+    .filter(Boolean);
+}
+
 /**
  * Reset timeline to empty state
  */
@@ -118,6 +154,8 @@ export function resetIntentionTimeline(message = 'No planner data yet.') {
   container.innerHTML = '';
   timeline.cards = [];
   timeline.container = container;
+  timeline.planMoves = [];
+  timeline.agentCount = 0;
   
   if (message) {
     const placeholder = document.createElement('div');
@@ -224,8 +262,9 @@ function createCard(cardData) {
 /**
  * Update card visual state
  */
-function setCardStatus(card, status) {
+function setCardStatus(card, status, options = {}) {
   if (!card || !card.element) return;
+  const { suppressStats = false } = options;
   
   // Remove all status classes
   card.element.classList.remove(...CARD_PENDING.split(' '));
@@ -243,11 +282,13 @@ function setCardStatus(card, status) {
     // Time updates via clock
   } else if (status === 'completed') {
     card.element.classList.add(...CARD_COMPLETED.split(' '));
-    card.timeElement.className = TIME_DISPLAY;
-    if (card.completedAt != null) {
-      card.timeElement.textContent = formatPlannerDuration(card.completedAt);
+   card.timeElement.className = TIME_DISPLAY;
+   if (card.completedAt != null) {
+     card.timeElement.textContent = formatPlannerDuration(card.completedAt);
+   }
+    if (!suppressStats) {
+      incrementStep();
     }
-    incrementStep();
   }
   
   card.status = status;
@@ -262,20 +303,25 @@ export function renderIntentionTimeline(intentionLog = [], agentCount = 0, optio
   if (!container) return;
   
   const { planMoves = [] } = options;
+  const normalizedPlanMoves = clonePlanMoves(planMoves);
+  timeline.planMoves = normalizedPlanMoves;
+  timeline.agentCount = Number.isFinite(agentCount) && agentCount > 0
+    ? agentCount
+    : 0;
   
   // Clear existing
   container.innerHTML = '';
   timeline.cards = [];
   timeline.container = container;
   
-  if (!planMoves || planMoves.length === 0) {
+  if (!normalizedPlanMoves || normalizedPlanMoves.length === 0) {
     resetIntentionTimeline('No plan available');
     return;
   }
   
   // Build cards from plan
   let stepNumber = 1;
-  planMoves.forEach((moveGroup, groupIdx) => {
+  normalizedPlanMoves.forEach((moveGroup, groupIdx) => {
     const moves = Array.isArray(moveGroup.moves) ? moveGroup.moves : [moveGroup];
     const isConcurrent = moves.length > 1;
     
@@ -467,6 +513,8 @@ export function handleManualIntervention(manualMove, newPlan = []) {
       stepNumber++;
     });
   }
+
+  timeline.planMoves = clonePlanMoves(newPlan);
 }
 
 /**
@@ -475,17 +523,30 @@ export function handleManualIntervention(manualMove, newPlan = []) {
 export function getIntentionTimelineSnapshot() {
   const clockElem = DOM.plannerClock();
   const clockDisplay = clockElem?.textContent || '--:--';
+  const normalizedAgentCount = Number.isFinite(timeline.agentCount) && timeline.agentCount > 0
+    ? timeline.agentCount
+    : 0;
   
   return {
-    cards: timeline.cards.map(c => ({
-      stepNumber: c.stepNumber,
-      actor: c.actor,
-      block: c.block,
-      status: c.status,
-      completedAt: c.completedAt
+    cards: timeline.cards.map((c) => ({
+      id: c.id,
+      stepNumber: Number.isFinite(c.stepNumber) ? c.stepNumber : null,
+      actor: c.actor || null,
+      block: c.block || null,
+      destination: c.destination || null,
+      stepLabel: c.stepLabel || null,
+      summary: c.summary || null,
+      details: c.details || null,
+      status: c.status || 'pending',
+      isManual: Boolean(c.isManual),
+      completedAt: Number.isFinite(c.completedAt) ? c.completedAt : null
     })),
+    agentCount: normalizedAgentCount,
+    mode: normalizedAgentCount > 1 ? 'multi' : 'single',
+    plan: clonePlanMoves(timeline.planMoves),
     clockDisplay,
-    clockStart: timeline.clockStart
+    clockStart: Number.isFinite(timeline.clockStart) ? timeline.clockStart : null,
+    updatedAt: Date.now()
   };
 }
 
@@ -499,6 +560,11 @@ export function appendNextGoalToTimeline(goalLabel, planMoves = []) {
   if (!planMoves || planMoves.length === 0) {
     return;
   }
+
+  timeline.planMoves = [
+    ...clonePlanMoves(timeline.planMoves),
+    ...clonePlanMoves(planMoves)
+  ];
   
   // Add transition card
   const currentStep = timeline.cards.length > 0 
@@ -578,15 +644,81 @@ export function appendNextGoalToTimeline(goalLabel, planMoves = []) {
  * Restore timeline from snapshot
  */
 export function restoreTimelineFromSnapshot(snapshot) {
-  if (!snapshot) {
+  const container = DOM.intentionTimeline();
+  if (!container) return;
+
+  if (!snapshot || typeof snapshot !== 'object') {
     resetIntentionTimeline();
     return;
   }
-  
+
+  stopPlannerClock(false);
+
+  container.innerHTML = '';
+  timeline.container = container;
+  timeline.cards = [];
+  timeline.planMoves = clonePlanMoves(snapshot.plan);
+
+  const normalizedAgentCount = Number.isFinite(snapshot.agentCount) && snapshot.agentCount > 0
+    ? snapshot.agentCount
+    : 0;
+  timeline.agentCount = normalizedAgentCount;
+
+  const cards = Array.isArray(snapshot.cards) ? snapshot.cards : [];
+
+  if (cards.length === 0) {
+    resetIntentionTimeline();
+    if (snapshot.clockDisplay) {
+      updateClockDisplay(snapshot.clockDisplay);
+    }
+    return;
+  }
+
+  cards.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      return;
+    }
+
+    const stepNumber = Number.isFinite(entry.stepNumber)
+      ? entry.stepNumber
+      : index + 1;
+    const actor = entry.actor || 'Agent-A';
+    const block = entry.block || '?';
+    const destination = entry.destination || entry.to || 'Table';
+    const status = typeof entry.status === 'string'
+      ? entry.status.toLowerCase()
+      : 'pending';
+    const normalizedStatus = ['pending', 'active', 'completed'].includes(status)
+      ? status
+      : 'pending';
+
+    const cardData = {
+      id: entry.id || `card-${stepNumber}-${actor}`,
+      stepNumber,
+      actor,
+      block,
+      destination,
+      stepLabel: entry.stepLabel || `Step ${stepNumber}`,
+      summary: entry.summary || `Move ${block} → ${destination}`,
+      details: entry.details || null,
+      status: normalizedStatus,
+      isManual: Boolean(entry.isManual),
+      completedAt: Number.isFinite(entry.completedAt) ? entry.completedAt : null,
+      element: null,
+      timeElement: null
+    };
+
+    const cardElem = createCard(cardData);
+    container.appendChild(cardElem);
+    timeline.cards.push(cardData);
+    setCardStatus(cardData, normalizedStatus, { suppressStats: true });
+  });
+
   if (snapshot.clockDisplay) {
     updateClockDisplay(snapshot.clockDisplay);
+  } else {
+    updateClockDisplay('--:--');
   }
-  
-  // Restore would need full plan data - simplified for now
-  // This is typically called on page load with saved world
+
+  timeline.clockStart = Number.isFinite(snapshot.clockStart) ? snapshot.clockStart : null;
 }

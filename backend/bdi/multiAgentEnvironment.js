@@ -32,7 +32,8 @@ class PlanningError extends Error {
 const {
   deepCloneStacks,
   goalAchieved,
-  applyMove
+  applyMove,
+  deriveOnMap
 } = createBlocksHelpers(PlanningError);
 
 /**
@@ -47,6 +48,23 @@ function hasTowerDependencies(stacks, goalChains) {
   const towerBlocks = goalChains.map(chain => 
     new Set(chain.filter(block => block && block !== 'Table'))
   );
+
+  // Require each tower's base block to rest on the table before allowing independence
+  const onMap = deriveOnMap(stacks);
+  for (const chain of goalChains) {
+    if (!Array.isArray(chain) || chain.length < 2) {
+      continue;
+    }
+    const baseBlock = chain[chain.length - 2];
+    if (!baseBlock || baseBlock === 'Table') {
+      continue;
+    }
+    const support = onMap[baseBlock];
+    if (support && support !== 'Table') {
+      console.log(`[Independent Tower Check] Base block "${baseBlock}" is resting on "${support}", treating towers as dependent.`);
+      return true;
+    }
+  }
 
   // Check each stack for interdependencies
   for (const stack of stacks) {
