@@ -252,11 +252,190 @@ const sanitizeTimelineSnapshot = (snapshot) => {
     return null;
   }
 
-  if (!Array.isArray(snapshot.log)) {
+  const hasCards = Array.isArray(snapshot.cards);
+  const hasPlan = Array.isArray(snapshot.plan);
+
+  if (!hasCards) {
     return null;
   }
 
-  return snapshot;
+  const sanitizeString = (value) => (typeof value === 'string' && value.trim().length ? value : undefined);
+  const sanitizeNumber = (value) => (Number.isFinite(value) ? value : undefined);
+  const sanitizeBoolean = (value) => (typeof value === 'boolean' ? value : undefined);
+
+  const sanitized = {};
+
+  const rawCards = Array.isArray(snapshot.cards) ? snapshot.cards : [];
+
+  let sanitizedCards = rawCards
+    .filter(card => card && typeof card === 'object')
+    .map(card => {
+      const sanitizedCard = {
+        id: sanitizeString(card.id),
+        stepNumber: sanitizeNumber(card.stepNumber),
+        actor: sanitizeString(card.actor),
+        block: sanitizeString(card.block),
+        destination: sanitizeString(card.destination),
+        stepLabel: sanitizeString(card.stepLabel),
+        summary: sanitizeString(card.summary),
+        details: sanitizeString(card.details),
+        status: sanitizeString(card.status) || 'pending',
+        isManual: Boolean(card.isManual)
+      };
+      const completedAt = sanitizeNumber(card.completedAt);
+      if (completedAt !== undefined) {
+        sanitizedCard.completedAt = completedAt;
+      }
+      return sanitizedCard;
+    })
+    .filter(card => Object.keys(card).length > 0);
+
+  if (!sanitizedCards.length) {
+    sanitizedCards = rawCards
+      .map(card => {
+        if (!card || typeof card !== 'object') {
+          return null;
+        }
+        const fallbackCard = {
+          actor: sanitizeString(card.actor),
+          block: sanitizeString(card.block),
+          destination: sanitizeString(card.destination),
+          summary: sanitizeString(card.summary),
+          status: typeof card.status === 'string' && card.status.trim().length ? card.status.trim() : 'pending',
+          isManual: Boolean(card.isManual)
+        };
+        const stepNumber = sanitizeNumber(card.stepNumber);
+        if (stepNumber !== undefined) {
+          fallbackCard.stepNumber = stepNumber;
+        }
+        const completedAt = sanitizeNumber(card.completedAt);
+        if (completedAt !== undefined) {
+          fallbackCard.completedAt = completedAt;
+        }
+        const stepLabel = sanitizeString(card.stepLabel);
+        if (stepLabel) {
+          fallbackCard.stepLabel = stepLabel;
+        }
+        if (fallbackCard.actor || fallbackCard.block || fallbackCard.summary) {
+          return fallbackCard;
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
+
+  if (!sanitizedCards.length) {
+    return null;
+  }
+
+  sanitized.cards = sanitizedCards;
+
+  if (hasPlan) {
+    const sanitizeMove = (move) => {
+      if (!move || typeof move !== 'object') {
+        return null;
+      }
+      const sanitizedMove = {
+        actor: sanitizeString(move.actor),
+        block: sanitizeString(move.block),
+        to: sanitizeString(move.to || move.destination),
+        summary: sanitizeString(move.summary),
+        reason: sanitizeString(move.reason),
+        stepDescription: sanitizeString(move.stepDescription),
+        detail: sanitizeString(move.detail)
+      };
+      const filteredEntries = Object.entries(sanitizedMove)
+        .filter(([, value]) => value !== undefined && value !== null);
+      if (!filteredEntries.length) {
+        return null;
+      }
+      return Object.fromEntries(filteredEntries);
+    };
+
+    const sanitizedPlan = snapshot.plan
+      .map(group => {
+        if (!group || typeof group !== 'object') {
+          return null;
+        }
+        if (Array.isArray(group.moves)) {
+          const sanitizedGroupMoves = group.moves
+            .map(sanitizeMove)
+            .filter(Boolean);
+          if (!sanitizedGroupMoves.length) {
+            return null;
+          }
+          const sanitizedGroup = {
+            moves: sanitizedGroupMoves
+          };
+          const groupCycle = sanitizeNumber(group.cycle);
+          if (groupCycle !== undefined) {
+            sanitizedGroup.cycle = Math.max(0, Math.floor(groupCycle));
+          }
+          const label = sanitizeString(group.label || group.summary || group.stepLabel);
+          if (label) {
+            sanitizedGroup.label = label;
+          }
+          return sanitizedGroup;
+        }
+        const singleMove = sanitizeMove(group);
+        return singleMove;
+      })
+      .filter(Boolean);
+
+    if (sanitizedPlan.length > 0) {
+      sanitized.plan = sanitizedPlan;
+    }
+  }
+
+  const agentCount = sanitizeNumber(snapshot.agentCount);
+  if (agentCount !== undefined) {
+    sanitized.agentCount = Math.max(0, Math.floor(agentCount));
+  }
+
+  const clockDisplay = sanitizeString(snapshot.clockDisplay);
+  if (clockDisplay) {
+    sanitized.clockDisplay = clockDisplay;
+  }
+
+  const clockStart = sanitizeNumber(snapshot.clockStart);
+  if (clockStart !== undefined) {
+    sanitized.clockStart = Math.max(0, Math.floor(clockStart));
+  }
+
+  const mode = sanitizeString(snapshot.mode);
+  if (mode) {
+    sanitized.mode = mode;
+  }
+
+  const updatedAt = sanitizeNumber(snapshot.updatedAt);
+  if (updatedAt !== undefined) {
+    sanitized.updatedAt = Math.max(0, Math.floor(updatedAt));
+  }
+
+  if (snapshot.statistics && typeof snapshot.statistics === 'object') {
+    const statistics = {};
+    ['agentAMoves', 'agentBMoves', 'totalConflicts', 'totalNegotiations', 'totalDeliberations', 'totalParallelExecutions']
+      .forEach((key) => {
+        const value = sanitizeNumber(snapshot.statistics[key]);
+        if (value !== undefined) {
+          statistics[key] = Math.max(0, Math.floor(value));
+        }
+      });
+    if (Object.keys(statistics).length > 0) {
+      sanitized.statistics = statistics;
+    }
+  }
+
+  const extraFlags = {
+    framedFromMultiAgent: sanitizeBoolean(snapshot.framedFromMultiAgent)
+  };
+  Object.entries(extraFlags).forEach(([key, value]) => {
+    if (value !== undefined) {
+      sanitized[key] = value;
+    }
+  });
+
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
 };
 
 const formatElapsedMs = (ms) => {
@@ -400,6 +579,23 @@ const validateGoalChain = (goalChain) => {
       throw new HttpError(400, `Invalid goal entry at position ${index}.`);
     }
     return item;
+  });
+};
+
+const validateGoalChainSet = (goalChains) => {
+  if (goalChains == null) {
+    return null;
+  }
+
+  if (!Array.isArray(goalChains)) {
+    throw new HttpError(400, 'Goal chains must be an array of goal definitions.');
+  }
+
+  return goalChains.map((chain, index) => {
+    if (!Array.isArray(chain)) {
+      throw new HttpError(400, `Goal chain at index ${index} must be an array.`);
+    }
+    return validateGoalChain(chain);
   });
 };
 
@@ -667,6 +863,48 @@ app.post('/plan', requireAuth, withRoute((req, res) => {
     intentionLog: plan.intentionLog || [],
     beliefs: plan.beliefs || null,
     plannerOptionsUsed: plan.plannerOptionsUsed || null
+  });
+}));
+
+// ------------------ Multi-Agent Planning ------------------
+app.post('/multi-agent-plan', requireAuth, withRoute(async (req, res) => {
+  const { stacks, goalChain, goalChains, options = {} } = req.body || {};
+
+  const validatedStacks = validateStacksPayload(stacks);
+  const validatedGoalChainSet = validateGoalChainSet(goalChains);
+  const validatedGoalChain = goalChain != null ? validateGoalChain(goalChain) : null;
+
+  const plannerGoalInput = Array.isArray(validatedGoalChainSet) && validatedGoalChainSet.length > 0
+    ? validatedGoalChainSet
+    : validatedGoalChain;
+
+  if (!plannerGoalInput || (Array.isArray(plannerGoalInput) && plannerGoalInput.length === 0)) {
+    throw new HttpError(400, 'Goal chain is required for multi-agent planning.');
+  }
+
+  const {
+    maxIterations = 2500,
+    deliberationTimeout = 5000,
+    enableNegotiation = true
+  } = options;
+
+  // Use TRUE multi-agent BDI approach:
+  // Two independent agents with separate beliefs/desires/intentions, deliberate through negotiation protocol
+  const { trueBDIPlan } = require('./bdi/multiAgentEnvironment');
+  console.log('[API] /multi-agent-plan called (TRUE BDI)');
+  console.log('[API] Stacks payload:', JSON.stringify(validatedStacks));
+  console.log('[API] Goal chain payload:', JSON.stringify(plannerGoalInput));
+  console.log('[API] Options:', { maxIterations, deliberationTimeout, enableNegotiation });
+  
+  const result = await trueBDIPlan(
+    validatedStacks,
+    plannerGoalInput,
+    { maxIterations, deliberationTimeout, enableNegotiation }
+  );
+
+  res.json({
+    success: Boolean(result?.goalAchieved),
+    ...result
   });
 }));
 

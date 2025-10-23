@@ -238,22 +238,6 @@ export async function signup(email, username, password) {
 }
 
 /**
- * Get authorization header for API requests
- * @returns {Object} Headers object with Authorization
- */
-export function getAuthHeaders() {
-  const user = getCurrentUser();
-  
-  if (!user) {
-    return {};
-  }
-  
-  return {
-    'Authorization': `Bearer ${user.token}`
-  };
-}
-
-/**
  * Update display elements with current user info
  * @param {Object} selectors - CSS selectors for elements to update
  * @param {string} [selectors.username] - Selector for username display
@@ -280,6 +264,9 @@ export function updateUIWithUserInfo(selectors = {}) {
       adminNavElems.forEach(elem => {
         elem.classList.remove('hidden');
         elem.removeAttribute('hidden');
+        if (elem.classList.contains('sidebar__link') || elem.classList.contains('mobile-menu-link')) {
+          elem.classList.add('flex');
+        }
         elem.style.display = '';
       });
     }
@@ -290,25 +277,5 @@ export function updateUIWithUserInfo(selectors = {}) {
         elem.style.display = 'block';
       });
     }
-  }
-}
-
-/**
- * Check if JWT token is expired (client-side check only)
- * Note: This is a basic check and doesn't verify signature
- * @returns {boolean} True if token appears expired
- */
-export function isTokenExpired() {
-  const user = getCurrentUser();
-  
-  if (!user || !user.token) return true;
-  
-  try {
-    const payload = JSON.parse(atob(user.token.split('.')[1]));
-    const expiryTime = payload.exp * 1000; // Convert to milliseconds
-    return Date.now() >= expiryTime;
-  } catch (error) {
-    console.error('Failed to parse token:', error);
-    return true; // Treat parsing errors as expired
   }
 }

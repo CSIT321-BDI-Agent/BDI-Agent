@@ -5,6 +5,22 @@ function createBlocksHelpers(PlanningError) {
     return stacks.map(stack => [...stack]);
   }
 
+  function computeClearBlocks(stacks) {
+    if (!Array.isArray(stacks)) {
+      return [];
+    }
+
+    const clear = new Set();
+
+    stacks.forEach(stack => {
+      if (Array.isArray(stack) && stack.length > 0) {
+        clear.add(stack[stack.length - 1]);
+      }
+    });
+
+    return Array.from(clear).sort();
+  }
+
   function normalizeStacks(rawStacks) {
     if (!Array.isArray(rawStacks)) {
       throw new PlanningError('Stacks payload must be an array of stacks.');
@@ -40,7 +56,7 @@ function createBlocksHelpers(PlanningError) {
 
   function sanitizeGoalChain(rawGoalChain, availableBlocks) {
     if (!Array.isArray(rawGoalChain) || rawGoalChain.length < 2) {
-      throw new PlanningError('Goal chain must include at least two identifiers (e.g., "A on B").');
+  throw new PlanningError('Goal chain must include at least two identifiers (e.g., "A, B").');
     }
 
     const chain = rawGoalChain.map((token, index) => {
@@ -124,6 +140,22 @@ function createBlocksHelpers(PlanningError) {
     return null;
   }
 
+  function listPendingRelations(stacks, goalChain) {
+    if (!Array.isArray(goalChain) || goalChain.length < 2) {
+      return [];
+    }
+
+    const pending = [];
+    for (let i = goalChain.length - 1; i >= 1; i -= 1) {
+      const block = goalChain[i - 1];
+      const destination = goalChain[i];
+      if (!isOn(stacks, block, destination)) {
+        pending.push({ block, destination });
+      }
+    }
+    return pending;
+  }
+
   function goalAchieved(stacks, goalChain) {
     if (!goalChain || goalChain.length < 2) {
       return true;
@@ -187,9 +219,11 @@ function createBlocksHelpers(PlanningError) {
     deriveOnMap,
     isOn,
     selectNextRelation,
+    listPendingRelations,
     goalAchieved,
     applyMove,
-    ensureGoalFeasible
+    ensureGoalFeasible,
+    computeClearBlocks
   };
 }
 

@@ -5,28 +5,46 @@
  * persistence shortcuts, and control state synchronisation.
  */
 
-import { DOM, resetClawToDefault } from './constants.js';
+import {
+  DOM,
+  resetClawToDefault,
+  ensureAgentClaw,
+  removeAgentClaw,
+  layoutClaws,
+  getAgentClaw,
+  getAllAgentClaws
+} from './constants.js';
 import { showMessage, handleError } from './helpers.js';
 import {
   resetIntentionTimeline,
   renderIntentionTimeline,
+  appendNextGoalToTimeline,
   startPlannerClock,
   stopPlannerClock,
   finalizeTimeline,
   markTimelineStep,
-  getIntentionTimelineSnapshot
+  getIntentionTimelineSnapshot,
+  handleManualIntervention
 } from './timeline.js';
-import { requestBDIPlan } from './planner.js';
+import { requestBDIPlan, requestMultiAgentPlan } from './planner.js';
 import { simulateMove } from './animation.js';
 import { saveWorld, loadSelectedWorld, refreshLoadList } from './persistence.js';
-import { startStatsTimer, stopStatsTimer, updateStats, resetStats } from './stats.js';
+import {
+  startStatsTimer,
+  stopStatsTimer,
+  updateStats,
+  resetStats,
+  resetMultiAgentStats,
+  setMultiAgentStatsEnabled,
+  updateMultiAgentStatsDisplay
+} from './stats.js';
 import { logAction } from './logger.js';
 import { BlockDragManager } from './drag-drop.js';
 import { MutationQueue } from './mutation-queue.js';
 import { SpeedController } from './speed-controller.js';
 
 const LETTER_Z_CODE = 'Z'.charCodeAt(0);
-const MOVE_CYCLE_BUFFER = 600; // buffer to let the claw settle between moves
+const MOVE_COMPLETION_BUFFER = 600; // buffer to let the claw settle between moves
 
 class SimulationController {
   constructor(world) {
@@ -42,6 +60,10 @@ class SimulationController {
     this.pendingReplanReason = null;
     this.stagedGoalTokens = null;
     this.currentGoalTokens = [];
+    this.currentGoalChains = [];
+    this.stagedGoalChains = null;
+    this.goalSequence = [];
+    this.goalSequenceIndex = 0;
     this.replanInFlight = null;
     this.elements = {};
     this.executedMoveCount = 0;
@@ -50,6 +72,10 @@ class SimulationController {
     this.viewportCleanup = null;
     this.viewportDebounceHandle = null;
     this.pendingViewportRealign = false;
+    this.timelineHistory = [];
+    this.timelinePlan = [];
+    this.manualTimelineLog = [];
+    this.lastAgentCount = 1;
 
     const simulationConfig = window.APP_CONFIG?.SIMULATION || {};
     this.speedController = new SpeedController({
@@ -62,18 +88,28 @@ class SimulationController {
 
     this.mutationQueue = new MutationQueue();
     this.dragManager = null;
+    this.claws = {};
   }
 
   initialize() {
     this.cacheDom();
+    this.syncClawRegistry();
     this.setupViewportGuards();
     this.setupDragManager();
     this.setupSpeedControls();
+    if (this.elements.multiAgentMode?.checked) {
+      ensureAgentClaw('Agent-B');
+    } else {
+      removeAgentClaw('Agent-B');
+    }
+    this.refreshClawLayout({ durationMs: 0 });
+    this.syncClawRegistry();
     this.bindEvents();
     this.syncBlockControls();
     this.syncSpeedUI();
     this.setManualControlsEnabled(true);
     resetStats();
+    resetMultiAgentStats();
     refreshLoadList();
   }
 
@@ -90,8 +126,49 @@ class SimulationController {
       loadBtn: DOM.loadBtn(),
       loadSelect: DOM.loadSelect(),
       speedSlider: DOM.speedSlider(),
-      speedValueLabel: DOM.speedValueLabel()
+      speedValueLabel: DOM.speedValueLabel(),
+      multiAgentMode: document.getElementById('multiAgentMode'),
+      multiAgentInfo: document.getElementById('multiAgentInfo'),
+      multiAgentControls: document.getElementById('multiAgentControls'),
+      multiAgentStats: document.getElementById('multiAgentStats')
     };
+  }
+
+  syncClawRegistry() {
+    ensureAgentClaw('Agent-A');
+    const primary = getAgentClaw('Agent-A');
+    const secondary = getAgentClaw('Agent-B');
+    this.claws = {};
+    if (primary) {
+      this.claws['Agent-A'] = primary;
+    }
+    if (secondary) {
+      this.claws['Agent-B'] = secondary;
+    }
+  }
+
+  getAllClaws() {
+    const worldClaws = getAllAgentClaws();
+    if (worldClaws.length) {
+      return worldClaws;
+    }
+    return Object.values(this.claws).filter((claw) => claw && claw.isConnected);
+  }
+
+  getClawForAgent(agentKey = 'Agent-A') {
+    return this.claws[agentKey] || this.getAllClaws()[0] || null;
+  }
+
+  getWorldStacksSnapshot() {
+    if (!this.world || typeof this.world.getCurrentStacks !== 'function') {
+      return [];
+    }
+    return this.world.getCurrentStacks().map((stack) => [...stack]);
+  }
+
+  refreshClawLayout(options = {}) {
+    layoutClaws(options);
+    this.syncClawRegistry();
   }
 
   setupDragManager() {
@@ -193,8 +270,8 @@ class SimulationController {
 
     this.world.updatePositions();
 
-    const claw = document.getElementById('claw');
-    if (!claw) {
+    const claws = this.getAllClaws();
+    if (!claws.length) {
       this.pendingViewportRealign = false;
       return;
     }
@@ -204,10 +281,17 @@ class SimulationController {
       return;
     }
 
-    const previousTransition = claw.style.transition;
-    resetClawToDefault(claw, 0);
-    window.requestAnimationFrame(() => {
-      claw.style.transition = previousTransition || '';
+    claws.forEach((claw) => {
+      if (!claw) {
+        return;
+      }
+      const previousTransition = claw.style.transition;
+      resetClawToDefault(claw, 0);
+      window.requestAnimationFrame(() => {
+        if (claw) {
+          claw.style.transition = previousTransition || '';
+        }
+      });
     });
     this.pendingViewportRealign = false;
   }
@@ -256,7 +340,48 @@ class SimulationController {
     this.elements.saveBtn?.addEventListener('click', () => saveWorld(this.world));
     this.elements.loadBtn?.addEventListener('click', () => loadSelectedWorld(this.world));
 
+    // Multi-agent mode toggle
+    this.elements.multiAgentMode?.addEventListener('change', (event) => this.handleMultiAgentModeChange(event));
+
     document.addEventListener('world:blocks-changed', () => this.syncBlockControls());
+  }
+
+  handleMultiAgentModeChange(event) {
+    const isMultiAgent = event.target.checked;
+    
+    // Toggle multi-agent UI elements
+    if (this.elements.multiAgentInfo) {
+      this.elements.multiAgentInfo.classList.toggle('hidden', !isMultiAgent);
+    }
+
+    if (isMultiAgent) {
+      setMultiAgentStatsEnabled(true);
+    } else {
+      resetMultiAgentStats();
+    }
+
+    if (isMultiAgent) {
+      ensureAgentClaw('Agent-B');
+      this.refreshClawLayout({ durationMs: 200 });
+    } else {
+      removeAgentClaw('Agent-B');
+      this.refreshClawLayout({ durationMs: 0 });
+    }
+    this.syncClawRegistry();
+    
+    // Log mode change
+    logAction(`Planner mode: ${isMultiAgent ? 'Multi-Agent enabled (negotiation: ON, timeout: 5000ms)' : 'Single Agent (default)'}`, 'user');
+  }
+
+  updateMultiAgentStats(statistics) {
+    if (!statistics) return;
+
+    updateMultiAgentStatsDisplay(statistics);
+    
+    // Log summary
+    if (statistics.totalConflicts > 0) {
+      logAction(`Multi-agent: ${statistics.totalConflicts} conflicts detected, ${statistics.totalNegotiations} negotiations`, 'system');
+    }
   }
 
   get blockCount() {
@@ -278,14 +403,13 @@ class SimulationController {
 
   getTopmostBlock() {
     if (!this.world) return null;
-    const stacks = this.world.getCurrentStacks();
-    for (let i = stacks.length - 1; i >= 0; i -= 1) {
-      const stack = stacks[i];
-      if (Array.isArray(stack) && stack.length > 0) {
-        return stack[stack.length - 1];
-      }
+    const blocks = this.world.getCurrentBlocks();
+    if (!Array.isArray(blocks) || blocks.length === 0) {
+      return null;
     }
-    return null;
+
+    const sorted = [...blocks].sort((a, b) => b.localeCompare(a));
+    return sorted.length > 0 ? sorted[0] : null;
   }
 
   syncBlockControls(forceDisabled = this.controlsDisabled && !this.allowManualDuringRun) {
@@ -376,66 +500,426 @@ class SimulationController {
   handleGoalInputChange() {
     if (!this.isRunning) return;
     const rawInput = this.elements.goalInput?.value ?? '';
-    const { tokens, error } = this.parseGoalInput(rawInput, { allowEmpty: true });
+    const { chains, error } = this.parseGoalInput(rawInput, { allowEmpty: true });
 
     if (error) {
       showMessage(error, 'warning');
       return;
     }
 
-    if (!tokens || tokens.length === 0) {
+    if (!chains || chains.length === 0) {
       return;
     }
 
-    const unknownBlocks = this.findUnknownGoalBlocks(tokens);
+    const normalizedChains = this.cloneGoalChains(chains);
+    const unknownBlocks = this.findUnknownGoalBlocks(normalizedChains);
     if (unknownBlocks.length > 0) {
       showMessage(`Unknown blocks in goal: ${unknownBlocks.join(', ')}.`, 'error');
       return;
     }
 
-    if (this.areGoalTokensEqual(tokens, this.currentGoalTokens)) {
+    if (this.areGoalChainsEqual(normalizedChains, this.currentGoalChains)) {
       return;
     }
 
-    this.stagedGoalTokens = tokens;
-    this.recordMutation({ type: 'GOAL_SET', goals: tokens });
+    this.stagedGoalChains = normalizedChains;
+    this.stagedGoalTokens = normalizedChains[0] ? [...normalizedChains[0]] : [];
+
+    this.recordMutation({
+      type: 'GOAL_SET',
+      goalChains: normalizedChains
+    });
+
     this.requestReplan('goal-change');
-    logAction(`Updated goal to ${tokens.join(' on ')}`, 'user');
+    logAction(`Updated goal to ${this.formatGoalChains(normalizedChains)}`, 'user');
+  }
+
+  normalizeGoalChainsInput(goalChains) {
+    if (!Array.isArray(goalChains)) {
+      return [];
+    }
+    const normalized = Array.isArray(goalChains[0]) ? goalChains : [goalChains];
+    return normalized.filter((chain) => Array.isArray(chain) && chain.length);
+  }
+
+  cloneGoalChains(goalChains = []) {
+    return this.normalizeGoalChainsInput(goalChains).map((chain) => [...chain]);
+  }
+
+  flattenGoalChains(goalChains = []) {
+    const normalized = this.normalizeGoalChainsInput(goalChains);
+    return normalized.reduce((acc, chain) => {
+      chain.forEach((token) => acc.push(token));
+      return acc;
+    }, []);
+  }
+
+  formatGoalChains(goalChains = []) {
+    const normalized = this.normalizeGoalChainsInput(goalChains);
+    if (!normalized.length) {
+      return 'Table';
+    }
+
+    return normalized
+      .map((chain) => {
+        const displayTokens = chain.filter((token) => token && token !== 'Table');
+        return displayTokens.length ? displayTokens.join(', ') : 'Table';
+      })
+      .join(' | ');
+  }
+
+  cloneIntentionLogEntries(log = []) {
+    if (!Array.isArray(log)) {
+      return [];
+    }
+    return log.map((entry) => {
+      const clonedEntry = { ...entry };
+      if (Array.isArray(entry.moves)) {
+        clonedEntry.moves = entry.moves.map(move => ({ ...move }));
+      }
+      if (Array.isArray(entry.resultingStacks)) {
+        clonedEntry.resultingStacks = entry.resultingStacks.map(stack => Array.isArray(stack) ? [...stack] : stack);
+      }
+      if (entry.beliefs && typeof entry.beliefs === 'object') {
+        clonedEntry.beliefs = {
+          pendingRelation: entry.beliefs.pendingRelation ? { ...entry.beliefs.pendingRelation } : null,
+          clearBlocks: Array.isArray(entry.beliefs.clearBlocks) ? [...entry.beliefs.clearBlocks] : [],
+          onMap: entry.beliefs.onMap ? { ...entry.beliefs.onMap } : {}
+        };
+      }
+      return clonedEntry;
+    });
+  }
+
+  clonePlanMoveForTimeline(move) {
+    if (!move || typeof move !== 'object') {
+      return null;
+    }
+    const cloned = { ...move };
+    if (Array.isArray(move.clawSteps)) {
+      cloned.clawSteps = move.clawSteps.map((step) => (
+        step && typeof step === 'object' ? { ...step } : step
+      ));
+    }
+    return cloned;
+  }
+
+  clonePlanMovesForTimeline(planMoves = []) {
+    if (!Array.isArray(planMoves)) {
+      return [];
+    }
+
+    return planMoves
+      .map((group) => {
+        if (!group || typeof group !== 'object') {
+          return null;
+        }
+
+        if (Array.isArray(group.moves)) {
+          const clonedGroup = { ...group };
+          clonedGroup.moves = group.moves
+            .map((move) => this.clonePlanMoveForTimeline(move))
+            .filter(Boolean);
+          return clonedGroup;
+        }
+
+        return this.clonePlanMoveForTimeline(group);
+      })
+      .filter(Boolean);
+  }
+
+  renderPlannerTimeline(log = [], agentCount = 1, { append = false, emptyMessage, planMoves = null } = {}) {
+    // Store plan for timeline rendering
+    const clonedPlanMoves = Array.isArray(planMoves)
+      ? this.clonePlanMovesForTimeline(planMoves)
+      : Array.isArray(this.activePlan) && this.activePlan.length
+        ? this.clonePlanMovesForTimeline(this.activePlan)
+        : [];
+
+    let effectiveAgentCount = Number.isFinite(agentCount) && agentCount > 0
+      ? agentCount
+      : this.lastAgentCount || 1;
+    this.lastAgentCount = effectiveAgentCount;
+
+    this.timelinePlan = clonedPlanMoves;
+
+    // Render the entire plan as cards
+    renderIntentionTimeline(log, effectiveAgentCount, {
+      planMoves: this.timelinePlan,
+      emptyMessage
+    });
+  }
+
+  cloneStacksForTimeline(stacks = []) {
+    if (!Array.isArray(stacks)) {
+      return [];
+    }
+    return stacks.map((stack) => (Array.isArray(stack) ? [...stack] : stack));
+  }
+
+  convertMutationToTimelineMove(mutation) {
+    if (!mutation || typeof mutation !== 'object') {
+      return null;
+    }
+
+    const base = {
+      actor: 'User',
+      manual: true,
+      manualType: mutation.type || 'MANUAL',
+      stepType: 'MANUAL',
+      timestamp: mutation.timestamp || Date.now(),
+      stepLabel: 'Manual Update'
+    };
+
+    const block = typeof mutation.block === 'string' && mutation.block.trim().length
+      ? mutation.block.trim()
+      : 'Manual';
+
+    switch (mutation.type) {
+      case 'MOVE': {
+        const destination = typeof mutation.to === 'string' && mutation.to.trim().length
+          ? mutation.to.trim()
+          : 'Table';
+        return {
+          ...base,
+          block,
+          to: destination,
+          reason: 'manual-move',
+          stepDescription: `User moved ${block} to ${destination}`,
+          summary: `Manual move: ${block} → ${destination}`,
+          detail: mutation.from ? `Source: ${mutation.from}` : undefined
+        };
+      }
+      case 'BLOCK_ADD': {
+        const destination = 'Table';
+        return {
+          ...base,
+          block,
+          to: destination,
+          reason: 'manual-add',
+          stepDescription: `User added block ${block}`,
+          summary: `Block ${block} added`
+        };
+      }
+      case 'BLOCK_REMOVE': {
+        const destination = 'Removed';
+        return {
+          ...base,
+          block,
+          to: destination,
+          reason: 'manual-remove',
+          stepDescription: `User removed block ${block}`,
+          summary: `Block ${block} removed`
+        };
+      }
+      case 'GOAL_SET': {
+        const goalLabel = this.formatGoalChains(mutation.goalChains || []);
+        return {
+          ...base,
+          block: 'Goal',
+          to: 'Updated',
+          reason: 'manual-goal-update',
+          stepDescription: `User updated goal to ${goalLabel}`,
+          summary: 'Goal updated',
+          detail: goalLabel
+        };
+      }
+      default: {
+        const typeLabel = typeof mutation.type === 'string'
+          ? mutation.type.replace(/_/g, ' ')
+          : 'change';
+        return {
+          ...base,
+          block,
+          to: 'Update',
+          reason: 'manual-change',
+          stepDescription: `User triggered a ${typeLabel}`,
+          summary: `Manual update: ${typeLabel}`,
+          detail: mutation.detail || mutation.reason
+        };
+      }
+    }
+  }
+
+  appendManualTimelineEvents(mutations = []) {
+    if (!Array.isArray(mutations) || !mutations.length) {
+      return;
+    }
+
+    // Convert first mutation to manual move for timeline
+    const mutation = mutations[0];
+    const manualMove = this.convertMutationToTimelineMove(mutation);
+    
+    if (!manualMove) {
+      return;
+    }
+
+    // Track manual intervention
+    this.manualTimelineLog.push({
+      manual: true,
+      timestamp: mutation.timestamp || Date.now(),
+      move: manualMove
+    });
+
+    // Timeline will be updated when replan completes via handleManualIntervention
+  }
+
+  setGoalSequence(goalChains = []) {
+    const cloned = this.cloneGoalChains(goalChains);
+    this.goalSequence = cloned;
+    this.goalSequenceIndex = 0;
+    this.currentGoalChains = this.cloneGoalChains(cloned);
+    this.currentGoalTokens = cloned[0] ? [...cloned[0]] : [];
+  }
+
+  clearGoalSequence() {
+    this.goalSequence = [];
+    this.goalSequenceIndex = 0;
+    this.currentGoalChains = [];
+    this.currentGoalTokens = [];
+    this.executedMoveCount = 0;
+  }
+
+  getActiveGoalChain() {
+    if (!Array.isArray(this.goalSequence) || this.goalSequence.length === 0) {
+      return [];
+    }
+    const clampedIndex = Math.min(
+      Math.max(this.goalSequenceIndex, 0),
+      this.goalSequence.length - 1
+    );
+    const active = this.goalSequence[clampedIndex];
+    return Array.isArray(active) ? [...active] : [];
+  }
+
+  advanceGoalSequence() {
+    if (!Array.isArray(this.goalSequence) || this.goalSequence.length === 0) {
+      return null;
+    }
+    const nextIndex = this.goalSequenceIndex + 1;
+    if (nextIndex >= this.goalSequence.length) {
+      return null;
+    }
+    this.goalSequenceIndex = nextIndex;
+    const nextChain = this.goalSequence[nextIndex];
+    this.currentGoalTokens = Array.isArray(nextChain) ? [...nextChain] : [];
+    this.currentGoalChains = this.cloneGoalChains(this.goalSequence);
+    return Array.isArray(nextChain) ? [...nextChain] : null;
+  }
+
+  hasPendingGoalChains() {
+    return Array.isArray(this.goalSequence) && this.goalSequenceIndex < this.goalSequence.length - 1;
   }
 
   parseGoalInput(rawInput, { allowEmpty = false } = {}) {
     const sanitized = (rawInput || '').trim();
     if (!sanitized) {
       return allowEmpty
-        ? { tokens: [] }
-        : { error: 'Please enter a goal (e.g., "A on B on C").' };
+        ? { chains: [], tokens: [] }
+  : { error: 'Please enter a goal (e.g., "A, B | C, D").' };
     }
 
-    const tokens = sanitized
-      .split(/\s*on\s*/i)
-      .map((token) => token.trim().toUpperCase())
+    const normalizedInput = sanitized.replace(/\s+/g, ' ');
+    const rawSegments = normalizedInput
+      .split(/\s*(?:\band\b|&|;|\|)\s*/i)
+      .map((segment) => segment.trim())
       .filter(Boolean);
 
-    if (tokens.length === 0) {
+    const chains = [];
+
+    const pushChain = (chainTokens, originalSegment) => {
+      const filtered = chainTokens
+        .map((token) => token.trim().toUpperCase())
+        .filter(Boolean)
+        .map((token) => (token === 'TABLE' ? 'Table' : token));
+
+      if (filtered.length === 0) {
+        return;
+      }
+
+      if (filtered.length === 1) {
+        filtered.push('Table');
+      }
+
+      if (filtered[filtered.length - 1] !== 'Table') {
+        filtered.push('Table');
+      }
+
+      if (filtered.length < 2) {
+        chains.length = 0;
+  throw new Error(`Segment "${originalSegment}" is incomplete. Use syntax like "A, B" or separate towers with "|".`);
+      }
+
+      chains.push(filtered);
+    };
+
+    try {
+      if (rawSegments.length === 0) {
+        const fallbackTokens = normalizedInput
+          .split(/\s*on\s*/i)
+          .map((token) => token.trim())
+          .filter(Boolean);
+        pushChain(fallbackTokens, normalizedInput);
+      } else {
+        rawSegments.forEach((segment) => {
+          if (/\bon\b/i.test(segment)) {
+            const parts = segment.split(/\s*on\s*/i);
+            pushChain(parts, segment);
+          } else {
+            const parts = segment.split(/\s*,\s*/);
+            pushChain(parts, segment);
+          }
+        });
+      }
+    } catch (error) {
+      return { error: error.message };
+    }
+
+    if (chains.length === 0) {
       return allowEmpty
-        ? { tokens: [] }
+        ? { chains: [], tokens: [] }
         : { error: 'Goal input is empty or invalid.' };
     }
 
-    if (tokens[tokens.length - 1] !== 'TABLE') {
-      tokens.push('Table');
+    const flattened = this.flattenGoalChains(chains).filter((token) => token !== 'Table');
+    const seen = new Set();
+    const duplicates = new Set();
+    flattened.forEach((token) => {
+      if (seen.has(token)) {
+        duplicates.add(token);
+      } else {
+        seen.add(token);
+      }
+    });
+
+    if (duplicates.size > 0) {
+      return { error: `Duplicate blocks in goal: ${Array.from(duplicates).join(', ')}.` };
     }
 
-    return { tokens };
+    return { chains, tokens: chains[0] || [] };
   }
 
-  areGoalTokensEqual(a = [], b = []) {
-    if (a.length !== b.length) return false;
-    return a.every((token, idx) => token === b[idx]);
+  areGoalChainsEqual(a = [], b = []) {
+    const left = this.normalizeGoalChainsInput(a);
+    const right = this.normalizeGoalChainsInput(b);
+    if (left.length !== right.length) {
+      return false;
+    }
+    return left.every((chain, idx) => {
+      const other = right[idx];
+      if (!Array.isArray(chain) || !Array.isArray(other)) {
+        return false;
+      }
+      if (chain.length !== other.length) {
+        return false;
+      }
+      return chain.every((token, tokenIdx) => token === other[tokenIdx]);
+    });
   }
 
-  findUnknownGoalBlocks(tokens = []) {
+  findUnknownGoalBlocks(goalStructure = []) {
     const currentBlocks = this.world.getCurrentBlocks();
+    const tokens = this.flattenGoalChains(goalStructure);
     return tokens.filter((token) => token !== 'Table' && !currentBlocks.includes(token));
   }
 
@@ -451,12 +935,17 @@ class SimulationController {
       return;
     }
 
+    const enriched = {
+      ...mutation,
+      timelineSnapshot: this.getWorldStacksSnapshot()
+    };
+
     if (!this.isRunning) {
-      this.logMutations([mutation]);
+      this.logMutations([enriched]);
       return;
     }
 
-    this.mutationQueue.add(mutation);
+    this.mutationQueue.add(enriched);
   }
 
   requestReplan(reason = 'manual-change') {
@@ -491,9 +980,11 @@ class SimulationController {
       return;
     }
 
-    const targetGoalTokens = this.stagedGoalTokens && this.stagedGoalTokens.length > 0
-      ? this.stagedGoalTokens
-      : this.currentGoalTokens;
+    const hasStagedSequence = Array.isArray(this.stagedGoalChains) && this.stagedGoalChains.length > 0;
+    const stagedSequence = hasStagedSequence ? this.cloneGoalChains(this.stagedGoalChains) : null;
+    const targetGoalTokens = hasStagedSequence
+      ? (stagedSequence[0] ? [...stagedSequence[0]] : [])
+      : this.getActiveGoalChain();
 
     if (!targetGoalTokens || targetGoalTokens.length === 0) {
       showMessage('Cannot re-plan without a valid goal.', 'error');
@@ -514,6 +1005,8 @@ class SimulationController {
       handleError(error, 'replan');
       this.pendingReplan = false;
       this.isRunning = false;
+      this.stagedGoalTokens = null;
+      this.stagedGoalChains = null;
       return null;
     });
 
@@ -525,14 +1018,28 @@ class SimulationController {
       return;
     }
 
-    await this.applyReplanResponse(plannerResponse, targetGoalTokens);
+    await this.applyReplanResponse(plannerResponse, targetGoalTokens, stagedSequence);
   }
 
-  async applyReplanResponse(plannerResponse, goalTokens) {
+  async applyReplanResponse(plannerResponse, goalTokens, goalChains = null) {
     this.pendingReplan = false;
     this.pendingReplanReason = null;
     this.stagedGoalTokens = null;
-    this.currentGoalTokens = goalTokens;
+    this.stagedGoalChains = null;
+
+    if (Array.isArray(goalChains) && goalChains.length > 0) {
+      this.setGoalSequence(goalChains);
+    } else if (Array.isArray(goalTokens) && goalTokens.length > 0) {
+      this.currentGoalTokens = [...goalTokens];
+      if (Array.isArray(this.goalSequence) && this.goalSequence.length > 0) {
+        this.goalSequence[this.goalSequenceIndex] = [...goalTokens];
+        this.currentGoalChains = this.cloneGoalChains(this.goalSequence);
+      } else {
+        this.currentGoalChains = [[...this.currentGoalTokens]];
+      }
+    } else {
+      this.clearGoalSequence();
+    }
 
     if (!plannerResponse.goalAchieved) {
       this.isRunning = false;
@@ -541,11 +1048,29 @@ class SimulationController {
 
     const moves = Array.isArray(plannerResponse.moves) ? [...plannerResponse.moves] : [];
     this.activePlan = moves;
-    renderIntentionTimeline(
-      plannerResponse.intentionLog || [],
-      plannerResponse.agentCount || 1,
-      { emptyMessage: 'No planner cycles required after manual update.' }
-    );
+    
+    // Get the most recent manual move from the log
+    const manualMove = this.manualTimelineLog.length > 0
+      ? this.manualTimelineLog[this.manualTimelineLog.length - 1].move
+      : null;
+
+    // Use handleManualIntervention to update timeline
+    if (manualMove) {
+      handleManualIntervention(manualMove, moves);
+    } else {
+      // No manual intervention, just render the new plan
+      this.timelineHistory = [];
+      this.timelinePlan = [];
+      this.renderPlannerTimeline(
+        plannerResponse.intentionLog || [],
+        plannerResponse.agentCount || 1,
+        {
+          emptyMessage: 'No planner steps required after manual update.',
+          planMoves: plannerResponse.moves || []
+        }
+      );
+    }
+    
     updateStats(undefined, moves.length === 0 ? 'Idle' : 'Running');
 
     if (moves.length === 0) {
@@ -556,8 +1081,17 @@ class SimulationController {
   }
 
   logMutations(mutations) {
+    if (!Array.isArray(mutations) || !mutations.length) {
+      return;
+    }
+
+    const timelineEligible = [];
+
     mutations.forEach((mutation) => {
       if (!mutation || typeof mutation !== 'object') return;
+
+      timelineEligible.push(mutation);
+
       switch (mutation.type) {
         case 'MOVE':
           logAction(`Manual move: ${mutation.block} -> ${mutation.to}`, 'user');
@@ -568,33 +1102,73 @@ class SimulationController {
         case 'BLOCK_REMOVE':
           logAction(`Manual removal: removed block ${mutation.block}`, 'user');
           break;
-        case 'GOAL_SET':
-          if (Array.isArray(mutation.goals) && mutation.goals.length > 0) {
-            logAction(`Manual goal update: ${mutation.goals.join(' on ')}`, 'user');
+        case 'GOAL_SET': {
+          const formatted = Array.isArray(mutation.goalChains) && mutation.goalChains.length > 0
+            ? this.formatGoalChains(mutation.goalChains)
+            : Array.isArray(mutation.goals) && mutation.goals.length > 0
+              ? mutation.goals.join(', ')
+              : null;
+          if (formatted) {
+            logAction(`Manual goal update: ${formatted}`, 'user');
           } else {
             logAction('Manual goal update applied.', 'user');
           }
           break;
+        }
         default:
           logAction('Manual mutation applied.', 'user');
           break;
       }
     });
+
+    if (timelineEligible.length) {
+      this.appendManualTimelineEvents(timelineEligible);
+    }
   }
 
   async requestPlan(goalTokens) {
+    const goalChain = Array.isArray(goalTokens) ? [...goalTokens] : [];
+    if (!goalChain.length) {
+      throw new Error('Planner requested without a goal chain.');
+    }
+
+    const currentStacks = typeof this.world.getCurrentStacks === 'function'
+      ? this.world.getCurrentStacks()
+      : this.world.getStacks?.();
+
+    const isMultiAgent = document.getElementById('multiAgentMode')?.checked || false;
+
+    if (isMultiAgent) {
+      const enableNegotiation = true;
+      const deliberationTimeout = 5000;
+      const fullGoalChains = Array.isArray(this.goalSequence) && this.goalSequence.length > 0
+        ? this.cloneGoalChains(this.goalSequence)
+        : [goalChain];
+
+      return requestMultiAgentPlan(
+        currentStacks,
+        goalChain,
+        {
+          maxIterations: 2500,
+          deliberationTimeout,
+          enableNegotiation,
+          goalChains: fullGoalChains
+        }
+      );
+    }
+
     return requestBDIPlan(
-      this.world.getCurrentStacks(),
-      goalTokens,
+      currentStacks,
+      goalChain,
       { maxIterations: window.APP_CONFIG?.PLANNER?.MAX_ITERATIONS || 2500 }
     );
   }
 
   setControlsDisabled(disabled, options = {}) {
-  this.controlsDisabled = disabled;
+    this.controlsDisabled = disabled;
     const { startBtn, saveBtn, loadBtn, goalInput } = this.elements;
     const allowManualInteractions = Boolean(options.allowManualInteractions);
-  this.allowManualDuringRun = disabled && allowManualInteractions;
+    this.allowManualDuringRun = disabled && allowManualInteractions;
 
     [startBtn, saveBtn, loadBtn].forEach((element) => {
       if (element) element.disabled = disabled;
@@ -622,25 +1196,37 @@ class SimulationController {
     if (!this.world || this.isRunning) return;
 
     const rawGoal = this.elements.goalInput?.value ?? '';
-    const { tokens: goalTokens, error } = this.parseGoalInput(rawGoal);
+    const { chains: goalChains, error } = this.parseGoalInput(rawGoal);
 
     if (error) {
       showMessage(error, 'error');
       return;
     }
 
-    const unknownBlocks = this.findUnknownGoalBlocks(goalTokens);
+    if (!goalChains || goalChains.length === 0) {
+  showMessage('Please provide at least one valid goal (e.g., "A, B").', 'error');
+      return;
+    }
+
+    const normalizedChains = this.cloneGoalChains(goalChains);
+    const unknownBlocks = this.findUnknownGoalBlocks(normalizedChains);
     if (unknownBlocks.length > 0) {
       showMessage(`Unknown blocks in goal: ${unknownBlocks.join(', ')}.`, 'error');
       return;
     }
 
-    this.currentGoalTokens = goalTokens;
+    this.clearGoalSequence();
+    this.setGoalSequence(normalizedChains);
     this.stagedGoalTokens = null;
+    this.stagedGoalChains = null;
     this.pendingReplan = false;
     this.mutationQueue.clear();
     this.isRunning = true;
-  this.executedMoveCount = 0;
+    this.executedMoveCount = 0;
+    this.timelineHistory = [];
+    this.timelinePlan = [];
+    this.manualTimelineLog = [];
+    this.lastAgentCount = 1;
 
     this.setControlsDisabled(true, { allowManualInteractions: true });
     this.setManualControlsEnabled(true);
@@ -651,9 +1237,13 @@ class SimulationController {
 
     startStatsTimer();
     updateStats(undefined, 'Planning');
-    logAction(`Started planning for goal: ${goalTokens.filter(token => token !== 'Table').join(' on ') || 'Table'}`, 'user');
+    logAction(`Started planning for goal: ${this.formatGoalChains(normalizedChains)}`, 'user');
 
     try {
+      const goalTokens = this.getActiveGoalChain();
+      if (!goalTokens.length) {
+        throw new Error('No active goal chain available for planning.');
+      }
       const plannerResponse = await this.requestPlan(goalTokens);
 
       if (!plannerResponse.goalAchieved) {
@@ -666,6 +1256,10 @@ class SimulationController {
       handleError(error, 'planning');
       stopPlannerClock(false);
       resetIntentionTimeline('Planner request failed.');
+      this.timelineHistory = [];
+      this.timelinePlan = [];
+      this.manualTimelineLog = [];
+      this.lastAgentCount = 1;
       stopStatsTimer(false);
       updateStats(undefined, 'Unexpected Error');
       this.setControlsDisabled(false);
@@ -673,6 +1267,9 @@ class SimulationController {
       this.setManualControlsEnabled(true);
       this.dragManager?.enable();
       this.dragManager?.clearLockedBlocks?.();
+      this.stagedGoalTokens = null;
+      this.stagedGoalChains = null;
+      this.clearGoalSequence();
       this.applyPendingViewportRealign();
     }
   }
@@ -681,83 +1278,170 @@ class SimulationController {
     this.isRunning = false;
     this.pendingReplan = false;
     this.mutationQueue.clear();
+    this.clearGoalSequence();
+    this.stagedGoalTokens = null;
+    this.stagedGoalChains = null;
     this.setManualControlsEnabled(true);
     this.dragManager?.enable();
     this.dragManager?.clearLockedBlocks?.();
     showMessage('Planner could not achieve the goal within the iteration limit.', 'warning');
-    renderIntentionTimeline(
+    this.timelineHistory = [];
+    this.timelinePlan = [];
+    this.manualTimelineLog = [];
+    this.lastAgentCount = 1;
+    this.renderPlannerTimeline(
       plannerResponse.intentionLog || [],
       plannerResponse.agentCount || 1,
-      { emptyMessage: 'Planner did not complete successfully.' }
+      {
+        emptyMessage: 'Planner did not complete successfully.',
+        planMoves: plannerResponse.moves || []
+      }
     );
 
-    stopPlannerClock(true);
-    stopStatsTimer(true);
-    const actualCycles = (plannerResponse.intentionLog || []).length;
-    updateStats(actualCycles, 'Failure');
+  stopPlannerClock(true);
+  stopStatsTimer(true);
+  const totalMoves = this.executedMoveCount;
+  updateStats(totalMoves, 'Failure');
+    logAction(`Goal failed with ${totalMoves} ${totalMoves === 1 ? 'move' : 'moves'}`, 'system');
     this.setControlsDisabled(false);
     this.applyPendingViewportRealign();
   }
 
-  async handlePlannerSuccess(plannerResponse) {
-    const moves = plannerResponse.moves || [];
-    renderIntentionTimeline(
-      plannerResponse.intentionLog || [],
-      plannerResponse.agentCount || 1
+  async handlePlannerSuccess(plannerResponse, options = {}) {
+    const { appendTimeline = false, goalLabel = null } = options;
+
+    const normalizedLog = Array.isArray(plannerResponse.intentionLog)
+      ? plannerResponse.intentionLog.map((cycle, idx) => {
+          if (!cycle || typeof cycle !== 'object') {
+            return cycle;
+          }
+          const clone = { ...cycle };
+          if (idx === 0 && goalLabel) {
+            clone.sequenceLabel = goalLabel;
+          }
+          return clone;
+        })
+      : [];
+
+    const isMultiAgent = plannerResponse.statistics?.agentAMoves !== undefined;
+    const agentCount = plannerResponse.agentCount || (isMultiAgent ? 2 : 1);
+
+    if (plannerResponse.planningApproach === 'multi-tower-independent' && Array.isArray(this.goalSequence) && this.goalSequence.length > 0) {
+      this.goalSequenceIndex = this.goalSequence.length - 1;
+      this.currentGoalChains = this.cloneGoalChains(this.goalSequence);
+    }
+
+    // For next goal in sequence, append to existing timeline with transition card
+    if (appendTimeline && goalLabel) {
+      appendNextGoalToTimeline(goalLabel, plannerResponse.moves || []);
+    } else {
+      // Initial goal or non-sequence - render fresh timeline
+      this.renderPlannerTimeline(normalizedLog, agentCount, {
+        append: appendTimeline,
+        planMoves: plannerResponse.moves || []
+      });
+    }
+
+    if (isMultiAgent) {
+      this.updateMultiAgentStats(plannerResponse.statistics);
+    }
+
+    const moves = Array.isArray(plannerResponse.moves) ? [...plannerResponse.moves] : [];
+
+    if (moves.length > 0) {
+      this.activePlan = [...moves];
+      this.pendingReplan = false;
+      updateStats(undefined, 'Running');
+      const completed = await this.executeMoves(moves);
+
+      if (!completed) {
+        stopPlannerClock(false);
+        stopStatsTimer(false);
+        updateStats(undefined, 'Interrupted');
+        this.setControlsDisabled(false);
+        this.setManualControlsEnabled(true);
+        this.dragManager?.enable();
+        this.dragManager?.clearLockedBlocks?.();
+        this.isRunning = false;
+        this.applyPendingViewportRealign();
+        return;
+      }
+    } else {
+      this.activePlan = [];
+      this.pendingReplan = false;
+      if (this.hasPendingGoalChains()) {
+        showMessage('Current goal already satisfied - moving to next goal.', 'info');
+      }
+    }
+
+  finalizeTimeline();
+  stopPlannerClock(true);
+
+    if (this.hasPendingGoalChains()) {
+      const nextGoalChain = this.advanceGoalSequence();
+      if (nextGoalChain) {
+        const nextGoalLabel = this.formatGoalChains([nextGoalChain]);
+        showMessage(`Proceeding to next goal: ${nextGoalLabel}`, 'info');
+        updateStats(undefined, 'Planning');
+        startPlannerClock();
+        logAction(`Proceeding to next goal: ${nextGoalLabel}`, 'system');
+        try {
+          const nextResponse = await this.requestPlan(nextGoalChain);
+          if (!nextResponse.goalAchieved) {
+            this.handlePlannerFailure(nextResponse);
+            return;
+          }
+          await this.handlePlannerSuccess(nextResponse, {
+            appendTimeline: true,
+            goalLabel: nextGoalLabel
+          });
+          return;
+        } catch (error) {
+          handleError(error, 'planning');
+          stopPlannerClock(false);
+          resetIntentionTimeline('Planner request failed.');
+          this.timelineHistory = [];
+          this.timelinePlan = [];
+          this.manualTimelineLog = [];
+          this.lastAgentCount = 1;
+          stopStatsTimer(false);
+          updateStats(undefined, 'Unexpected Error');
+          this.setControlsDisabled(false);
+          this.isRunning = false;
+          this.setManualControlsEnabled(true);
+          this.dragManager?.enable();
+          this.dragManager?.clearLockedBlocks?.();
+          this.stagedGoalTokens = null;
+          this.stagedGoalChains = null;
+          this.clearGoalSequence();
+          this.applyPendingViewportRealign();
+          return;
+        }
+      }
+    }
+
+    this.pendingReplan = false;
+
+    const totalMoves = this.executedMoveCount;
+    const goalSummary = this.formatGoalChains(
+      this.currentGoalChains && this.currentGoalChains.length > 0
+        ? this.currentGoalChains
+        : this.goalSequence
     );
 
-    if (moves.length === 0) {
-      showMessage('Goal already satisfied - no moves required.', 'info');
-      finalizeTimeline();
-      stopPlannerClock(true);
-      stopStatsTimer(true);
-      updateStats(0, 'Success');
-      this.setControlsDisabled(false);
-      this.setManualControlsEnabled(true);
-      this.dragManager?.enable();
-      this.dragManager?.clearLockedBlocks?.();
-      this.isRunning = false;
-      this.applyPendingViewportRealign();
-      return;
-    }
-
-    this.activePlan = [...moves];
-    this.pendingReplan = false;
-    updateStats(undefined, 'Running');
-    const completed = await this.executeMoves(moves);
-
-    if (!completed) {
-      stopPlannerClock(false);
-      stopStatsTimer(false);
-      updateStats(undefined, 'Interrupted');
-      this.setControlsDisabled(false);
-      this.setManualControlsEnabled(true);
-      this.dragManager?.enable();
-      this.dragManager?.clearLockedBlocks?.();
-      this.isRunning = false;
-      this.applyPendingViewportRealign();
-      return;
-    }
-
-    this.pendingReplan = false;
-    finalizeTimeline();
-    stopPlannerClock(true);
-
-    const timelineSnapshot = getIntentionTimelineSnapshot();
-    const actualCycles = Array.isArray(timelineSnapshot?.log)
-      ? timelineSnapshot.log.length
-      : (plannerResponse.intentionLog || []).length;
-    const moveCount = this.executedMoveCount;
     stopStatsTimer(true);
-    updateStats(actualCycles, 'Success');
-    showMessage(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles).`, 'success');
-    logAction(`Goal achieved with ${moveCount} ${moveCount === 1 ? 'move' : 'moves'} (${actualCycles} cycles)`, 'system');
+    updateStats(totalMoves, 'Success');
+    showMessage(`Goal sequence (${goalSummary}) achieved with ${totalMoves} ${totalMoves === 1 ? 'move' : 'moves'}.`, 'success');
+    logAction(`Goal sequence (${goalSummary}) achieved with ${totalMoves} ${totalMoves === 1 ? 'move' : 'moves'}`, 'system');
 
     this.setControlsDisabled(false);
     this.setManualControlsEnabled(true);
     this.dragManager?.enable();
     this.dragManager?.clearLockedBlocks?.();
     this.isRunning = false;
+    this.stagedGoalTokens = null;
+    this.stagedGoalChains = null;
+    this.clearGoalSequence();
     this.applyPendingViewportRealign();
   }
 
@@ -767,14 +1451,16 @@ class SimulationController {
       : Array.isArray(moves)
         ? [...moves]
         : [];
+    this.syncClawRegistry();
 
-    const claw = document.getElementById('claw');
     const stepDuration = () => this.speedController.getStepDuration();
     let aborted = false;
 
-    if (claw && this.activePlan.length > 0) {
-      resetClawToDefault(claw, stepDuration());
-      await this.wait(stepDuration() + MOVE_CYCLE_BUFFER);
+    const availableClaws = this.getAllClaws();
+
+    if (availableClaws.length && this.activePlan.length > 0) {
+      availableClaws.forEach((clawElem) => resetClawToDefault(clawElem, stepDuration()));
+  await this.wait(stepDuration() + MOVE_COMPLETION_BUFFER);
     }
 
     while (this.isRunning) {
@@ -794,37 +1480,111 @@ class SimulationController {
         break;
       }
 
-      const nextMove = this.activePlan.shift();
-      const blockToLock = nextMove?.block;
-      if (blockToLock) {
-        this.dragManager?.lockBlocks([blockToLock]);
+      const nextMoveGroup = this.activePlan.shift();
+      console.log('[EXEC] nextMoveGroup:', nextMoveGroup);
+      
+      const moveBatch = Array.isArray(nextMoveGroup?.moves)
+        ? nextMoveGroup.moves.filter(Boolean)
+        : nextMoveGroup
+          ? [nextMoveGroup]
+          : [];
+
+      console.log('[EXEC] moveBatch.length:', moveBatch.length);
+
+      if (!moveBatch.length) {
+        continue;
       }
-      await new Promise((resolve) => {
-        simulateMove(
-          nextMove,
-          this.world,
-          this.elements.world,
-          claw,
-          markTimelineStep,
-          () => {
-            if (blockToLock) {
-              this.dragManager?.unlockBlocks([blockToLock]);
-            }
-            resolve();
-          },
-          { durationMs: stepDuration() }
-        );
+
+      const preparedMoves = moveBatch.map((move) => {
+        const agentKey = move?.actor || move?.agent || 'Agent-A';
+        const claw = this.getClawForAgent(agentKey) || this.getClawForAgent('Agent-A');
+        console.log(`[EXEC] Preparing ${agentKey}: ${move.block} → ${move.to}, claw:`, claw?.id);
+        return { move, agentKey, claw };
       });
-      this.executedMoveCount += 1;
+      
+      console.log('[EXEC] Will execute', preparedMoves.length, 'moves in parallel');
+
+      const missingClaw = preparedMoves.some(({ claw }) => !claw);
+      if (missingClaw) {
+        showMessage('No available robotic arm to execute the next move batch. Stopping simulation.', 'error');
+        aborted = true;
+        break;
+      }
+
+      const usedClaws = new Set();
+      const reusedClaw = preparedMoves.some(({ claw }) => {
+        if (usedClaws.has(claw)) {
+          return true;
+        }
+        usedClaws.add(claw);
+        return false;
+      });
+      if (reusedClaw) {
+        showMessage('Planner assigned multiple moves to the same robotic arm simultaneously. Stopping simulation.', 'error');
+        aborted = true;
+        break;
+      }
+
+      // Cancel any active drags before starting animations
+      const blocksToAnimate = preparedMoves.map(({ move }) => move.block);
+      const hadActiveDrag = blocksToAnimate.some(block => 
+        this.dragManager?.isBlockBeingDragged(block)
+      );
+      
+      if (hadActiveDrag) {
+        console.log('[EXEC] Cancelling active drag before animation');
+        this.dragManager.forceCancelDrag();
+        // Small delay to ensure block is reattached properly
+        await this.wait(50);
+      }
+
+      const promises = preparedMoves.map(({ move, claw }) => {
+        const blockToLock = move?.block;
+        
+        if (blockToLock) {
+          this.dragManager?.lockBlocks([blockToLock]);
+        }
+
+        console.log(`[EXEC] Launching simulateMove for ${move.actor || 'unknown'}: ${move.block} → ${move.to}`);
+
+        return new Promise((resolve) => {
+          simulateMove(
+            move,
+            this.world,
+            this.elements.world,
+            claw,
+            markTimelineStep,
+            () => {
+              console.log(`[EXEC] Completed simulateMove for ${move.actor || 'unknown'}: ${move.block}`);
+              if (blockToLock) {
+                this.dragManager?.unlockBlocks([blockToLock]);
+              }
+              resolve();
+            },
+            { durationMs: stepDuration() }
+          );
+        });
+      });
+
+      console.log('[EXEC] Waiting for', promises.length, 'parallel animations...');
+      await Promise.all(promises);
+      console.log('[EXEC] All parallel animations completed');
+      
+      // Update all DOM positions after parallel animations complete
+      this.world.updatePositions();
+      console.log('[EXEC] World positions synchronized');
+      
+      this.executedMoveCount += moveBatch.length;
     }
 
     this.dragManager?.clearLockedBlocks?.();
     this.setManualControlsEnabled(true);
     this.dragManager?.enable();
 
-    if (claw) {
+    const finalClaws = this.getAllClaws();
+    if (finalClaws.length) {
       await this.wait(200);
-      resetClawToDefault(claw, stepDuration());
+      finalClaws.forEach((clawElem) => resetClawToDefault(clawElem, stepDuration()));
       await this.speedController.waitForWindow();
     }
 
@@ -838,22 +1598,8 @@ class SimulationController {
   }
 }
 
-let controllerInstance = null;
-
 export function initializeHandlers(world) {
-  controllerInstance = new SimulationController(world);
-  controllerInstance.initialize();
-  return controllerInstance;
-}
-
-export function setControlsDisabled(disabled, options = {}) {
-  controllerInstance?.setControlsDisabled(disabled, options);
-}
-
-export function runSimulation() {
-  return controllerInstance?.runSimulation();
-}
-
-export function getSimulationController() {
-  return controllerInstance;
+  const controller = new SimulationController(world);
+  controller.initialize();
+  return controller;
 }

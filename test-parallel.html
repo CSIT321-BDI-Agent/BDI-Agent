@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Parallel Execution</title></head>
+<body>
+<h1>Test Parallel Execution</h1>
+<div id="output"></div>
+<script>
+const output = document.getElementById('output');
+
+async function simulateTask(name, duration) {
+    const start = Date.now();
+    output.innerHTML += `<p>[${new Date().toLocaleTimeString()}] ${name} START</p>`;
+    
+    await new Promise(resolve => setTimeout(resolve, duration));
+    
+    const elapsed = Date.now() - start;
+    output.innerHTML += `<p>[${new Date().toLocaleTimeString()}] ${name} END (${elapsed}ms)</p>`;
+}
+
+async function runParallel() {
+    output.innerHTML += '<h2>Running tasks in parallel...</h2>';
+    const startAll = Date.now();
+    
+    const promises = [
+        simulateTask('Task A', 2000),
+        simulateTask('Task B', 2000)
+    ];
+    
+    await Promise.all(promises);
+    
+    const totalElapsed = Date.now() - startAll;
+    output.innerHTML += `<h3>All tasks completed in ${totalElapsed}ms (should be ~2000ms if parallel)</h3>`;
+}
+
+runParallel();
+</script>
+</body>
+</html>

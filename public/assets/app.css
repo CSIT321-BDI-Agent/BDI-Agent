@@ -310,6 +310,7 @@ input:where([type='button']),
 input:where([type='reset']),
 input:where([type='submit']) {
   -webkit-appearance: button; /* 1 */
+  appearance: button;
   background-color: transparent; /* 2 */
   background-image: none; /* 2 */
 }
@@ -354,6 +355,7 @@ Correct the cursor style of increment and decrement buttons in Safari.
 
 [type='search'] {
   -webkit-appearance: textfield; /* 1 */
+  appearance: textfield;
   outline-offset: -2px; /* 2 */
 }
 
@@ -482,7 +484,6 @@ iframe,
 embed,
 object {
   display: block; /* 1 */
-  vertical-align: middle; /* 2 */
 }
 
 /*
@@ -792,6 +793,9 @@ select {
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
   opacity: 1;
 }
+.card {
+  border-radius: 0px;
+}
 .btn {
   border-radius: 0px;
 }
@@ -958,6 +962,9 @@ select {
   margin-left: auto;
   margin-right: auto;
 }
+.mb-1 {
+  margin-bottom: 0.25rem;
+}
 .mb-2 {
   margin-bottom: 0.5rem;
 }
@@ -969,6 +976,9 @@ select {
 }
 .ml-auto {
   margin-left: auto;
+}
+.mt-0\.5 {
+  margin-top: 0.125rem;
 }
 .mt-1 {
   margin-top: 0.25rem;
@@ -1024,6 +1034,9 @@ select {
 .h-12 {
   height: 3rem;
 }
+.h-4 {
+  height: 1rem;
+}
 .h-48 {
   height: 12rem;
 }
@@ -1057,23 +1070,17 @@ select {
 .min-h-\[18rem\] {
   min-height: 18rem;
 }
-.min-h-\[260px\] {
-  min-height: 260px;
-}
-.min-h-\[320px\] {
-  min-height: 320px;
-}
 .min-h-screen {
   min-height: 100vh;
-}
-.min-h-\[380px\] {
-  min-height: 380px;
 }
 .w-10 {
   width: 2.5rem;
 }
 .w-12 {
   width: 3rem;
+}
+.w-4 {
+  width: 1rem;
 }
 .w-6 {
   width: 1.5rem;
@@ -1155,6 +1162,9 @@ select {
 .cursor-not-allowed {
   cursor: not-allowed;
 }
+.cursor-pointer {
+  cursor: pointer;
+}
 .select-none {
   -webkit-user-select: none;
      -moz-user-select: none;
@@ -1202,14 +1212,8 @@ select {
 .gap-3 {
   gap: 0.75rem;
 }
-.gap-4 {
-  gap: 1rem;
-}
 .gap-6 {
   gap: 1.5rem;
-}
-.gap-0\.5 {
-  gap: 0.125rem;
 }
 .gap-x-4 {
   -moz-column-gap: 1rem;
@@ -1389,6 +1393,9 @@ select {
 .bg-brand-primary\/10 {
   background-color: rgb(79 209 197 / 0.1);
 }
+.bg-brand-primary\/80 {
+  background-color: rgb(79 209 197 / 0.8);
+}
 .bg-emerald-50 {
   --tw-bg-opacity: 1;
   background-color: rgb(236 253 245 / var(--tw-bg-opacity));
@@ -1452,6 +1459,9 @@ select {
 .p-2 {
   padding: 0.5rem;
 }
+.p-3 {
+  padding: 0.75rem;
+}
 .p-4 {
   padding: 1rem;
 }
@@ -1460,9 +1470,6 @@ select {
 }
 .p-8 {
   padding: 2rem;
-}
-.p-3 {
-  padding: 0.75rem;
 }
 .px-1 {
   padding-left: 0.25rem;
@@ -1520,19 +1527,14 @@ select {
   padding-top: 2rem;
   padding-bottom: 2rem;
 }
-.px-2\.5 {
-  padding-left: 0.625rem;
-  padding-right: 0.625rem;
-}
-.py-1\.5 {
-  padding-top: 0.375rem;
-  padding-bottom: 0.375rem;
-}
 .pb-10 {
   padding-bottom: 2.5rem;
 }
 .pb-2 {
   padding-bottom: 0.5rem;
+}
+.pb-4 {
+  padding-bottom: 1rem;
 }
 .pb-6 {
   padding-bottom: 1.5rem;
@@ -1549,17 +1551,14 @@ select {
 .pt-20 {
   padding-top: 5rem;
 }
+.pt-3 {
+  padding-top: 0.75rem;
+}
 .pt-4 {
   padding-top: 1rem;
 }
 .pt-5 {
   padding-top: 1.25rem;
-}
-.pb-4 {
-  padding-bottom: 1rem;
-}
-.pt-3 {
-  padding-top: 0.75rem;
 }
 .text-left {
   text-align: left;
@@ -1581,6 +1580,9 @@ select {
   font-size: 1.875rem;
   line-height: 2.25rem;
 }
+.text-\[10px\] {
+  font-size: 10px;
+}
 .text-\[11px\] {
   font-size: 11px;
 }
@@ -1589,6 +1591,9 @@ select {
 }
 .text-\[13px\] {
   font-size: 13px;
+}
+.text-\[9px\] {
+  font-size: 9px;
 }
 .text-base {
   font-size: 1rem;
@@ -1609,9 +1614,6 @@ select {
 .text-xs {
   font-size: 0.75rem;
   line-height: 1rem;
-}
-.text-\[10px\] {
-  font-size: 10px;
 }
 .font-extrabold {
   font-weight: 800;
@@ -1646,8 +1648,14 @@ select {
 .tracking-\[0\.18em\] {
   letter-spacing: 0.18em;
 }
+.tracking-\[0\.28em\] {
+  letter-spacing: 0.28em;
+}
 .tracking-\[0\.2em\] {
   letter-spacing: 0.2em;
+}
+.tracking-\[0\.35em\] {
+  letter-spacing: 0.35em;
 }
 .tracking-wide {
   letter-spacing: 0.025em;
@@ -1672,6 +1680,9 @@ select {
 .text-brand-primary {
   --tw-text-opacity: 1;
   color: rgb(79 209 197 / var(--tw-text-opacity));
+}
+.text-brand-primary\/80 {
+  color: rgb(79 209 197 / 0.8);
 }
 .text-emerald-200 {
   --tw-text-opacity: 1;
@@ -1738,6 +1749,9 @@ select {
 .text-white\/80 {
   color: rgb(255 255 255 / 0.8);
 }
+.text-white\/85 {
+  color: rgb(255 255 255 / 0.85);
+}
 .antialiased {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -1762,6 +1776,11 @@ select {
 .shadow-\[0_0_12px_rgba\(79\2c 209\2c 197\2c 0\.45\)\] {
   --tw-shadow: 0 0 12px rgba(79,209,197,0.45);
   --tw-shadow-colored: 0 0 12px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+.shadow-\[0_10px_24px_rgba\(15\2c 23\2c 42\2c 0\.24\)\] {
+  --tw-shadow: 0 10px 24px rgba(15,23,42,0.24);
+  --tw-shadow-colored: 0 10px 24px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 .shadow-card {
@@ -2125,16 +2144,8 @@ select {
     grid-template-columns: 1.1fr 0.9fr;
   }
 
-  .lg\:grid-cols-\[1\.5fr_1fr\] {
-    grid-template-columns: 1.5fr 1fr;
-  }
-
   .lg\:grid-cols-\[1\.7fr_1fr\] {
     grid-template-columns: 1.7fr 1fr;
-  }
-
-  .lg\:grid-cols-\[2fr_0\.8fr\] {
-    grid-template-columns: 2fr 0.8fr;
   }
 
   .lg\:grid-cols-\[2fr_1fr\] {
@@ -2156,15 +2167,27 @@ select {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .xl\:grid-cols-\[1\.8fr_1fr\] {
-    grid-template-columns: 1.8fr 1fr;
-  }
-
-  .xl\:grid-cols-\[2\.4fr_0\.8fr\] {
-    grid-template-columns: 2.4fr 0.8fr;
-  }
-
   .xl\:grid-cols-\[2\.4fr_1fr\] {
     grid-template-columns: 2.4fr 1fr;
   }
 }
+
+  #world-wrapper,
+  #world {
+    min-height: 450px;
+  }
+
+  /* Fixed height containers with strict constraints */
+  #actionLog,
+  #intentionTimeline {
+    height: 600px !important;
+    max-height: 600px !important;
+    min-height: 600px !important;
+    overflow-y: auto !important;
+  }
+
+  /* Ensure the containers never grow beyond bounds */
+  #actionLog > *,
+  #intentionTimeline > * {
+    flex-shrink: 0;
+  }

@@ -1,520 +1,724 @@
 /**
- * Timeline Management System
- *
- * Handles planner timeline rendering, state transitions, and clock display.
+ * Intention Timeline - Complete Rewrite
+ * 
+ * Architecture:
+ * - Global clock tracks total elapsed time from simulation start to finish
+ * - Each card = one agent move = one step
+ * - Concurrent moves share the same step number, shown on separate cards
+ * - Active card highlighted with green background
+ * - Completed cards snapshot the elapsed time when they finished
+ * - Manual edits: remove uncompleted cards, add manual card, add new plan
  */
 
 import { DOM } from './constants.js';
 import { incrementStep } from './stats.js';
 import { formatPlannerDuration } from './helpers.js';
 
-const ENTRY_BASE_CLASS = 'border border-slate-200 bg-white/95 p-4 shadow-card transition-all duration-200';
-const ENTRY_ACTIVE_CLASSES = ['border-brand-primary', 'ring-2', 'ring-brand-primary/40'];
-const ENTRY_COMPLETED_CLASSES = ['border-green-300', 'bg-green-50'];
-const ENTRY_NO_ACTION_CLASSES = ['border-dashed', 'border-slate-300', 'bg-slate-100'];
+// Card styling constants
+const CARD_BASE = 'border border-slate-200 bg-white/95 p-4 shadow-card transition-all duration-200';
+const CARD_PENDING = 'opacity-80';
+const CARD_ACTIVE = 'border-emerald-500 bg-emerald-100 shadow-lg ring-2 ring-emerald-500/30';
+const CARD_COMPLETED = 'border-emerald-300 bg-emerald-50';
+const CARD_MANUAL = 'border-dashed border-brand-primary/40 bg-brand-primary/10';
 
-const MOVE_BASE_CLASS = 'border-l-2 border-transparent pl-2 text-xs leading-5 text-slate-600 transition-colors duration-150';
-const MOVE_PENDING_CLASSES = ['border-slate-200', 'text-slate-600'];
-const MOVE_DONE_CLASSES = ['border-brand-primary', 'text-brand-dark', 'font-semibold'];
-const MOVE_SKIP_CLASSES = ['border-slate-300', 'text-slate-400', 'italic'];
-const MOVE_INFO_CLASSES = ['text-slate-400'];
+const STEP_LABEL = 'text-xs font-semibold uppercase tracking-[0.2em] text-brand-dark/60';
+const MOVE_SUMMARY = 'mt-1 text-sm font-semibold text-brand-dark';
+const MOVE_META = 'mt-2 text-xs text-brand-dark/70';
+const TIME_DISPLAY = 'text-xs font-mono font-semibold text-brand-dark/40';
+const TIME_ACTIVE = 'text-emerald-600';
 
-const TIMELINE_EMPTY_CLASS = 'border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs font-medium text-slate-500';
-const STEP_BADGE_CLASS = 'mt-2 inline-flex w-fit items-center justify-center rounded-full bg-brand-primary/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-brand-primary';
-const SKIP_BADGE_CLASS = 'mt-2 inline-flex w-fit items-center justify-center rounded-full bg-slate-200 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600';
-const BELIEF_META_CLASS = 'mt-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-4 text-slate-600';
+const BADGE_BASE = 'inline-flex items-center gap-2 rounded border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] shadow-sm';
+const BADGE_AGENT_A = `${BADGE_BASE} border-teal-500/50 bg-teal-500/20 text-teal-800`;
+const BADGE_AGENT_B = `${BADGE_BASE} border-purple-500/50 bg-purple-500/20 text-purple-800`;
+const BADGE_USER = `${BADGE_BASE} border-slate-300 bg-slate-100 text-brand-dark`;
+const DOT_AGENT_A = 'h-2 w-2 rounded-full bg-teal-600';
+const DOT_AGENT_B = 'h-2 w-2 rounded-full bg-purple-600';
+const DOT_USER = 'h-2 w-2 rounded-full bg-slate-400';
 
 // Timeline state
-let intentionTimelineState = null;
-let plannerClockInterval = null;
-let plannerClockStart = null;
-let lastRenderedLog = null;
-let lastRenderedAgentCount = 0;
-let lastRenderedOptions = {};
-
-const applyClasses = (element, classes, shouldApply) => {
-  classes.forEach(cls => element.classList.toggle(cls, Boolean(shouldApply)));
-};
-
-const setEntryVisualState = (entry, visual = {}) => {
-  const { active = false, completed = false, noActions = false } = visual;
-  applyClasses(entry, ENTRY_ACTIVE_CLASSES, active && !completed);
-  applyClasses(entry, ENTRY_COMPLETED_CLASSES, completed);
-  applyClasses(entry, ENTRY_NO_ACTION_CLASSES, noActions);
-  entry.dataset.state = completed ? 'completed' : active ? 'active' : 'pending';
-  entry.dataset.noActions = noActions ? 'true' : 'false';
-};
-
-const setMoveVisualState = (element, state = 'pending') => {
-  applyClasses(element, MOVE_PENDING_CLASSES, state === 'pending');
-  applyClasses(element, MOVE_DONE_CLASSES, state === 'done');
-  applyClasses(element, MOVE_SKIP_CLASSES, state === 'skip');
-  applyClasses(element, MOVE_INFO_CLASSES, state === 'informational');
-  element.dataset.state = state;
-};
-
-const humanizeTimelineLabel = (input) => {
-  if (!input) return '';
-  const normalized = String(input)
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (!normalized) return '';
-  return normalized
-    .split(' ')
-    .map(segment => segment ? segment[0].toUpperCase() + segment.slice(1).toLowerCase() : '')
-    .join(' ');
-};
-
-const formatPendingRelation = (pendingRelation) => {
-  if (!pendingRelation || typeof pendingRelation !== 'object') {
-    return 'none';
-  }
-  const block = pendingRelation.block || '?';
-  const destination = pendingRelation.destination || 'Table';
-  return `${block} -> ${destination}`;
+const timeline = {
+  cards: [],           // Array of card objects
+  container: null,     // DOM container
+  clockStart: null,    // When simulation started
+  clockInterval: null, // Update interval
+  agentCount: 0,
+  planMoves: []
 };
 
 /**
- * Update planner clock display
- * @param {string} text - Text to display
- */
-export function updatePlannerClockDisplay(text) {
-  const elem = DOM.plannerClock();
-  if (elem) {
-    elem.textContent = text ?? '--:--';
-  }
-}
-
-/**
- * Stop the planner clock
- * @param {boolean} finalize - Whether to finalize with current time
- */
-export function stopPlannerClock(finalize = false) {
-  if (plannerClockInterval) {
-    clearInterval(plannerClockInterval);
-    plannerClockInterval = null;
-  }
-  if (plannerClockStart && finalize) {
-    updatePlannerClockDisplay(formatPlannerDuration(Date.now() - plannerClockStart));
-  } else if (!finalize) {
-    updatePlannerClockDisplay('--:--');
-  }
-  plannerClockStart = null;
-}
-
-/**
- * Start the planner clock
+ * Start the global elapsed timer
  */
 export function startPlannerClock() {
-  stopPlannerClock(false);
-  plannerClockStart = Date.now();
-  updatePlannerClockDisplay('00:00.00');
-  plannerClockInterval = setInterval(() => {
-    if (!plannerClockStart) return;
-    updatePlannerClockDisplay(formatPlannerDuration(Date.now() - plannerClockStart));
+  stopPlannerClock();
+  
+  timeline.clockStart = Date.now();
+  updateClockDisplay('00:00.00');
+  
+  timeline.clockInterval = setInterval(() => {
+    if (!timeline.clockStart) return;
+    const elapsed = Date.now() - timeline.clockStart;
+    updateClockDisplay(formatPlannerDuration(elapsed));
+    
+    // Update active card time
+    const activeCard = timeline.cards.find(c => c.status === 'active');
+    if (activeCard && activeCard.timeElement) {
+      activeCard.timeElement.textContent = formatPlannerDuration(elapsed);
+    }
   }, 125);
 }
 
 /**
- * Reset intention timeline to initial state
- * @param {string} message - Message to display
+ * Stop the global elapsed timer
  */
-export function resetIntentionTimeline(message = 'No planner data yet.') {
-  intentionTimelineState = null;
-  lastRenderedLog = null;
-  lastRenderedAgentCount = 0;
-  lastRenderedOptions = {};
-  const container = DOM.intentionTimeline();
-  if (!container) return;
-  container.innerHTML = '';
-  const empty = document.createElement('div');
-  empty.className = TIMELINE_EMPTY_CLASS;
-  empty.textContent = message;
-  container.appendChild(empty);
+export function stopPlannerClock(finalize = false) {
+  if (timeline.clockInterval) {
+    clearInterval(timeline.clockInterval);
+    timeline.clockInterval = null;
+  }
+  
+  if (finalize && timeline.clockStart) {
+    const elapsed = Date.now() - timeline.clockStart;
+    updateClockDisplay(formatPlannerDuration(elapsed));
+  } else if (!finalize) {
+    updateClockDisplay('--:--');
+  }
+  
+  if (finalize) {
+    timeline.clockStart = null;
+  }
 }
 
 /**
- * Render the intention timeline from planner log
- * @param {Array} intentionLog - Array of planner cycles
- * @param {number} agentCount - Number of agents
- * @param {Object} options - Rendering options
+ * Update clock display text
+ */
+export function updatePlannerClockDisplay(text) {
+  updateClockDisplay(text);
+}
+
+function updateClockDisplay(text) {
+  const clockElem = DOM.plannerClock();
+  if (clockElem) {
+    clockElem.textContent = text || '--:--';
+  }
+}
+
+/**
+ * Get current elapsed time in milliseconds
+ */
+function getElapsedTime() {
+  if (!timeline.clockStart) return 0;
+  return Date.now() - timeline.clockStart;
+}
+
+function cloneMoveForSnapshot(move) {
+  if (!move || typeof move !== 'object') {
+    return null;
+  }
+  const cloned = { ...move };
+  if (Array.isArray(move.clawSteps)) {
+    cloned.clawSteps = move.clawSteps.map((step) =>
+      step && typeof step === 'object' ? { ...step } : step
+    );
+  }
+  return cloned;
+}
+
+function clonePlanMoves(planMoves = []) {
+  if (!Array.isArray(planMoves)) {
+    return [];
+  }
+  return planMoves
+    .map((group) => {
+      if (!group || typeof group !== 'object') {
+        return null;
+      }
+      if (Array.isArray(group.moves)) {
+        const clonedGroup = { ...group };
+        clonedGroup.moves = group.moves
+          .map((move) => cloneMoveForSnapshot(move))
+          .filter(Boolean);
+        return clonedGroup;
+      }
+      return cloneMoveForSnapshot(group);
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Reset timeline to empty state
+ */
+export function resetIntentionTimeline(message = 'No planner data yet.') {
+  const container = DOM.intentionTimeline();
+  if (!container) return;
+  
+  container.innerHTML = '';
+  timeline.cards = [];
+  timeline.container = container;
+  timeline.planMoves = [];
+  timeline.agentCount = 0;
+  
+  if (message) {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs font-medium text-slate-500';
+    placeholder.textContent = message;
+    container.appendChild(placeholder);
+  }
+  
+  stopPlannerClock(false);
+}
+
+/**
+ * Create agent badge
+ */
+function createAgentBadge(actor) {
+  const badge = document.createElement('span');
+  const dot = document.createElement('span');
+  const label = document.createElement('span');
+  
+  const actorLower = String(actor).toLowerCase();
+  
+  if (actorLower.includes('agent-b') || actorLower === 'agent b') {
+    badge.className = BADGE_AGENT_B;
+    dot.className = DOT_AGENT_B;
+  } else if (actorLower.includes('agent-a') || actorLower === 'agent a') {
+    badge.className = BADGE_AGENT_A;
+    dot.className = DOT_AGENT_A;
+  } else {
+    badge.className = BADGE_USER;
+    dot.className = DOT_USER;
+  }
+  
+  label.textContent = actor;
+  badge.appendChild(dot);
+  badge.appendChild(label);
+  
+  return badge;
+}
+
+/**
+ * Create a timeline card element
+ */
+function createCard(cardData) {
+  const card = document.createElement('article');
+  card.className = CARD_BASE;
+  if (cardData.isManual) {
+    card.classList.add(...CARD_MANUAL.split(' '));
+  }
+  card.dataset.cardId = cardData.id;
+  card.dataset.status = cardData.status;
+  
+  // Header
+  const header = document.createElement('div');
+  header.className = 'flex items-start gap-3';
+  
+  // Left: Title group
+  const titleGroup = document.createElement('div');
+  titleGroup.className = 'flex flex-1 flex-col';
+  
+  const stepLabel = document.createElement('span');
+  stepLabel.className = STEP_LABEL;
+  stepLabel.textContent = cardData.stepLabel;
+  
+  const summary = document.createElement('span');
+  summary.className = MOVE_SUMMARY;
+  summary.textContent = cardData.summary;
+  
+  titleGroup.appendChild(stepLabel);
+  titleGroup.appendChild(summary);
+  
+  // Right: Time + Badge
+  const rightColumn = document.createElement('div');
+  rightColumn.className = 'ml-auto flex min-h-[56px] flex-col items-end gap-2';
+  
+  const timeDisplay = document.createElement('span');
+  timeDisplay.className = TIME_DISPLAY;
+  timeDisplay.textContent = '--:--';
+  
+  const badgeGroup = document.createElement('div');
+  badgeGroup.className = 'mt-auto flex items-center gap-2';
+  badgeGroup.appendChild(createAgentBadge(cardData.actor));
+  
+  rightColumn.appendChild(timeDisplay);
+  rightColumn.appendChild(badgeGroup);
+  
+  header.appendChild(titleGroup);
+  header.appendChild(rightColumn);
+  card.appendChild(header);
+  
+  // Meta details
+  if (cardData.details) {
+    const meta = document.createElement('p');
+    meta.className = MOVE_META;
+    meta.textContent = cardData.details;
+    card.appendChild(meta);
+  }
+  
+  cardData.element = card;
+  cardData.timeElement = timeDisplay;
+  
+  return card;
+}
+
+/**
+ * Update card visual state
+ */
+function setCardStatus(card, status, options = {}) {
+  if (!card || !card.element) return;
+  const { suppressStats = false } = options;
+  
+  // Remove all status classes
+  card.element.classList.remove(...CARD_PENDING.split(' '));
+  card.element.classList.remove(...CARD_ACTIVE.split(' '));
+  card.element.classList.remove(...CARD_COMPLETED.split(' '));
+  
+  // Add new status
+  if (status === 'pending') {
+    card.element.classList.add(...CARD_PENDING.split(' '));
+    card.timeElement.className = TIME_DISPLAY;
+    card.timeElement.textContent = '--:--';
+  } else if (status === 'active') {
+    card.element.classList.add(...CARD_ACTIVE.split(' '));
+    card.timeElement.className = `${TIME_DISPLAY} ${TIME_ACTIVE}`;
+    // Time updates via clock
+  } else if (status === 'completed') {
+    card.element.classList.add(...CARD_COMPLETED.split(' '));
+   card.timeElement.className = TIME_DISPLAY;
+   if (card.completedAt != null) {
+     card.timeElement.textContent = formatPlannerDuration(card.completedAt);
+   }
+    if (!suppressStats) {
+      incrementStep();
+    }
+  }
+  
+  card.status = status;
+  card.element.dataset.status = status;
+}
+
+/**
+ * Render the entire plan as cards (all pending initially)
  */
 export function renderIntentionTimeline(intentionLog = [], agentCount = 0, options = {}) {
   const container = DOM.intentionTimeline();
-  intentionTimelineState = null;
   if (!container) return;
+  
+  const { planMoves = [] } = options;
+  const normalizedPlanMoves = clonePlanMoves(planMoves);
+  timeline.planMoves = normalizedPlanMoves;
+  timeline.agentCount = Number.isFinite(agentCount) && agentCount > 0
+    ? agentCount
+    : 0;
+  
+  // Clear existing
   container.innerHTML = '';
+  timeline.cards = [];
+  timeline.container = container;
+  
+  if (!normalizedPlanMoves || normalizedPlanMoves.length === 0) {
+    resetIntentionTimeline('No plan available');
+    return;
+  }
+  
+  // Build cards from plan
+  let stepNumber = 1;
+  normalizedPlanMoves.forEach((moveGroup, groupIdx) => {
+    const moves = Array.isArray(moveGroup.moves) ? moveGroup.moves : [moveGroup];
+    const isConcurrent = moves.length > 1;
+    
+    moves.forEach((move, moveIdx) => {
+      const actor = move.actor || `Agent-${String.fromCharCode(65 + moveIdx)}`;
+      const block = move.block || '?';
+      const destination = move.to || 'Table';
+      
+      const stepLabel = isConcurrent 
+        ? `Step ${stepNumber} · Concurrent`
+        : `Step ${stepNumber}`;
+      
+      const summary = move.summary || `Move ${block} → ${destination}`;
+      
+      let details = null;
+      if (move.reason || move.stepDescription || move.detail) {
+        details = move.reason || move.stepDescription || move.detail;
+      }
+      
+      const cardData = {
+        id: `card-${stepNumber}-${moveIdx}-${actor}`,
+        stepNumber,
+        actor,
+        block,
+        destination,
+        stepLabel,
+        summary,
+        details,
+        status: 'pending',
+        isManual: false,
+        completedAt: null,
+        element: null,
+        timeElement: null
+      };
+      
+      const cardElem = createCard(cardData);
+      container.appendChild(cardElem);
+      timeline.cards.push(cardData);
+      setCardStatus(cardData, 'pending');
+    });
+    
+    stepNumber++;
+  });
+}
 
-  const optionsCopy = { ...(options || {}) };
-  const durationsFromOptions = Array.isArray(optionsCopy.prefillDurations)
-    ? [...optionsCopy.prefillDurations]
-    : null;
-  delete optionsCopy.prefillDurations;
+/**
+ * Mark a specific move as active or completed
+ */
+export function markTimelineStep(step) {
+  if (!step || !timeline.cards.length) return;
+  
+  const { block, actor, type } = step;
+  if (!block) return;
+  
+  // On DROP, mark the active card as completed
+  if (type === 'DROP') {
+    const activeCard = timeline.cards.find(c => 
+      c.status === 'active' && 
+      c.block === block && 
+      (!actor || c.actor === actor)
+    );
+    
+    if (activeCard) {
+      activeCard.completedAt = getElapsedTime();
+      setCardStatus(activeCard, 'completed');
+    }
+    return;
+  }
+  
+  // On PICK_UP, mark the pending card as active (only once per move)
+  if (type === 'PICK_UP') {
+    const pendingCard = timeline.cards.find(c => 
+      c.status === 'pending' && 
+      c.block === block && 
+      (!actor || c.actor === actor)
+    );
+    
+    if (pendingCard) {
+      setCardStatus(pendingCard, 'active');
+    }
+  }
+}
 
-  const emptyMessage = optionsCopy.emptyMessage || 'Planner has not produced any cycles yet.';
+/**
+ * Finalize all remaining cards
+ */
+export function finalizeTimeline() {
+  const finalTime = getElapsedTime();
+  
+  timeline.cards.forEach(card => {
+    if (card.status !== 'completed') {
+      card.completedAt = finalTime;
+      setCardStatus(card, 'completed');
+    }
+  });
+}
 
-  if (!Array.isArray(intentionLog) || intentionLog.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = TIMELINE_EMPTY_CLASS;
-    empty.textContent = emptyMessage;
-    container.appendChild(empty);
+/**
+ * Handle manual intervention: remove uncompleted cards, add manual card, then new plan
+ */
+export function handleManualIntervention(manualMove, newPlan = []) {
+  const container = DOM.intentionTimeline();
+  if (!container) return;
+  
+  // 1. Remove all uncompleted (pending/active) cards from DOM and state
+  const completedCards = [];
+  timeline.cards.forEach(card => {
+    if (card.status === 'completed') {
+      completedCards.push(card);
+    } else {
+      // Remove from DOM
+      if (card.element && card.element.parentNode) {
+        card.element.parentNode.removeChild(card.element);
+      }
+    }
+  });
+  
+  timeline.cards = completedCards;
+  
+  // 2. Add manual intervention card
+  const nextStep = completedCards.length + 1;
+  const manualCard = {
+    id: `card-manual-${Date.now()}`,
+    stepNumber: nextStep,
+    actor: 'User',
+    block: manualMove.block || 'Manual',
+    destination: manualMove.to || 'Update',
+    stepLabel: `Step ${nextStep} · Manual`,
+    summary: manualMove.summary || 'Manual modification',
+    details: manualMove.detail || null,
+    status: 'completed',
+    isManual: true,
+    completedAt: getElapsedTime(),
+    element: null,
+    timeElement: null
+  };
+  
+  const manualElem = createCard(manualCard);
+  container.appendChild(manualElem);
+  timeline.cards.push(manualCard);
+  setCardStatus(manualCard, 'completed');
+  
+  // 3. Add new planned cards
+  if (newPlan && newPlan.length > 0) {
+    let stepNumber = nextStep + 1;
+    
+    newPlan.forEach((moveGroup) => {
+      const moves = Array.isArray(moveGroup.moves) ? moveGroup.moves : [moveGroup];
+      const isConcurrent = moves.length > 1;
+      
+      moves.forEach((move, moveIdx) => {
+        const actor = move.actor || `Agent-${String.fromCharCode(65 + moveIdx)}`;
+        const block = move.block || '?';
+        const destination = move.to || 'Table';
+        
+        const stepLabel = isConcurrent 
+          ? `Step ${stepNumber} · Concurrent`
+          : `Step ${stepNumber}`;
+        
+        const summary = move.summary || `Move ${block} → ${destination}`;
+        
+        let details = null;
+        if (move.reason || move.stepDescription || move.detail) {
+          details = move.reason || move.stepDescription || move.detail;
+        }
+        
+        const cardData = {
+          id: `card-${stepNumber}-${moveIdx}-${actor}`,
+          stepNumber,
+          actor,
+          block,
+          destination,
+          stepLabel,
+          summary,
+          details,
+          status: 'pending',
+          isManual: false,
+          completedAt: null,
+          element: null,
+          timeElement: null
+        };
+        
+        const cardElem = createCard(cardData);
+        container.appendChild(cardElem);
+        timeline.cards.push(cardData);
+        setCardStatus(cardData, 'pending');
+      });
+      
+      stepNumber++;
+    });
+  }
+
+  timeline.planMoves = clonePlanMoves(newPlan);
+}
+
+/**
+ * Get timeline snapshot for persistence
+ */
+export function getIntentionTimelineSnapshot() {
+  const clockElem = DOM.plannerClock();
+  const clockDisplay = clockElem?.textContent || '--:--';
+  const normalizedAgentCount = Number.isFinite(timeline.agentCount) && timeline.agentCount > 0
+    ? timeline.agentCount
+    : 0;
+  
+  return {
+    cards: timeline.cards.map((c) => ({
+      id: c.id,
+      stepNumber: Number.isFinite(c.stepNumber) ? c.stepNumber : null,
+      actor: c.actor || null,
+      block: c.block || null,
+      destination: c.destination || null,
+      stepLabel: c.stepLabel || null,
+      summary: c.summary || null,
+      details: c.details || null,
+      status: c.status || 'pending',
+      isManual: Boolean(c.isManual),
+      completedAt: Number.isFinite(c.completedAt) ? c.completedAt : null
+    })),
+    agentCount: normalizedAgentCount,
+    mode: normalizedAgentCount > 1 ? 'multi' : 'single',
+    plan: clonePlanMoves(timeline.planMoves),
+    clockDisplay,
+    clockStart: Number.isFinite(timeline.clockStart) ? timeline.clockStart : null,
+    updatedAt: Date.now()
+  };
+}
+
+/**
+ * Append new goal moves to existing timeline (for multi-goal sequences)
+ */
+export function appendNextGoalToTimeline(goalLabel, planMoves = []) {
+  const container = DOM.intentionTimeline();
+  if (!container) return;
+  
+  if (!planMoves || planMoves.length === 0) {
     return;
   }
 
-  const state = {
-    agentCount,
-    cycles: [],
-    currentCycle: 0
+  timeline.planMoves = [
+    ...clonePlanMoves(timeline.planMoves),
+    ...clonePlanMoves(planMoves)
+  ];
+  
+  // Add transition card
+  const currentStep = timeline.cards.length > 0 
+    ? Math.max(...timeline.cards.map(c => c.stepNumber)) + 1
+    : 1;
+  
+  const transitionCard = {
+    id: `card-goal-transition-${Date.now()}`,
+    stepNumber: currentStep,
+    actor: 'System',
+    block: '',
+    destination: '',
+    stepLabel: `Goal Transition`,
+    summary: `Moving to next goal: ${goalLabel}`,
+    details: null,
+    status: 'completed',
+    isManual: false,
+    completedAt: getElapsedTime(),
+    element: null,
+    timeElement: null
   };
-
-  intentionLog.forEach((cycle, idx) => {
-    const entry = document.createElement('div');
-    entry.className = ENTRY_BASE_CLASS;
-    entry.dataset.cycleIndex = String(idx);
-
-    const header = document.createElement('div');
-    header.className = 'flex items-start justify-between gap-3';
-
-    const titleGroup = document.createElement('div');
-    titleGroup.className = 'flex flex-col';
-
-    const title = document.createElement('span');
-    title.className = 'text-sm font-semibold text-brand-dark';
-    const cycleNumber = Number.isFinite(cycle?.cycle) ? cycle.cycle : idx + 1;
-    title.textContent = `Cycle ${cycleNumber}`;
-    titleGroup.appendChild(title);
-
-    const moves = Array.isArray(cycle?.moves) ? cycle.moves : [];
-    const primaryMove = moves.find(move => move && (move.block || move.skipped));
-
-    if (primaryMove && (primaryMove.stepType || primaryMove.stepDescription || primaryMove.stepNumber != null)) {
-      const badge = document.createElement('span');
-      const labelSource = primaryMove.stepDescription || primaryMove.stepType || primaryMove.reason;
-      const label = humanizeTimelineLabel(labelSource || 'Action');
-      const hasStepInfo = Number.isFinite(primaryMove.stepNumber) && Number.isFinite(primaryMove.totalSteps);
-      badge.className = STEP_BADGE_CLASS;
-      badge.textContent = hasStepInfo
-        ? `Step ${primaryMove.stepNumber}/${primaryMove.totalSteps} | ${label}`
-        : label;
-      titleGroup.appendChild(badge);
-    } else if (primaryMove && primaryMove.skipped) {
-      const badge = document.createElement('span');
-      const reasonLabel = humanizeTimelineLabel(primaryMove.reason || 'Skipped');
-    badge.className = SKIP_BADGE_CLASS;
-    badge.textContent = `Skipped | ${reasonLabel}`;
-      titleGroup.appendChild(badge);
-    }
-
-    header.appendChild(titleGroup);
-
-    const time = document.createElement('span');
-    time.className = 'text-xs font-mono text-brand-dark/60';
-    time.textContent = '--:--';
-    header.appendChild(time);
-
-    entry.appendChild(header);
-
-    const list = document.createElement('ul');
-    list.className = 'mt-3 flex flex-col gap-2';
-
-    const moveStates = [];
-    let totalActionMoves = 0;
-
+  
+  const transitionElem = createCard(transitionCard);
+  container.appendChild(transitionElem);
+  timeline.cards.push(transitionCard);
+  setCardStatus(transitionCard, 'completed');
+  
+  // Add new goal moves
+  let stepNumber = currentStep + 1;
+  planMoves.forEach((moveGroup, groupIdx) => {
+    const moves = Array.isArray(moveGroup.moves) ? moveGroup.moves : [moveGroup];
+    const isConcurrent = moves.length > 1;
+    
     moves.forEach((move, moveIdx) => {
-      const metadata = { ...(move || {}) };
-      const item = document.createElement('li');
-      item.className = MOVE_BASE_CLASS;
-
-      let description = 'No planner actions recorded.';
-      let moveState = 'informational';
-      const isAction = Boolean(metadata.block);
-
-      if (isAction) {
-        totalActionMoves += 1;
-        const actor = metadata.actor || `Agent ${moveIdx + 1}`;
-        const stepLabel = humanizeTimelineLabel(metadata.stepDescription || metadata.stepType || metadata.reason || 'Action');
-        const hasStepInfo = Number.isFinite(metadata.stepNumber) && Number.isFinite(metadata.totalSteps);
-        const stepInfo = hasStepInfo
-          ? `Step ${metadata.stepNumber}/${metadata.totalSteps}`
-          : Number.isFinite(metadata.stepNumber)
-            ? `Step ${metadata.stepNumber}`
-            : null;
-        const destinationLabel = metadata.to && metadata.to !== 'claw'
-          ? `-> ${metadata.to}`
-          : metadata.to === 'claw'
-            ? 'Holding'
-            : null;
-
-        const summaryParts = [actor];
-        if (stepInfo) summaryParts.push(stepInfo);
-        summaryParts.push(stepLabel);
-        if (destinationLabel) summaryParts.push(destinationLabel);
-        description = summaryParts.filter(Boolean).join(' | ');
-
-        if (metadata.stepDescription && metadata.stepDescription !== stepLabel) {
-          description += ` - ${metadata.stepDescription}`;
-        }
-
-        moveState = 'pending';
-      } else if (metadata.skipped) {
-        const actor = metadata.actor || `Agent ${moveIdx + 1}`;
-        const reasonLabel = humanizeTimelineLabel(metadata.reason || 'No Action');
-        description = `${actor} | Skipped (${reasonLabel})`;
-        moveState = 'skip';
-      } else if (metadata.reason) {
-        description = humanizeTimelineLabel(metadata.reason);
+      const actor = move.actor || `Agent-${String.fromCharCode(65 + moveIdx)}`;
+      const block = move.block || '?';
+      const destination = move.to || 'Table';
+      
+      const stepLabel = isConcurrent 
+        ? `Step ${stepNumber} · Concurrent`
+        : `Step ${stepNumber}`;
+      
+      const summary = move.summary || `Move ${block} → ${destination}`;
+      
+      let details = null;
+      if (move.reason || move.stepDescription || move.detail) {
+        details = move.reason || move.stepDescription || move.detail;
       }
-
-      item.textContent = description;
-      if (metadata.stepNumber != null) {
-        item.dataset.stepNumber = String(metadata.stepNumber);
-      }
-      if (metadata.stepType) {
-        item.dataset.stepType = metadata.stepType;
-      }
-      if (metadata.block) {
-        item.dataset.block = metadata.block;
-      }
-
-      setMoveVisualState(item, moveState);
-      list.appendChild(item);
-
-      moveStates.push({
-        meta: metadata,
-        element: item,
-        completed: moveState !== 'pending',
-        isAction
-      });
+      
+      const cardData = {
+        id: `card-${stepNumber}-${moveIdx}-${actor}`,
+        stepNumber,
+        actor,
+        block,
+        destination,
+        stepLabel,
+        summary,
+        details,
+        status: 'pending',
+        isManual: false,
+        completedAt: null,
+        element: null,
+        timeElement: null
+      };
+      
+      const cardElem = createCard(cardData);
+      container.appendChild(cardElem);
+      timeline.cards.push(cardData);
+      setCardStatus(cardData, 'pending');
     });
-
-    entry.appendChild(list);
-
-    if (cycle?.beliefs) {
-      const beliefMeta = document.createElement('div');
-      beliefMeta.className = BELIEF_META_CLASS;
-      const pendingRelation = formatPendingRelation(cycle.beliefs.pendingRelation);
-      const clearBlocks = Array.isArray(cycle.beliefs.clearBlocks) && cycle.beliefs.clearBlocks.length
-        ? cycle.beliefs.clearBlocks.join(', ')
-        : 'none';
-    beliefMeta.textContent = `Beliefs | Pending: ${pendingRelation} | Clear: ${clearBlocks}`;
-      entry.appendChild(beliefMeta);
-    }
-
-    container.appendChild(entry);
-
-    const cycleState = {
-      index: idx,
-      entryElement: entry,
-      timeElement: time,
-      moveStates,
-      totalMoves: totalActionMoves,
-      processedMoves: moveStates.filter(ms => ms.isAction && ms.completed).length,
-      visual: {
-        active: false,
-        completed: false,
-        noActions: totalActionMoves === 0
-      }
-    };
-
-    if (cycleState.visual.noActions) {
-      cycleState.visual.completed = true;
-    }
-
-    setEntryVisualState(entry, cycleState.visual);
-
-    if (durationsFromOptions && (typeof durationsFromOptions[idx] === 'string' || typeof durationsFromOptions[idx] === 'number')) {
-      const rawDuration = durationsFromOptions[idx];
-      const formattedDuration =
-        typeof rawDuration === 'number' ? formatPlannerDuration(rawDuration) : String(rawDuration);
-      cycleState.timeElement.textContent = formattedDuration;
-    }
-
-    state.cycles.push(cycleState);
-  });
-
-  intentionTimelineState = state;
-  const firstActionIndex = state.cycles.findIndex(cycle => cycle.totalMoves > 0);
-  if (firstActionIndex >= 0) {
-    setActiveTimelineCycle(firstActionIndex);
-  }
-
-  try {
-    lastRenderedLog = JSON.parse(JSON.stringify(intentionLog));
-  } catch (error) {
-    lastRenderedLog = Array.isArray(intentionLog) ? [...intentionLog] : null;
-  }
-  lastRenderedAgentCount = agentCount;
-  lastRenderedOptions = { ...optionsCopy };
-}
-
-/**
- * Set active timeline cycle
- * @param {number} index - Cycle index
- */
-function setActiveTimelineCycle(index) {
-  if (!intentionTimelineState || !Array.isArray(intentionTimelineState.cycles)) return;
-  intentionTimelineState.cycles.forEach((cycle, idx) => {
-    const shouldBeActive = idx === index && cycle.totalMoves > 0 && !cycle.visual.completed;
-    cycle.visual.active = shouldBeActive;
-    setEntryVisualState(cycle.entryElement, cycle.visual);
+    
+    stepNumber++;
   });
 }
 
 /**
- * Complete a timeline cycle
- * @param {Object} cycleState - Cycle state object
+ * Restore timeline from snapshot
  */
-function completeTimelineCycle(cycleState) {
-  if (!cycleState) return;
-  cycleState.visual.completed = true;
-  cycleState.visual.active = false;
-  setEntryVisualState(cycleState.entryElement, cycleState.visual);
-  if (plannerClockStart) {
-    cycleState.timeElement.textContent = formatPlannerDuration(Date.now() - plannerClockStart);
-  }
-}
-
-function matchesTimelineMove(step, moveMeta) {
-  if (!step || !moveMeta) {
-    return false;
-  }
-
-  const stepNumber = Number.isFinite(step.stepNumber) ? Number(step.stepNumber) : null;
-  const metaStepNumber = Number.isFinite(moveMeta.stepNumber) ? Number(moveMeta.stepNumber) : null;
-  if (stepNumber !== null && metaStepNumber !== null && stepNumber !== metaStepNumber) {
-    return false;
-  }
-
-  const stepType = (step.type || step.stepType || '').toUpperCase();
-  const metaStepType = (moveMeta.stepType || '').toUpperCase();
-  if (stepType && metaStepType && stepType !== metaStepType) {
-    return false;
-  }
-
-  const stepBlock = (step.block || '').toUpperCase();
-  const metaBlock = (moveMeta.block || '').toUpperCase();
-  if (stepBlock && metaBlock && stepBlock !== metaBlock) {
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Mark a claw step as completed in the timeline
- * Each claw action (move/pick/move/drop) counts as one cycle
- * @param {Object} step - Step object {type, block, to, stepNumber}
- */
-export function markTimelineStep(step) {
-  if (!step || !intentionTimelineState) return;
-
-  incrementStep();
-
-  for (const cycleState of intentionTimelineState.cycles) {
-    if (cycleState.totalMoves === 0) continue;
-    if (cycleState.processedMoves >= cycleState.totalMoves) continue;
-
-    let matcher = cycleState.moveStates.find(ms => ms.isAction && !ms.completed && matchesTimelineMove(step, ms.meta));
-
-    if (!matcher) {
-      matcher = cycleState.moveStates.find(ms => ms.isAction && !ms.completed);
-    }
-
-    if (matcher) {
-      matcher.completed = true;
-      setMoveVisualState(matcher.element, 'done');
-      cycleState.processedMoves += 1;
-
-      if (cycleState.processedMoves >= cycleState.totalMoves) {
-        completeTimelineCycle(cycleState);
-        const nextIndex = cycleState.index + 1;
-        const nextActionIndex = intentionTimelineState.cycles.findIndex((c, idx) =>
-          idx >= nextIndex && c.totalMoves > 0 && c.processedMoves < c.totalMoves
-        );
-        if (nextActionIndex >= 0) {
-          setActiveTimelineCycle(nextActionIndex);
-        }
-      } else {
-        setActiveTimelineCycle(cycleState.index);
-      }
-      return;
-    }
-  }
-}
-
-/**
- * Finalize all timeline cycles
- */
-export function finalizeTimeline() {
-  if (!intentionTimelineState) return;
-  intentionTimelineState.cycles.forEach(cycle => {
-    if (cycle.totalMoves === 0) {
-      cycle.timeElement.textContent =
-        cycle.timeElement.textContent === '--:--' && plannerClockStart
-          ? formatPlannerDuration(Date.now() - plannerClockStart)
-          : cycle.timeElement.textContent;
-      return;
-    }
-
-    if (cycle.processedMoves >= cycle.totalMoves) {
-      if (!cycle.visual.completed) {
-        completeTimelineCycle(cycle);
-      }
-    }
-  });
-}
-
-export function getIntentionTimelineSnapshot() {
-  if (!lastRenderedLog || !Array.isArray(lastRenderedLog)) {
-    return null;
-  }
-
-  let durations = null;
-  if (intentionTimelineState && Array.isArray(intentionTimelineState.cycles)) {
-    durations = intentionTimelineState.cycles.map(cycle => {
-      const text = cycle?.timeElement?.textContent;
-      return typeof text === 'string' && text.trim().length > 0 ? text : '--:--';
-    });
-  } else {
-    durations = lastRenderedLog.map(() => '--:--');
-  }
-
-  const clockDisplay = (() => {
-    const clockElem = DOM.plannerClock();
-    return clockElem && typeof clockElem.textContent === 'string'
-      ? clockElem.textContent
-      : '--:--';
-  })();
-
-  return {
-    log: lastRenderedLog,
-    agentCount: lastRenderedAgentCount,
-    options: lastRenderedOptions,
-    durations,
-    clockDisplay
-  };
-}
-
 export function restoreTimelineFromSnapshot(snapshot) {
+  const container = DOM.intentionTimeline();
+  if (!container) return;
+
   if (!snapshot || typeof snapshot !== 'object') {
     resetIntentionTimeline();
     return;
   }
 
-  const { log, agentCount = 0, options = {} } = snapshot;
-  if (!Array.isArray(log) || log.length === 0) {
-    resetIntentionTimeline(options.emptyMessage);
+  stopPlannerClock(false);
+
+  container.innerHTML = '';
+  timeline.container = container;
+  timeline.cards = [];
+  timeline.planMoves = clonePlanMoves(snapshot.plan);
+
+  const normalizedAgentCount = Number.isFinite(snapshot.agentCount) && snapshot.agentCount > 0
+    ? snapshot.agentCount
+    : 0;
+  timeline.agentCount = normalizedAgentCount;
+
+  const cards = Array.isArray(snapshot.cards) ? snapshot.cards : [];
+
+  if (cards.length === 0) {
+    resetIntentionTimeline();
+    if (snapshot.clockDisplay) {
+      updateClockDisplay(snapshot.clockDisplay);
+    }
     return;
   }
 
-  const { durations = null, clockDisplay } = snapshot;
-  const renderOptions = durations && Array.isArray(durations) && durations.length > 0
-    ? { ...options, prefillDurations: durations }
-    : options;
+  cards.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      return;
+    }
 
-  renderIntentionTimeline(log, agentCount, renderOptions);
-  if (typeof clockDisplay === 'string' && clockDisplay.trim().length > 0) {
-    updatePlannerClockDisplay(clockDisplay);
+    const stepNumber = Number.isFinite(entry.stepNumber)
+      ? entry.stepNumber
+      : index + 1;
+    const actor = entry.actor || 'Agent-A';
+    const block = entry.block || '?';
+    const destination = entry.destination || entry.to || 'Table';
+    const status = typeof entry.status === 'string'
+      ? entry.status.toLowerCase()
+      : 'pending';
+    const normalizedStatus = ['pending', 'active', 'completed'].includes(status)
+      ? status
+      : 'pending';
+
+    const cardData = {
+      id: entry.id || `card-${stepNumber}-${actor}`,
+      stepNumber,
+      actor,
+      block,
+      destination,
+      stepLabel: entry.stepLabel || `Step ${stepNumber}`,
+      summary: entry.summary || `Move ${block} → ${destination}`,
+      details: entry.details || null,
+      status: normalizedStatus,
+      isManual: Boolean(entry.isManual),
+      completedAt: Number.isFinite(entry.completedAt) ? entry.completedAt : null,
+      element: null,
+      timeElement: null
+    };
+
+    const cardElem = createCard(cardData);
+    container.appendChild(cardElem);
+    timeline.cards.push(cardData);
+    setCardStatus(cardData, normalizedStatus, { suppressStats: true });
+  });
+
+  if (snapshot.clockDisplay) {
+    updateClockDisplay(snapshot.clockDisplay);
+  } else {
+    updateClockDisplay('--:--');
   }
+
+  timeline.clockStart = Number.isFinite(snapshot.clockStart) ? snapshot.clockStart : null;
 }

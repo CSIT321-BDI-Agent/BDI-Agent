@@ -5,12 +5,20 @@
  */
 
 import { DOM, API_BASE } from './constants.js';
-import { showMessage, handleError } from './helpers.js';
+import { showMessage, handleError, normalizeWorldIdentifier } from './helpers.js';
 import { getCurrentUser, authenticatedFetch } from './auth.js';
 import { logAction } from './logger.js';
 import { getIntentionTimelineSnapshot, restoreTimelineFromSnapshot, resetIntentionTimeline } from './timeline.js';
 import { updateWorldInfoFromStacks } from './dashboard-ui.js';
-import { getStatsSnapshot, restoreStatsFromSnapshot, resetStats } from './stats.js';
+import {
+  getStatsSnapshot,
+  restoreStatsFromSnapshot,
+  resetStats,
+  getMultiAgentStatsSnapshot,
+  restoreMultiAgentStatsFromSnapshot,
+  resetMultiAgentStats,
+  setMultiAgentStatsEnabled
+} from './stats.js';
 
 const META_STORAGE_KEY = 'bdiWorldMeta';
 
@@ -47,11 +55,27 @@ const buildMetaKey = (userId, worldName) => {
   return `${userId}::${worldName}`;
 };
 
+const getMultiAgentStateSnapshot = () => {
+  const checkbox = document.getElementById('multiAgentMode');
+  const enabled = Boolean(checkbox?.checked);
+  const statistics = getMultiAgentStatsSnapshot();
+
+  if (!enabled && !statistics) {
+    return { enabled: false };
+  }
+
+  return {
+    enabled,
+    statistics: statistics || null
+  };
+};
+
 const getWorldStateSnapshot = (world) => ({
   stacks: world.getCurrentStacks(),
   colours: world.getCurrentColours(),
   timeline: getIntentionTimelineSnapshot(),
-  stats: getStatsSnapshot()
+  stats: getStatsSnapshot(),
+  multiAgent: getMultiAgentStateSnapshot()
 });
 const LOAD_SELECT_MESSAGES = {
   default: 'Select a saved world',
@@ -59,22 +83,6 @@ const LOAD_SELECT_MESSAGES = {
   login: 'Log in to see saved worlds',
   error: 'Error loading worlds',
   failed: 'Failed to fetch worlds'
-};
-
-const normalizeWorldIdentifier = (doc) => {
-  const raw = doc?._id ?? doc?.id ?? null;
-  if (!raw) return null;
-  if (typeof raw === 'string') return raw;
-  if (typeof raw === 'object') {
-    if (typeof raw.$oid === 'string') return raw.$oid;
-    if (typeof raw.toString === 'function') {
-      const candidate = raw.toString();
-      if (candidate && candidate !== '[object Object]') {
-        return candidate;
-      }
-    }
-  }
-  return null;
 };
 
 const loadSelectManager = {
@@ -195,7 +203,8 @@ export async function saveWorld(world) {
         stacks: currentSnapshot.stacks,
         colours: currentSnapshot.colours,
         timeline: currentSnapshot.timeline,
-        stats: currentSnapshot.stats
+        stats: currentSnapshot.stats,
+        multiAgent: currentSnapshot.multiAgent
       })
     });
 
@@ -218,12 +227,15 @@ export async function saveWorld(world) {
     const savedColours = responseData && responseData.colours && typeof responseData.colours === 'object'
       ? responseData.colours
       : currentSnapshot.colours;
-    const savedTimeline = responseData && Object.prototype.hasOwnProperty.call(responseData, 'timeline')
+    const savedTimeline = responseData && Object.prototype.hasOwnProperty.call(responseData, 'timeline') && responseData.timeline
       ? responseData.timeline
       : currentSnapshot.timeline;
     const savedStats = responseData && Object.prototype.hasOwnProperty.call(responseData, 'stats')
       ? responseData.stats
       : currentSnapshot.stats;
+    const savedMultiAgent = responseData && Object.prototype.hasOwnProperty.call(responseData, 'multiAgent')
+      ? responseData.multiAgent
+      : currentSnapshot.multiAgent;
 
     showMessage(`World "${trimmedName}" saved successfully!`, 'success');
     
@@ -235,6 +247,7 @@ export async function saveWorld(world) {
         colours: savedColours,
         timeline: savedTimeline,
         stats: savedStats,
+        multiAgent: savedMultiAgent,
         updatedAt: Date.now()
       };
       persistMetaCache();
@@ -286,6 +299,9 @@ export async function loadSelectedWorld(world) {
     const targetStats = Object.prototype.hasOwnProperty.call(data, 'stats')
       ? data.stats
       : savedMeta?.stats ?? null;
+    const targetMultiAgent = Object.prototype.hasOwnProperty.call(data, 'multiAgent')
+      ? data.multiAgent
+      : savedMeta?.multiAgent ?? null;
 
     rebuildWorldFrom(world, targetStacks, data.on, targetColours);
     if (targetTimeline) {
@@ -299,12 +315,40 @@ export async function loadSelectedWorld(world) {
     } else {
       resetStats();
     }
+
+    const multiAgentCheckbox = document.getElementById('multiAgentMode');
+    const shouldEnableMultiAgent = Boolean(targetMultiAgent?.enabled);
+    if (multiAgentCheckbox) {
+      const needsToggle = multiAgentCheckbox.checked !== shouldEnableMultiAgent;
+      multiAgentCheckbox.checked = shouldEnableMultiAgent;
+      if (needsToggle) {
+        multiAgentCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+      } else if (!shouldEnableMultiAgent) {
+        resetMultiAgentStats();
+      } else {
+        setMultiAgentStatsEnabled(true);
+      }
+    }
+
+    if (shouldEnableMultiAgent) {
+      const multiAgentStatsSnapshot =
+        targetMultiAgent?.statistics || targetMultiAgent?.stats || null;
+      if (multiAgentStatsSnapshot) {
+        restoreMultiAgentStatsFromSnapshot(multiAgentStatsSnapshot);
+      } else {
+        setMultiAgentStatsEnabled(true);
+      }
+    } else {
+      resetMultiAgentStats();
+    }
+
     const refreshedSnapshot = getWorldStateSnapshot(world);
     if (metaKey) {
       worldMetaCache[metaKey] = {
         colours: refreshedSnapshot.colours,
         timeline: refreshedSnapshot.timeline,
         stats: refreshedSnapshot.stats,
+        multiAgent: refreshedSnapshot.multiAgent,
         updatedAt: Date.now()
       };
       persistMetaCache();

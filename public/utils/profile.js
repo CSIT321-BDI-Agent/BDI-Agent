@@ -326,7 +326,6 @@ export function initializeProfileMenu() {
   const profileName = document.getElementById('profileName');
   const profileMenuLoggedIn = document.getElementById('profileMenuLoggedIn');
   const profileMenuLoggedOut = document.getElementById('profileMenuLoggedOut');
-  const adminMenuItem = document.getElementById('adminMenuItem');
   const adminBanner = document.querySelector('#adminNav');
 
   if (!profileBtn || !profileMenu || !profileName || !profileMenuLoggedIn || !profileMenuLoggedOut) {
@@ -358,13 +357,6 @@ export function initializeProfileMenu() {
       profileName.textContent = username;
       showElement(profileMenuLoggedIn, 'flex');
       hideElement(profileMenuLoggedOut, 'flex');
-      if (adminMenuItem) {
-        if (role === 'admin') {
-          showElement(adminMenuItem, 'flex');
-        } else {
-          hideElement(adminMenuItem, 'flex');
-        }
-      }
       if (adminBanner) {
         if (role === 'admin') {
           showElement(adminBanner, 'flex');
@@ -376,9 +368,6 @@ export function initializeProfileMenu() {
       profileName.textContent = 'Guest';
       hideElement(profileMenuLoggedIn, 'flex');
       showElement(profileMenuLoggedOut, 'flex');
-      if (adminMenuItem) {
-        hideElement(adminMenuItem, 'flex');
-      }
       if (adminBanner) {
         hideElement(adminBanner, 'flex');
       }

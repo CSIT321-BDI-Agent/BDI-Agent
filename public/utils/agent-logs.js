@@ -6,7 +6,7 @@ import {
 } from './auth.js';
 import { initializeMobileNavigation, initializeSidebarNavigation } from './navigation.js';
 import { initializeProfileMenu } from './profile.js';
-import { showMessage, handleError } from './helpers.js';
+import { showMessage, handleError, normalizeWorldIdentifier } from './helpers.js';
 import { API_BASE } from './constants.js';
 
 const worldLogsBody = document.getElementById('worldLogs');
@@ -39,19 +39,88 @@ const resolveStatsDisplay = (stats) => {
   return { steps, time, status };
 };
 
-const normalizeWorldIdentifier = (raw) => {
-  if (!raw) return null;
-  if (typeof raw === 'string') return raw;
-  if (typeof raw === 'object') {
-    if (typeof raw.$oid === 'string') return raw.$oid;
-    if (typeof raw.toString === 'function') {
-      const candidate = raw.toString();
-      if (candidate && candidate !== '[object Object]') {
-        return candidate;
-      }
-    }
+const countPlanMoves = (plan = []) => {
+  if (!Array.isArray(plan) || !plan.length) {
+    return 0;
   }
-  return null;
+
+  return plan.reduce((total, group) => {
+    if (!group || typeof group !== 'object') {
+      return total;
+    }
+
+    if (Array.isArray(group.moves)) {
+      const moveCount = group.moves.filter((move) => move && move.block && !move.skipped).length;
+      return total + moveCount;
+    }
+
+    return group.block ? total + 1 : total;
+  }, 0);
+};
+
+const countTimelineMoves = (timeline) => {
+  if (!timeline || typeof timeline !== 'object') {
+    return 0;
+  }
+
+  const cardEntries = Array.isArray(timeline.cards) ? timeline.cards : [];
+  if (cardEntries.length > 0) {
+    return cardEntries.reduce((total, card) => {
+      if (!card || typeof card !== 'object') {
+        return total;
+      }
+      if (card.block && typeof card.block === 'string' && card.block.trim().length > 0) {
+        return total + 1;
+      }
+      return total;
+    }, 0);
+  }
+
+  const planMoves = countPlanMoves(timeline.plan);
+  if (planMoves > 0) {
+    return planMoves;
+  }
+
+  const logEntries = Array.isArray(timeline.log) ? timeline.log : [];
+  if (!logEntries.length) {
+    return 0;
+  }
+
+  let completedMoves = 0;
+
+  logEntries.forEach((entry) => {
+    if (!entry || !Array.isArray(entry.moves)) {
+      return;
+    }
+    entry.moves.forEach((move) => {
+      if (!move || move.skipped) {
+        return;
+      }
+      if (typeof move.stepType === 'string') {
+        if (move.stepType.toUpperCase() === 'DROP') {
+          completedMoves += 1;
+        }
+        return;
+      }
+      if (Number.isFinite(move.stepNumber) && Number.isFinite(move.totalSteps)) {
+        if (move.stepNumber === move.totalSteps) {
+          completedMoves += 1;
+        }
+        return;
+      }
+    });
+  });
+
+  if (completedMoves > 0) {
+    return completedMoves;
+  }
+
+  return logEntries.reduce((total, entry) => {
+    if (!entry || !Array.isArray(entry.moves)) {
+      return total;
+    }
+    return total + entry.moves.filter((move) => move && move.block && !move.skipped).length;
+  }, 0);
 };
 
 async function fetchWorldLogs() {
@@ -108,17 +177,24 @@ function renderWorldLogs(worlds = []) {
       ? new Date(savedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
       : '--';
 
+    const timelineCards = Array.isArray(timeline?.cards) ? timeline.cards : [];
     const timelineLog = Array.isArray(timeline?.log) ? timeline.log : [];
-    const cycleCount = timelineLog.length;
-    const actionCount = timelineLog.reduce((total, cycle) => {
-      if (!cycle || !Array.isArray(cycle.moves)) return total;
-      return total + cycle.moves.filter(move => move && move.block).length;
-    }, 0);
+    const stepCount = timelineCards.length
+      ? new Set(
+          timelineCards
+            .map((card) => (Number.isFinite(card?.stepNumber) ? card.stepNumber : card?.id || card?.summary || ''))
+            .filter(Boolean)
+        ).size
+      : timelineLog.length;
+    const agentModeEnabled = world?.multiAgent?.enabled ?? (timeline?.mode === 'multi');
+    const agentModeLabel = agentModeEnabled ? 'Multi' : 'Single';
+    const actionCount = countTimelineMoves(timeline || {});
     aggregateActions += actionCount;
 
     const { steps: statSteps, time: statTime, status: statStatus } = resolveStatsDisplay(stats);
 
     const row = document.createElement('tr');
+    row.className = 'transition-colors hover:bg-brand-dark/5';
     row.innerHTML = `
       <td class="px-4 py-3">
         <div class="flex flex-col">
@@ -127,13 +203,13 @@ function renderWorldLogs(worlds = []) {
         </div>
       </td>
       <td class="px-4 py-3">${blockCount}</td>
-      <td class="px-4 py-3 text-sm text-brand-dark/80">${savedAtText}</td>
+      <td class="px-4 py-3 text-brand-dark/70">${savedAtText}</td>
       <td class="px-4 py-3">${statSteps}</td>
       <td class="px-4 py-3">${statTime}</td>
       <td class="px-4 py-3">
-        <span class="inline-flex items-center rounded bg-brand-primary/10 px-2 py-1 text-xs font-semibold text-brand-primary">${statStatus}</span>
+        <span class="inline-flex items-center rounded bg-brand-primary/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-brand-primary">${statStatus}</span>
       </td>
-      <td class="px-4 py-3">${cycleCount}</td>
+      <td class="px-4 py-3">${agentModeLabel} · ${stepCount}</td>
       <td class="px-4 py-3">${actionCount}</td>
       <td class="px-4 py-3 text-right">
         <button

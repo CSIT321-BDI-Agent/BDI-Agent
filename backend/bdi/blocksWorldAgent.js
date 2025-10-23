@@ -143,21 +143,28 @@ function buildPlannerResponse(state, goalChain, maxIterations, agentCount = 1) {
   };
 }
 
-function createPlannerAgent(initialBeliefs) {
+function createPlannerAgent(initialBeliefs, agentId = AGENT_ID) {
   const plannerDesires = {
     ...Desire('achieveGoal', beliefs => !goalAchieved(beliefs.stacks, beliefs.goalChain))
   };
 
+  const beliefEntries = [
+    Belief('stacks', deepCloneStacks(initialBeliefs.stacks)),
+    Belief('goalChain', [...initialBeliefs.goalChain]),
+    Belief('onMap', { ...(initialBeliefs.onMap || {}) }),
+    Belief('clearBlocks', [...(initialBeliefs.clearBlocks || [])]),
+    Belief('goalAchieved', initialBeliefs.goalAchieved)
+  ];
+
+  if (initialBeliefs.pendingRelation) {
+    beliefEntries.push(Belief('pendingRelation', { ...initialBeliefs.pendingRelation }));
+  }
+
+  const agentBeliefs = Object.assign({}, ...beliefEntries);
+
   return new Agent({
-    id: AGENT_ID,
-    beliefs: {
-      ...Belief('stacks', deepCloneStacks(initialBeliefs.stacks)),
-      ...Belief('goalChain', [...initialBeliefs.goalChain]),
-      ...Belief('onMap', { ...(initialBeliefs.onMap || {}) }),
-      ...Belief('clearBlocks', [...(initialBeliefs.clearBlocks || [])]),
-      ...Belief('pendingRelation', initialBeliefs.pendingRelation ? { ...initialBeliefs.pendingRelation } : null),
-      ...Belief('goalAchieved', initialBeliefs.goalAchieved)
-    },
+    id: agentId,
+    beliefs: agentBeliefs,
     desires: plannerDesires,
     plans: [
       Plan(
@@ -175,7 +182,9 @@ function createPlannerAgent(initialBeliefs) {
 
           if (!nextRelation) {
             this.beliefs.goalAchieved = true;
-            this.beliefs.pendingRelation = null;
+            if (this.beliefs.pendingRelation) {
+              delete this.beliefs.pendingRelation;
+            }
             return null;
           }
 
@@ -452,16 +461,19 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
   const stateFilter = state => {
     const facts = computeStateFacts(state.stacks, state.goalChain);
 
-    return {
+    const filtered = {
       stacks: deepCloneStacks(state.stacks),
       goalChain: [...state.goalChain],
       goalAchieved: state.goalAchieved,
       onMap: { ...facts.onMap },
-      clearBlocks: [...facts.clearBlocks],
-      pendingRelation: facts.pendingRelation
-        ? { ...facts.pendingRelation }
-        : null
+      clearBlocks: [...facts.clearBlocks]
     };
+
+    if (facts.pendingRelation) {
+      filtered.pendingRelation = { ...facts.pendingRelation };
+    }
+
+    return filtered;
   };
 
   const runner = step => iterations => {
@@ -494,5 +506,12 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
 
 module.exports = {
   planBlocksWorld,
-  PlanningError
+  PlanningError,
+  createPlannerAgent,
+  computeStateFacts,
+  extractMove,
+  expandMoveToClawSteps,
+  validateMoveCandidate,
+  sanitizePlannerInputs,
+  createInitialPlannerState
 };

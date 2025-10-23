@@ -242,7 +242,7 @@ function getBlockPosition(world, blockName) {
 
 /**
  * Simulate a single block move with 4-step claw animation
- * Each step counts as a separate cycle action in the timeline
+ * Each step is treated as a single timeline update for the plan
  * @param {Object} move - Move object {block, to, clawSteps}
  * @param {Object} world - World instance
  * @param {HTMLElement} worldElem - World container element
@@ -253,9 +253,12 @@ function getBlockPosition(world, blockName) {
 export async function simulateMove(move, world, worldElem, claw, markTimelineStep, callback, options = {}) {
   const blockName = move.block;
   const dest = move.to;
+  const actor = move.actor || 'Agent-A';
   const duration = Number.isFinite(options.durationMs)
     ? Math.max(100, Math.round(options.durationMs))
     : window.APP_CONFIG?.ANIMATION_DURATION || 550;
+
+  console.log(`[ANIM START] ${actor}: ${blockName} → ${dest} (duration: ${duration}ms)`);
 
   const blockDiv = worldElem?.querySelector(`[data-block='${blockName}']`);
   if (!blockDiv) {
@@ -294,7 +297,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     
     // Mark step 1 complete in timeline
     if (typeof markTimelineStep === 'function') {
-      markTimelineStep({ type: 'MOVE_CLAW', to: blockName, block: blockName, stepNumber: 1 });
+      markTimelineStep({ type: 'MOVE_CLAW', to: blockName, block: blockName, actor, stepNumber: 1 });
     }
     
     // === STEP 2: Pick up block (attach to claw) ===
@@ -304,22 +307,17 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     
     // Mark step 2 complete in timeline
     if (typeof markTimelineStep === 'function') {
-      markTimelineStep({ type: 'PICK_UP', block: blockName, stepNumber: 2 });
+      markTimelineStep({ type: 'PICK_UP', block: blockName, actor, stepNumber: 2 });
     }
 
-    // === STEP 3: Apply the move in world state ===
-    world.moveBlock(blockName, dest);
-    world.updatePositions(blockName);
+  // === STEP 3: Apply the move in world state ===
+  // Update logical world state first so downstream consumers (timeline, stats) stay in sync
+  world.moveBlock(blockName, dest);
+  // Realign every other block immediately (skip the one currently attached to the claw)
+  // so the destination stack is already in place when the claw arrives.
+  world.updatePositions(blockName);
 
-    const originalTransition = blockDiv.style.transition;
-    blockDiv.style.transition = 'none';
-    blockDiv.style.left = `${sourcePos.left}px`;
-    blockDiv.style.top = `${sourcePos.top}px`;
-    blockDiv.getBoundingClientRect();
-    blockDiv.style.transition = originalTransition || '';
-    syncBlockWithClaw(claw, blockDiv);
-
-    // Get destination position
+  // Calculate destination position based on new world state
     const destPos = getBlockPosition(world, blockName);
     if (!destPos) {
       throw new Error(`Block ${blockName} not found after move`);
@@ -363,7 +361,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     
     // Mark step 3 complete in timeline
     if (typeof markTimelineStep === 'function') {
-      markTimelineStep({ type: 'MOVE_CLAW', to: dest, block: blockName, carrying: blockName, stepNumber: 3 });
+      markTimelineStep({ type: 'MOVE_CLAW', to: dest, block: blockName, carrying: blockName, actor, stepNumber: 3 });
     }
 
     // === STEP 4: Drop block (detach from claw) ===
@@ -372,11 +370,14 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
 
     MOVING_CLASSES.forEach(cls => blockDiv.classList.remove(cls));
     blockDiv.style.transition = '';
-    world.updatePositions();
+    
+    // Manually position block at destination (updatePositions will be called by executor after all parallel moves)
+    blockDiv.style.left = `${destLeft}px`;
+    blockDiv.style.top = `${destTop}px`;
     
     // Mark step 4 complete in timeline
     if (typeof markTimelineStep === 'function') {
-      markTimelineStep({ type: 'DROP', block: blockName, at: dest, stepNumber: 4 });
+      markTimelineStep({ type: 'DROP', block: blockName, at: dest, actor, stepNumber: 4 });
     }
 
     const raiseAfterDrop = [];
@@ -391,9 +392,11 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     const destination = dest === 'Table' ? 'Table' : dest;
     logMove(`Move ${blockName} → ${destination}`);
     
+    console.log(`[ANIM END] ${actor}: ${blockName} → ${dest} completed`);
     callback();
     
   } catch (error) {
+    console.log(`[ANIM ERROR] ${actor}: ${blockName} →`, error.message);
     handleError(error, 'simulateMove');
     detachBlockFromClaw(claw, blockDiv);
     MOVING_CLASSES.forEach(cls => blockDiv?.classList.remove(cls));
