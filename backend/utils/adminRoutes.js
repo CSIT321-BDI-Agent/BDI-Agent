@@ -79,7 +79,9 @@ router.get('/users', requireAuth, checkAdmin, async (_req, res) => {
       stats: 1,
       blocks: 1,
       stacks: 1,
-      'timeline.log': 1
+      'timeline.log': 1,
+      'timeline.mode': 1,
+      'multiAgent.enabled': 1
     }
   ).sort({ createdAt: -1 }).lean();
 
@@ -90,13 +92,18 @@ router.get('/users', requireAuth, checkAdmin, async (_req, res) => {
       worldsByUser.set(key, []);
     }
     const timelineLog = world?.timeline?.log;
+    const timelineMode = world?.timeline?.mode;
+    const multiAgentEnabled = world?.multiAgent?.enabled;
     worldsByUser.get(key).push({
       name: world.name,
       createdAt: world.createdAt,
       stats: normalizeWorldStats(world),
       blocks: Array.isArray(world.blocks) ? world.blocks : [],
       stacks: Array.isArray(world.stacks) ? world.stacks : [],
-      timeline: Array.isArray(timelineLog) ? { log: timelineLog } : { log: [] }
+      timeline: Array.isArray(timelineLog)
+        ? { log: timelineLog, mode: timelineMode }
+        : { log: [], mode: timelineMode },
+      multiAgent: { enabled: Boolean(multiAgentEnabled ?? (timelineMode === 'multi')) }
     });
   });
 

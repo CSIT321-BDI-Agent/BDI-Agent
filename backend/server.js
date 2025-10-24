@@ -524,6 +524,16 @@ const normalizeBlocksList = (blocks) => {
   });
 };
 
+const sanitizeMultiAgentSnapshot = (raw) => {
+  if (raw == null || typeof raw !== 'object') {
+    return { enabled: false };
+  }
+
+  return {
+    enabled: Boolean(raw.enabled)
+  };
+};
+
 const sanitizeWorldPayload = (raw = {}) => {
   const {
     name,
@@ -532,7 +542,8 @@ const sanitizeWorldPayload = (raw = {}) => {
     colours,
     colors,
     timeline,
-    stats
+    stats,
+    multiAgent
   } = raw;
 
   const normalizedName = ensureNonEmptyString(name, 'Valid world name');
@@ -545,7 +556,8 @@ const sanitizeWorldPayload = (raw = {}) => {
     stacks: validateStacksPayload(stacksArray).map(stack => [...stack]),
     colours: sanitizeColourMap(colours ?? colors),
     timeline: sanitizeTimelineSnapshot(timeline),
-    stats: sanitizeStatsSnapshot(stats)
+    stats: sanitizeStatsSnapshot(stats),
+    multiAgent: sanitizeMultiAgentSnapshot(multiAgent)
   };
 };
 

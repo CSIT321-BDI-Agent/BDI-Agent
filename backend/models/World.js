@@ -16,6 +16,12 @@ const WorldSchema = new mongoose.Schema({
     },
     default: null
   },
+  multiAgent: {
+    type: {
+      enabled: { type: Boolean, default: false }
+    },
+    required: true
+  },
   user:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
 }, { timestamps: true });
 

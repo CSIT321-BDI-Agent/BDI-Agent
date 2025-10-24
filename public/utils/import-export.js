@@ -192,25 +192,9 @@ function displayExportPreview(worldData) {
       : 0;
     const agentModeEnabled = worldData?.multiAgent?.enabled ?? (timeline?.mode === 'multi');
     const agentModeLabel = agentModeEnabled ? 'Multi-Agent' : 'Single Agent';
-    const multiAgentStats = worldData?.multiAgent?.statistics || worldData?.multiAgent?.stats || null;
-
-    let multiAgentBlock = '';
-    if (agentModeEnabled && multiAgentStats && typeof multiAgentStats === 'object') {
-      const agentAMoves = Number.isFinite(multiAgentStats.agentAMoves) ? multiAgentStats.agentAMoves : 0;
-      const agentBMoves = Number.isFinite(multiAgentStats.agentBMoves) ? multiAgentStats.agentBMoves : 0;
-      const totalConflicts = Number.isFinite(multiAgentStats.totalConflicts) ? multiAgentStats.totalConflicts : 0;
-      const totalNegotiations = Number.isFinite(multiAgentStats.totalNegotiations) ? multiAgentStats.totalNegotiations : 0;
-      const totalDeliberations = Number.isFinite(multiAgentStats.totalDeliberations) ? multiAgentStats.totalDeliberations : 0;
-
-      multiAgentBlock = `
-        <div class="pt-1 text-xs text-brand-dark/70">
-          <div class="flex justify-between"><span>Agent A Moves</span><span>${agentAMoves}</span></div>
-          <div class="flex justify-between"><span>Agent B Moves</span><span>${agentBMoves}</span></div>
-          <div class="flex justify-between"><span>Conflicts</span><span>${totalConflicts}</span></div>
-          <div class="flex justify-between"><span>Negotiations</span><span>${totalNegotiations}</span></div>
-          <div class="flex justify-between"><span>Deliberations</span><span>${totalDeliberations}</span></div>
-        </div>`;
-    }
+    const multiAgentBlock = agentModeEnabled
+      ? '<div class="pt-1 text-xs text-brand-dark/70">Multi-agent execution recorded</div>'
+      : '';
 
     exportSummary.innerHTML = `
       <div class="flex justify-between"><strong>World:</strong><span>${escapeHtml(worldData?.name || 'Untitled World')}</span></div>
@@ -541,23 +525,8 @@ function validateWorldStructure(worldData) {
   if (worldData.multiAgent != null) {
     if (typeof worldData.multiAgent !== 'object' || Array.isArray(worldData.multiAgent)) {
       errors.push('Field "multiAgent" must be an object when provided');
-    } else {
-      if (worldData.multiAgent.enabled != null && typeof worldData.multiAgent.enabled !== 'boolean') {
-        errors.push('Field "multiAgent.enabled" must be a boolean when provided');
-      }
-
-      const statsSource = worldData.multiAgent.statistics || worldData.multiAgent.stats;
-      if (statsSource != null) {
-        if (typeof statsSource !== 'object' || Array.isArray(statsSource)) {
-          errors.push('Field "multiAgent.statistics" must be an object when provided');
-        } else {
-          ['agentAMoves', 'agentBMoves', 'totalConflicts', 'totalNegotiations', 'totalDeliberations'].forEach((key) => {
-            if (statsSource[key] != null && !Number.isFinite(statsSource[key])) {
-              errors.push(`Field "multiAgent.statistics.${key}" must be a number when provided`);
-            }
-          });
-        }
-      }
+    } else if (worldData.multiAgent.enabled != null && typeof worldData.multiAgent.enabled !== 'boolean') {
+      errors.push('Field "multiAgent.enabled" must be a boolean when provided');
     }
   }
 
@@ -605,6 +574,7 @@ async function handleImportJson() {
     }
 
     // Prepare payload (remove _id, createdAt, updatedAt if present)
+    const multiAgentEnabled = Boolean(worldData?.multiAgent?.enabled);
     const payload = {
       name: worldData.name,
       blocks: worldData.blocks,
@@ -612,7 +582,7 @@ async function handleImportJson() {
       colours: worldData.colours || worldData.colors || {},
       timeline: worldData.timeline || null,
       stats: worldData.stats || null,
-      multiAgent: worldData.multiAgent || null
+      multiAgent: { enabled: multiAgentEnabled }
     };
 
     // Save to backend

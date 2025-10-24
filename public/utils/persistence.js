@@ -58,16 +58,7 @@ const buildMetaKey = (userId, worldName) => {
 const getMultiAgentStateSnapshot = () => {
   const checkbox = document.getElementById('multiAgentMode');
   const enabled = Boolean(checkbox?.checked);
-  const statistics = getMultiAgentStatsSnapshot();
-
-  if (!enabled && !statistics) {
-    return { enabled: false };
-  }
-
-  return {
-    enabled,
-    statistics: statistics || null
-  };
+  return { enabled };
 };
 
 const getWorldStateSnapshot = (world) => ({
@@ -317,7 +308,11 @@ export async function loadSelectedWorld(world) {
     }
 
     const multiAgentCheckbox = document.getElementById('multiAgentMode');
-    const shouldEnableMultiAgent = Boolean(targetMultiAgent?.enabled);
+    const shouldEnableMultiAgent = Boolean(
+      (targetMultiAgent && Object.prototype.hasOwnProperty.call(targetMultiAgent, 'enabled')
+        ? targetMultiAgent.enabled
+        : undefined) ?? (targetTimeline?.mode === 'multi')
+    );
     if (multiAgentCheckbox) {
       const needsToggle = multiAgentCheckbox.checked !== shouldEnableMultiAgent;
       multiAgentCheckbox.checked = shouldEnableMultiAgent;

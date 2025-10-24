@@ -36,8 +36,8 @@ const DEFAULT_MULTI_AGENT_STATE = {
   agentAMoves: null,
   agentBMoves: null,
   totalConflicts: null,
-  totalNegotiations: null,
-  totalDeliberations: null
+  manualInterventions: null,
+  replansTriggered: null
 };
 
 let multiAgentContainer = null;
@@ -45,8 +45,8 @@ const multiAgentElems = {
   agentA: null,
   agentB: null,
   conflicts: null,
-  negotiations: null,
-  deliberations: null
+  manualInterventions: null,
+  replans: null
 };
 let multiAgentState = { ...DEFAULT_MULTI_AGENT_STATE };
 
@@ -133,8 +133,8 @@ export function initializeStatsUI({
     agentASelector = '#stat-agent-a-moves',
     agentBSelector = '#stat-agent-b-moves',
     conflictsSelector = '#stat-conflicts',
-    negotiationsSelector = '#stat-negotiations',
-    deliberationsSelector = '#stat-deliberations'
+    manualInterventionsSelector = '#stat-manual-interventions',
+    replansSelector = '#stat-replans'
   } = multiAgent || {};
 
   multiAgentContainer = typeof containerSelector === 'string'
@@ -149,11 +149,11 @@ export function initializeStatsUI({
   multiAgentElems.conflicts = typeof conflictsSelector === 'string'
     ? document.querySelector(conflictsSelector)
     : null;
-  multiAgentElems.negotiations = typeof negotiationsSelector === 'string'
-    ? document.querySelector(negotiationsSelector)
+  multiAgentElems.manualInterventions = typeof manualInterventionsSelector === 'string'
+    ? document.querySelector(manualInterventionsSelector)
     : null;
-  multiAgentElems.deliberations = typeof deliberationsSelector === 'string'
-    ? document.querySelector(deliberationsSelector)
+  multiAgentElems.replans = typeof replansSelector === 'string'
+    ? document.querySelector(replansSelector)
     : null;
 
   multiAgentInitialized = Boolean(
@@ -161,8 +161,8 @@ export function initializeStatsUI({
     multiAgentElems.agentA &&
     multiAgentElems.agentB &&
     multiAgentElems.conflicts &&
-    multiAgentElems.negotiations &&
-    multiAgentElems.deliberations
+    multiAgentElems.manualInterventions &&
+    multiAgentElems.replans
   );
 
   multiAgentState = { ...DEFAULT_MULTI_AGENT_STATE };
@@ -370,11 +370,11 @@ function renderMultiAgentStats() {
   if (multiAgentElems.conflicts) {
     multiAgentElems.conflicts.textContent = toDisplay(multiAgentState.totalConflicts);
   }
-  if (multiAgentElems.negotiations) {
-    multiAgentElems.negotiations.textContent = toDisplay(multiAgentState.totalNegotiations);
+  if (multiAgentElems.manualInterventions) {
+    multiAgentElems.manualInterventions.textContent = toDisplay(multiAgentState.manualInterventions);
   }
-  if (multiAgentElems.deliberations) {
-    multiAgentElems.deliberations.textContent = toDisplay(multiAgentState.totalDeliberations);
+  if (multiAgentElems.replans) {
+    multiAgentElems.replans.textContent = toDisplay(multiAgentState.replansTriggered);
   }
 }
 
@@ -390,7 +390,7 @@ export function setMultiAgentStatsEnabled(enabled) {
 
 /**
  * Update multi-agent statistics display
- * @param {{agentAMoves?:number,agentBMoves?:number,totalConflicts?:number,totalNegotiations?:number,totalDeliberations?:number}} stats
+ * @param {{agentAMoves?:number,agentBMoves?:number,totalConflicts?:number,manualInterventions?:number,replansTriggered?:number}} stats
  */
 export function updateMultiAgentStatsDisplay(stats = {}) {
   if (!multiAgentInitialized) return;
@@ -399,8 +399,8 @@ export function updateMultiAgentStatsDisplay(stats = {}) {
   multiAgentState.agentAMoves = normalizeCount(stats.agentAMoves);
   multiAgentState.agentBMoves = normalizeCount(stats.agentBMoves);
   multiAgentState.totalConflicts = normalizeCount(stats.totalConflicts);
-  multiAgentState.totalNegotiations = normalizeCount(stats.totalNegotiations);
-  multiAgentState.totalDeliberations = normalizeCount(stats.totalDeliberations);
+  multiAgentState.manualInterventions = normalizeCount(stats.manualInterventions);
+  multiAgentState.replansTriggered = normalizeCount(stats.replansTriggered);
 
   renderMultiAgentStats();
 }
@@ -416,7 +416,7 @@ export function resetMultiAgentStats() {
 
 /**
  * Capture a snapshot of multi-agent statistics
- * @returns {{enabled:boolean,agentAMoves:number,agentBMoves:number,totalConflicts:number,totalNegotiations:number,totalDeliberations:number}|null}
+ * @returns {{enabled:boolean,agentAMoves:number,agentBMoves:number,totalConflicts:number,manualInterventions:number,replansTriggered:number}|null}
  */
 export function getMultiAgentStatsSnapshot() {
   if (!multiAgentInitialized || !multiAgentState.enabled) {
@@ -428,14 +428,14 @@ export function getMultiAgentStatsSnapshot() {
     agentAMoves: multiAgentState.agentAMoves ?? 0,
     agentBMoves: multiAgentState.agentBMoves ?? 0,
     totalConflicts: multiAgentState.totalConflicts ?? 0,
-    totalNegotiations: multiAgentState.totalNegotiations ?? 0,
-    totalDeliberations: multiAgentState.totalDeliberations ?? 0
+    manualInterventions: multiAgentState.manualInterventions ?? 0,
+    replansTriggered: multiAgentState.replansTriggered ?? 0
   };
 }
 
 /**
  * Restore multi-agent statistics from snapshot
- * @param {{enabled?:boolean,agentAMoves?:number,agentBMoves?:number,totalConflicts?:number,totalNegotiations?:number,totalDeliberations?:number}|null} snapshot
+ * @param {{enabled?:boolean,agentAMoves?:number,agentBMoves?:number,totalConflicts?:number,manualInterventions?:number,replansTriggered?:number}|null} snapshot
  */
 export function restoreMultiAgentStatsFromSnapshot(snapshot) {
   if (!multiAgentInitialized) return;
@@ -449,8 +449,8 @@ export function restoreMultiAgentStatsFromSnapshot(snapshot) {
   multiAgentState.agentAMoves = normalizeCount(snapshot.agentAMoves);
   multiAgentState.agentBMoves = normalizeCount(snapshot.agentBMoves);
   multiAgentState.totalConflicts = normalizeCount(snapshot.totalConflicts);
-  multiAgentState.totalNegotiations = normalizeCount(snapshot.totalNegotiations);
-  multiAgentState.totalDeliberations = normalizeCount(snapshot.totalDeliberations);
+  multiAgentState.manualInterventions = normalizeCount(snapshot.manualInterventions);
+  multiAgentState.replansTriggered = normalizeCount(snapshot.replansTriggered);
 
   renderMultiAgentStats();
 }
