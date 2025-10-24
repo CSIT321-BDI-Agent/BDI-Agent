@@ -56,21 +56,7 @@ const formatSavedWorldsList = (worlds = []) => {
     const status = typeof stats.status === 'string' && stats.status.trim().length
       ? escapeHtml(stats.status.trim())
       : 'Unknown';
-    const timeline = world?.timeline || {};
-    const timelineCards = Array.isArray(timeline.cards) ? timeline.cards : [];
-    const distinctSteps = timelineCards.length
-      ? new Set(
-          timelineCards
-            .map((card) => (Number.isFinite(card?.stepNumber) ? card.stepNumber : card?.id || card?.summary || ''))
-            .filter(Boolean)
-        ).size
-      : Array.isArray(timeline.log) ? timeline.log.length : 0;
-    const cardCount = timelineCards.length;
-    
-    // Debug: Check what data we're getting
-    console.log(world?.multiAgent);
-    
-    const agentModeDisplay = world?.multiAgent.enabled ? 'Multi-Agent' : 'Single Agent';
+    const agentModeDisplay = world?.multiAgent?.enabled ? 'Multi-Agent' : 'Single Agent';
 
     return `
       <article class="rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -107,9 +93,10 @@ async function loadUsers() {
   try {
     statusEl.textContent = 'Loading users...';
     const list = await api('/admin/users');
-    rows.innerHTML = '';
+    rows.textContent = '';
+    const fragment = document.createDocumentFragment();
 
-    list.forEach(user => {
+    list.forEach((user) => {
       const userId = user._id;
       const username = escapeHtml(user.username || 'Unknown');
       const email = escapeHtml(user.email || '--');
@@ -138,15 +125,16 @@ async function loadUsers() {
           ${roleRaw === 'admin' ? `<button class="action inline-flex items-center gap-1 bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-300" onclick="demote('${userId}')">Demote</button>` : ''}
           <button class="action inline-flex items-center gap-1 bg-red-100 px-3 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-200" onclick="removeUser('${userId}')">Delete</button>
         </td>`;
-      rows.appendChild(tr);
+      fragment.appendChild(tr);
 
       const detailsRow = document.createElement('tr');
       detailsRow.id = `worlds-${userId}`;
       detailsRow.className = 'hidden bg-slate-50';
       detailsRow.innerHTML = `<td colspan="5" class="px-4 py-3">${formatSavedWorldsList(user.savedWorlds)}</td>`;
-      rows.appendChild(detailsRow);
+      fragment.appendChild(detailsRow);
     });
 
+    rows.appendChild(fragment);
     statusEl.textContent = list.length ? 'Users loaded.' : 'No users found.';
   } catch (error) {
     statusEl.textContent = 'Error: ' + error.message;

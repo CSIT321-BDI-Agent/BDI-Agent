@@ -3,8 +3,8 @@
 ## TL;DR
 - Quick start: `docker compose up --build -d` from the repo root, then visit <http://localhost:3000>.
 - No Docker? `npm install`, copy `backend/.env.example` to `.env`, start MongoDB, and run `npm start` inside `backend/`.
-- Multi-agent Belief-Desire-Intention planner (exactly two collaborating agents regardless of tower count) with an Express + Mongo backend and ES module frontend.
-- Dashboard streams claw animations, intention timeline, live stats, and persists worlds for replay.
+- Two-agent BDI planner (Agent-A & Agent-B) expands each logical move into four claw steps so the dashboard can animate, log, and persist every cycle.
+- Dashboard includes live stats, action log, intention timeline, saved-world replay, admin tools, and profile management.
 
 ## Quick Start
 ### Docker (recommended)

@@ -1,9 +1,19 @@
 # Frontend (`public/`)
 
+## Build & Serve
+1. Install dependencies at the repository root: `npm install`
+2. Build or watch Tailwind output:
+   ```bash
+   npm run build:css   # single build
+   npm run watch:css   # rebuild on change
+   ```
+3. Run the backend (Docker or `npm start` inside `backend/`) so static assets and API share the origin.
+4. Visit <http://localhost:3000> while the backend is running. Static-only exploration works by opening the HTML files directly, but authenticated features require the API.
+
 ## Highlights
 - Dashboard-driven Blocks World simulator with live stats, intention timeline, and two synchronized claw animations (Agent-A and Agent-B only).
 - Mirrors backend capabilities: saved worlds, admin console, profile management, agent log viewer, and multi-agent playback.
-- Modular ES module architecture keeps concerns focused (`World`, `timeline`, `stats`, `persistence`, `ui-handlers`, etc.), with selectors centralised in `constants.js`.
+- Modular ES modules keep concerns focused (`World`, `timeline`, `stats`, `persistence`, `ui-handlers`, etc.), with selectors centralised in `constants.js`.
 - Tailwind-powered styling compiled into a single bundle (`assets/app.css`).
 
 ## Key Pages
@@ -14,16 +24,6 @@
 - `import-export.html` – JSON import/export utility for backups and sharing.
 - `login.html` / `signup.html` – authentication forms.
 - `debug.html` – lightweight API tester for planner and persistence endpoints.
-
-## Build & Serve
-1. Install dependencies at the repository root: `npm install`
-2. Build or watch Tailwind output:
-   ```bash
-   npm run build:css   # single build
-   npm run watch:css   # rebuild on change
-   ```
-3. Run the backend (Docker or `npm start` inside `backend/`) so static assets and API share the origin.
-4. Visit <http://localhost:3000> while the backend is running. Static-only exploration works by opening the HTML files directly, but authenticated features require the API.
 
 ## Modules (`public/utils/`)
 | Module | Responsibility |
