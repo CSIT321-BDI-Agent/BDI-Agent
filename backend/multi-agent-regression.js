@@ -81,11 +81,29 @@ const plannerScenarios = [
     ],
     expect: {
       planningApproach: 'multi-tower-independent',
-      agentCount: 3,
+      agentCount: 2,
       minParallelExecutions: 1,
       requireConcurrentCycle: true,
       minMoveCycles: 1
     }
+  },
+  {
+    name: 'Complex three independent towers',
+    stacks: [['A', 'B', 'C', 'D', 'E', 'F'], ['G', 'H', 'I'], ['J', 'K']],
+    goalChain: [
+      ['A', 'B', 'C', 'D', 'E', 'F', 'Table'],
+      ['G', 'H', 'Table'],
+      ['I', 'J', 'K', 'Table']
+    ]
+  },
+  {
+    name: 'Complex three independent towers with non-uniform start',
+    stacks: [['I'], ['D', 'E'], ['A', 'B', 'C', 'F'], ['G', 'H'], ['J'], ['K']],
+    goalChain: [
+      ['A', 'B', 'C', 'D', 'E', 'F', 'Table'],
+      ['G', 'H', 'Table'],
+      ['I', 'J', 'K', 'Table']
+    ]
   }
 ];
 
@@ -120,8 +138,7 @@ function validateParallelActors(result) {
   (result.moves || []).forEach((cycle) => {
     const actors = (cycle.moves || []).map((move) => move.actor);
     if (actors.length > 1) {
-      // Accept Agent-A, Agent-B, Agent-C, Agent-D, etc.
-      const invalid = actors.filter((actor) => !actor.match(/^Agent-[A-Z]$/));
+      const invalid = actors.filter((actor) => actor !== 'Agent-A' && actor !== 'Agent-B');
       if (invalid.length > 0) {
         invalidCycles.push({ cycle: cycle.cycle, actors });
       }

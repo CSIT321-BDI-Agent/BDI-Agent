@@ -1,7 +1,7 @@
 # Frontend (`public/`)
 
 ## Highlights
-- Dashboard-driven Blocks World simulator with live stats, intention timeline, and claw animations.
+- Dashboard-driven Blocks World simulator with live stats, intention timeline, and two synchronized claw animations (Agent-A and Agent-B only).
 - Mirrors backend capabilities: saved worlds, admin console, profile management, agent log viewer, and multi-agent playback.
 - Modular ES module architecture keeps concerns focused (`World`, `timeline`, `stats`, `persistence`, `ui-handlers`, etc.), with selectors centralised in `constants.js`.
 - Tailwind-powered styling compiled into a single bundle (`assets/app.css`).
@@ -51,6 +51,7 @@ Shared selectors live in `constants.js`, ensuring modules interact with the DOM 
 
 ## Development Tips
 - Frontend expects `window.APP_CONFIG` from the backend `/config.js` endpoint; keep the server running when debugging auth or API URLs.
+- Only two agents are ever rendered. If a planner response contains more towers, the simulation still schedules every move onto Agent-A and Agent-B to keep the claws visible and in sync.
 - Timeline, stats, and persistence snapshots must advance together—`persistence.js` coordinates the trio.
 - Drag and drop interactions live in `drag-drop.js` and feed into `ui-handlers.js`; lock/unlock blocks when extending manual mutation logic.
 - Use helpers in `helpers.js` (`showMessage`, `handleError`, `normalizeWorldIdentifier`) instead of bespoke messaging/error flows.

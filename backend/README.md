@@ -2,7 +2,7 @@
 
 ## Highlights
 - JWT-secured REST API powering login, world persistence, planner access, and admin tooling.
-- Multi-agent BDI planner (`bdi/multiAgentEnvironment.js`) with negotiation, independent tower planning, and Claw-step expansion.
+- Multi-agent BDI planner (`bdi/multiAgentEnvironment.js`) with negotiation, independent tower planning, and Claw-step expansion. Execution is capped at two agents (Agent-A and Agent-B); additional towers are time-sliced across them.
 - Saved worlds persist stacks, colours, stats, intention timeline, and planner metadata for replay.
 - Shared utilities for validation (`utils/validators.js`), error handling (`utils/routeHandler.js`), database connectivity, and auth guards.
 

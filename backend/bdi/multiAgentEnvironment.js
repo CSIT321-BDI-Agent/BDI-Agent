@@ -38,7 +38,148 @@ const {
 
 const isTowerBlockToken = (block) => typeof block === 'string' && block !== 'Table';
 const extractTowerBlockSet = (chain) => new Set((Array.isArray(chain) ? chain : []).filter(isTowerBlockToken));
-const flattenGoalChains = (chains) => chains.flat().filter(isTowerBlockToken);
+const flattenGoalChains = (chains = []) => {
+  if (!Array.isArray(chains)) {
+    return [];
+  }
+
+  const flattened = [];
+  chains.forEach(chain => {
+    if (!Array.isArray(chain)) {
+      return;
+    }
+
+    chain.forEach(token => {
+      if (typeof token !== 'string') {
+        return;
+      }
+      const trimmed = token.trim();
+      if (!trimmed) {
+        return;
+      }
+      const normalized = trimmed.toUpperCase() === 'TABLE'
+        ? 'Table'
+        : trimmed.toUpperCase();
+      flattened.push(normalized);
+    });
+  });
+
+  return flattened;
+};
+
+const normalizeActorId = (actor) => {
+  if (typeof actor !== 'string') {
+    return 'Agent-A';
+  }
+  const trimmed = actor.trim();
+  if (!trimmed) {
+    return 'Agent-A';
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower === 'agent-b' || lower === 'b') {
+    return 'Agent-B';
+  }
+
+  return 'Agent-A';
+};
+
+const normalizeBlockId = (block) => {
+  if (typeof block !== 'string') {
+    return null;
+  }
+  const trimmed = block.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const upper = trimmed.toUpperCase();
+  return upper === 'TABLE' ? null : upper;
+};
+
+const getChainBaseBlock = (chain) => {
+  if (!Array.isArray(chain) || chain.length === 0) {
+    return null;
+  }
+
+  const tokens = chain.filter(token => typeof token === 'string' && token.trim().length > 0);
+  if (tokens.length === 0) {
+    return null;
+  }
+
+  const lastToken = tokens[tokens.length - 1];
+  if (lastToken === 'Table') {
+    const candidate = tokens[tokens.length - 2];
+    return normalizeBlockId(candidate);
+  }
+
+  return normalizeBlockId(lastToken);
+};
+
+const extractTowerBaseBlocks = (goalDefinition) => {
+  if (!Array.isArray(goalDefinition) || goalDefinition.length === 0) {
+    return [];
+  }
+
+  if (Array.isArray(goalDefinition[0])) {
+    const bases = new Set();
+    goalDefinition.forEach(chain => {
+      const base = getChainBaseBlock(chain);
+      if (base) {
+        bases.add(base);
+      }
+    });
+    return Array.from(bases);
+  }
+
+  const base = getChainBaseBlock(goalDefinition);
+  return base ? [base] : [];
+};
+
+const normalizeBaseBlocksForState = (baseBlocks, stacks, goalChain) => {
+  const stackBlocks = Array.isArray(stacks) ? stacks.flat() : [];
+  const presentBlocks = new Set(stackBlocks.map(block => normalizeBlockId(block) || block));
+  const goalBlocks = new Set(
+    Array.isArray(goalChain)
+      ? goalChain
+          .filter(token => typeof token === 'string' && token !== 'Table')
+          .map(token => normalizeBlockId(token) || token)
+      : []
+  );
+
+  const normalized = new Set();
+
+  const addBlock = (block) => {
+    const normalizedBlock = normalizeBlockId(block || '');
+    if (!normalizedBlock) {
+      return;
+    }
+    if (presentBlocks.has(normalizedBlock) || goalBlocks.has(normalizedBlock)) {
+      normalized.add(normalizedBlock);
+    }
+  };
+
+  (Array.isArray(baseBlocks) ? baseBlocks : []).forEach(addBlock);
+
+  const chainBase = getChainBaseBlock(goalChain);
+  if (chainBase) {
+    addBlock(chainBase);
+  }
+
+  return Array.from(normalized);
+};
+
+const isGoalSatisfied = (stacks, goalChain, baseBlocks = []) => {
+  if (!goalAchieved(stacks, goalChain)) {
+    return false;
+  }
+
+  if (!Array.isArray(baseBlocks) || baseBlocks.length === 0) {
+    return true;
+  }
+
+  const onMap = deriveOnMap(stacks);
+  return baseBlocks.every(block => onMap[block] === 'Table');
+};
 
 /**
  * Check if goal chains have interdependencies in the current state.
@@ -103,7 +244,6 @@ function planIndependentTowers(initialStacks, goalChains, options = {}) {
     throw new PlanningError('Independent tower planning requires at least one goal chain.', 400);
   }
 
-  // No limit on number of towers - generate dynamic agent IDs
   let normalizedReferenceStacks = null;
 
   const sanitizedChains = goalChains.map((chain, index) => {
@@ -117,19 +257,14 @@ function planIndependentTowers(initialStacks, goalChains, options = {}) {
     return goalChain;
   });
 
-  // Generate dynamic agent IDs for unlimited towers
-  const agentIds = sanitizedChains.map((_, idx) => {
-    if (idx === 0) return 'Agent-A';
-    if (idx === 1) return 'Agent-B';
-    return `Agent-${String.fromCharCode(67 + idx - 2)}`; // Agent-C, Agent-D, etc.
-  });
+  const agentIds = sanitizedChains.map((_, idx) => (idx % 2 === 0 ? 'Agent-A' : 'Agent-B'));
   const towerPlans = sanitizedChains.map((goalChainForTower, idx) => {
     const response = planBlocksWorld(initialStacks, goalChainForTower, options);
     if (!response.goalAchieved) {
       throw new PlanningError(`Unable to achieve tower goal ${idx + 1} with provided configuration.`, 422);
     }
 
-    const agentId = agentIds[idx] || `Agent-${String.fromCharCode(67 + idx)}`;
+    const agentId = agentIds[idx];
     const towerBlocks = goalChainForTower.filter(isTowerBlockToken);
     const towerSummary = towerBlocks.length ? towerBlocks.join(', ') : 'Table';
     const towerLabel = `Tower ${idx + 1}: ${towerSummary}`;
@@ -165,28 +300,48 @@ function planIndependentTowers(initialStacks, goalChains, options = {}) {
     };
   });
 
-  const maxMoveLength = Math.max(...towerPlans.map(plan => plan.moves.length));
+  const maxMoveLength = Math.max(0, ...towerPlans.map(plan => plan.moves.length));
   const combinedMoves = [];
   let cycleIndex = 1;
 
   for (let idx = 0; idx < maxMoveLength; idx += 1) {
-    const cycleMoves = [];
+    const levelMoves = [];
     towerPlans.forEach(plan => {
       const move = plan.moves[idx];
       if (move) {
-        cycleMoves.push({ ...move });
+        levelMoves.push({ ...move });
       }
     });
 
-    if (cycleMoves.length === 0) {
+    if (levelMoves.length === 0) {
       continue;
     }
 
-    combinedMoves.push({
-      cycle: cycleIndex,
-      moves: cycleMoves
-    });
-    cycleIndex += 1;
+    let pending = levelMoves;
+    while (pending.length > 0) {
+      const usedAgents = new Set();
+      const cycleMoves = [];
+      const remaining = [];
+
+      pending.forEach(move => {
+        if (!usedAgents.has(move.actor)) {
+          cycleMoves.push(move);
+          usedAgents.add(move.actor);
+        } else {
+          remaining.push(move);
+        }
+      });
+
+      if (cycleMoves.length > 0) {
+        combinedMoves.push({
+          cycle: cycleIndex,
+          moves: cycleMoves
+        });
+        cycleIndex += 1;
+      }
+
+      pending = remaining;
+    }
   }
 
   // Interleave intention logs to show concurrent execution properly
@@ -205,46 +360,58 @@ function planIndependentTowers(initialStacks, goalChains, options = {}) {
     });
   }
 
-  const finalStacks = towerPlans.reduce((stacksAcc, plan) => {
-    const nextStacks = deepCloneStacks(stacksAcc);
-    plan.moves.forEach(move => {
-      applyMove(nextStacks, move.block, move.to);
+  const finalStacks = deepCloneStacks(normalizedReferenceStacks || initialStacks);
+  combinedMoves.forEach(entry => {
+    entry.moves.forEach(move => {
+      applyMove(finalStacks, move.block, move.to);
     });
-    return nextStacks;
-  }, deepCloneStacks(normalizedReferenceStacks || initialStacks));
+  });
 
   const parallelExecutions = combinedMoves.filter(entry => Array.isArray(entry.moves) && entry.moves.length > 1).length;
 
-  // Build dynamic goal decomposition for unlimited agents
-  const goalDecomposition = { overlap: null };
-  towerPlans.forEach((plan, idx) => {
-    const key = idx === 0 ? 'agentA' : idx === 1 ? 'agentB' : `agent${String.fromCharCode(67 + idx - 2)}`;
-    goalDecomposition[key] = plan.goalChain.join(' -> ');
+  const agentGoalChains = {
+    'Agent-A': [],
+    'Agent-B': []
+  };
+  towerPlans.forEach(plan => {
+    agentGoalChains[plan.agentId].push(plan.goalChain.join(' -> '));
   });
 
-  // Build dynamic statistics for unlimited agents
+  const goalDecomposition = {
+    overlap: null,
+    agentA: agentGoalChains['Agent-A'].join(' | ') || 'Table',
+    agentB: agentGoalChains['Agent-B'].join(' | ') || 'Table'
+  };
+
+  const agentMoveTotals = combinedMoves.reduce((acc, entry) => {
+    entry.moves.forEach(move => {
+      acc[move.actor] = (acc[move.actor] || 0) + 1;
+    });
+    return acc;
+  }, {});
+
   const statistics = {
     totalConflicts: 0,
     totalNegotiations: 0,
     totalDeliberations: 0,
     totalParallelExecutions: parallelExecutions,
     conflictDetails: [],
-    negotiationDetails: []
+    negotiationDetails: [],
+    agentAMoves: agentMoveTotals['Agent-A'] || 0,
+    agentBMoves: agentMoveTotals['Agent-B'] || 0
   };
-  
-  towerPlans.forEach((plan, idx) => {
-    const key = idx === 0 ? 'agentAMoves' : idx === 1 ? 'agentBMoves' : `agent${String.fromCharCode(67 + idx - 2)}Moves`;
-    statistics[key] = plan.moves.length;
-  });
+
+  const iterations = Math.max(0, ...towerPlans.map(plan => plan.raw.iterations || 0));
+  const agentCount = Math.min(2, Math.max(1, sanitizedChains.length));
 
   return {
     moves: combinedMoves,
-    iterations: Math.max(...towerPlans.map(plan => plan.raw.iterations || 0)),
+    iterations,
     goalAchieved: true,
     intentionLog: combinedIntentionLog,
     finalStacks,
     planningApproach: 'multi-tower-independent',
-    agentCount: towerPlans.length,
+    agentCount,
     relationsResolved: sanitizedChains.reduce((total, chain) => total + Math.max(chain.length - 1, 0), 0),
     goalDecomposition,
     statistics,
@@ -267,7 +434,8 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
   const {
     maxIterations = 1000,
     deliberationTimeout = 5000,
-    enableNegotiation = true
+    enableNegotiation = true,
+    towerBaseBlocks = []
   } = options;
 
   // Use existing sanitization and validation
@@ -276,6 +444,25 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
     goalChain,
     options
   );
+
+  const requiredBaseBlocks = normalizeBaseBlocksForState(
+    towerBaseBlocks,
+    normalizedStacks,
+    fullGoalChain
+  );
+
+  const enrichStateWithFacts = (state, goal) => {
+    const facts = computeStateFacts(state.stacks, goal, requiredBaseBlocks);
+    return {
+      ...state,
+      onMap: facts.onMap,
+      clearBlocks: facts.clearBlocks,
+      pendingRelation: facts.pendingRelation,
+      onTableBlocks: facts.onTableBlocks,
+      groundedBaseBlocks: facts.groundedBaseBlocks,
+      missingBaseBlocks: facts.missingBaseBlocks
+    };
+  };
 
   // Decompose goals between agents with staging information
   const decomposition = decomposeGoals(fullGoalChain);
@@ -297,35 +484,36 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
     ? stageBlueprint.foundationChain
     : stageBlueprint.assemblyChain;
 
-  const stateResultA = createInitialPlannerState(normalizedStacks, initialGoalChainA);
-  const initialStateA = stateResultA.alreadySatisfied 
-    ? {
+  const stateResultA = createInitialPlannerState(normalizedStacks, initialGoalChainA, requiredBaseBlocks);
+  const initialStateA = stateResultA.alreadySatisfied
+    ? enrichStateWithFacts({
         stacks: normalizedStacks,
         goalChain: [...initialGoalChainA],
         moves: [],
         goalAchieved: true,
         iterations: 0,
-        intentionLog: [],
-        ...computeStateFacts(normalizedStacks, initialGoalChainA)
-      }
-    : {
+        intentionLog: []
+      }, initialGoalChainA)
+    : enrichStateWithFacts({
         ...stateResultA.initialState,
         goalChain: [...initialGoalChainA]
-      };
+      }, initialGoalChainA);
 
   // Create initial state for Agent B  
-  const stateResultB = createInitialPlannerState(normalizedStacks, goalChainB);
+  const stateResultB = createInitialPlannerState(normalizedStacks, goalChainB, requiredBaseBlocks);
   const initialStateB = stateResultB.alreadySatisfied
-    ? {
+    ? enrichStateWithFacts({
         stacks: normalizedStacks,
-        goalChain: goalChainB,
+        goalChain: [...goalChainB],
         moves: [],
         goalAchieved: true,
         iterations: 0,
-        intentionLog: [],
-        ...computeStateFacts(normalizedStacks, goalChainB)
-      }
-    : stateResultB.initialState;
+        intentionLog: []
+      }, goalChainB)
+    : enrichStateWithFacts({
+        ...stateResultB.initialState,
+        goalChain: [...goalChainB]
+      }, goalChainB);
 
   // Create two agents using existing agent creator
   const agentA = createPlannerAgent(initialStateA, 'agent-a');
@@ -334,7 +522,7 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
   const agentB = createPlannerAgent(initialStateB, 'agent-b');
   agentB._color = '#F46036'; // Store color for visualization
 
-  const globalFacts = computeStateFacts(normalizedStacks, fullGoalChain);
+  const globalFacts = computeStateFacts(normalizedStacks, fullGoalChain, requiredBaseBlocks);
 
   const sharedState = {
     stacks: deepCloneStacks(normalizedStacks),
@@ -349,8 +537,12 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
     onMap: globalFacts.onMap,
     clearBlocks: globalFacts.clearBlocks,
     pendingRelation: globalFacts.pendingRelation,
-    goalAchieved: goalAchieved(normalizedStacks, fullGoalChain),
+    onTableBlocks: globalFacts.onTableBlocks,
+    groundedBaseBlocks: globalFacts.groundedBaseBlocks,
+    missingBaseBlocks: globalFacts.missingBaseBlocks,
+    goalAchieved: isGoalSatisfied(normalizedStacks, fullGoalChain, requiredBaseBlocks),
     iterations: 0,
+    baseBlocks: requiredBaseBlocks,
     staging: {
       currentStage: initialStage,
       foundationChain: [...stageBlueprint.foundationChain],
@@ -421,11 +613,15 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
     const proposals = pendingProposals.filter(entry => entry.move);
 
     if (proposals.length === 0) {
-      const facts = computeStateFacts(nextState.stacks, nextState.goalChain);
+      const baseBlocksForState = nextState.baseBlocks || requiredBaseBlocks;
+      const facts = computeStateFacts(nextState.stacks, nextState.goalChain, baseBlocksForState);
       nextState.onMap = facts.onMap;
       nextState.clearBlocks = facts.clearBlocks;
       nextState.pendingRelation = facts.pendingRelation;
-      nextState.goalAchieved = goalAchieved(nextState.stacks, nextState.goalChain);
+      nextState.onTableBlocks = facts.onTableBlocks;
+      nextState.groundedBaseBlocks = facts.groundedBaseBlocks;
+      nextState.missingBaseBlocks = facts.missingBaseBlocks;
+      nextState.goalAchieved = isGoalSatisfied(nextState.stacks, nextState.goalChain, baseBlocksForState);
 
       if (nextState.staging) {
         const foundationComplete = goalAchieved(nextState.stacks, nextState.staging.foundationChain);
@@ -505,7 +701,12 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
         }
       });
 
-      const beliefsAfterMove = computeStateFacts(stacksAfterMove, nextState.goalChain);
+      const baseBlocksForState = nextState.baseBlocks || requiredBaseBlocks;
+      const beliefsAfterMove = computeStateFacts(
+        stacksAfterMove,
+        nextState.goalChain,
+        baseBlocksForState
+      );
 
       clawSteps.forEach((step, idx) => {
         const resultingStacks = idx === clawSteps.length - 1
@@ -527,17 +728,28 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
           beliefs: {
             pendingRelation: beliefsAfterMove.pendingRelation ? { ...beliefsAfterMove.pendingRelation } : null,
             clearBlocks: [...beliefsAfterMove.clearBlocks],
-            onMap: { ...beliefsAfterMove.onMap }
+            onMap: { ...beliefsAfterMove.onMap },
+            onTableBlocks: [...beliefsAfterMove.onTableBlocks],
+            groundedBaseBlocks: [...beliefsAfterMove.groundedBaseBlocks],
+            missingBaseBlocks: [...beliefsAfterMove.missingBaseBlocks]
           }
         });
       });
     });
 
-    const finalFacts = computeStateFacts(nextState.stacks, nextState.goalChain);
+    const baseBlocksForState = nextState.baseBlocks || requiredBaseBlocks;
+    const finalFacts = computeStateFacts(
+      nextState.stacks,
+      nextState.goalChain,
+      baseBlocksForState
+    );
     nextState.onMap = finalFacts.onMap;
     nextState.clearBlocks = finalFacts.clearBlocks;
     nextState.pendingRelation = finalFacts.pendingRelation;
-    nextState.goalAchieved = goalAchieved(nextState.stacks, nextState.goalChain);
+    nextState.onTableBlocks = finalFacts.onTableBlocks;
+    nextState.groundedBaseBlocks = finalFacts.groundedBaseBlocks;
+    nextState.missingBaseBlocks = finalFacts.missingBaseBlocks;
+    nextState.goalAchieved = isGoalSatisfied(nextState.stacks, nextState.goalChain, baseBlocksForState);
 
     if (nextState.staging) {
       const foundationComplete = goalAchieved(nextState.stacks, nextState.staging.foundationChain);
@@ -578,7 +790,10 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
         beliefs: {
           pendingRelation: finalFacts.pendingRelation ? { ...finalFacts.pendingRelation } : null,
           clearBlocks: [...finalFacts.clearBlocks],
-          onMap: { ...finalFacts.onMap }
+          onMap: { ...finalFacts.onMap },
+          onTableBlocks: [...finalFacts.onTableBlocks],
+          groundedBaseBlocks: [...finalFacts.groundedBaseBlocks],
+          missingBaseBlocks: [...finalFacts.missingBaseBlocks]
         }
       });
     });
@@ -606,14 +821,18 @@ function createMultiAgentEnvironment(initialStacks, goalChain, options = {}) {
       agentGoalChain = staging?.foundationChain || goalChainB;
     }
 
-    const facts = computeStateFacts(state.stacks, agentGoalChain);
+    const baseBlocksForState = state.baseBlocks || requiredBaseBlocks;
+    const facts = computeStateFacts(state.stacks, agentGoalChain, baseBlocksForState);
 
     const filtered = {
       stacks: deepCloneStacks(state.stacks),
       goalChain: [...agentGoalChain],
-      goalAchieved: goalAchieved(state.stacks, agentGoalChain),
+      goalAchieved: isGoalSatisfied(state.stacks, agentGoalChain, baseBlocksForState),
       onMap: { ...facts.onMap },
-      clearBlocks: [...facts.clearBlocks]
+      clearBlocks: [...facts.clearBlocks],
+      onTableBlocks: [...facts.onTableBlocks],
+      groundedBaseBlocks: [...facts.groundedBaseBlocks],
+      missingBaseBlocks: [...facts.missingBaseBlocks]
     };
 
     if (facts.pendingRelation) {
@@ -679,7 +898,10 @@ async function trueBDIPlan(initialStacks, goalPayload, options = {}) {
     enableNegotiation = true
   } = options;
 
+  const initialBaseBlocks = extractTowerBaseBlocks(goalPayload);
+
   const isNestedGoal = Array.isArray(goalPayload) && goalPayload.length > 0 && Array.isArray(goalPayload[0]);
+  let allowIntermediateTable = false;
 
   if (isNestedGoal) {
     if (goalPayload.length > 1) {
@@ -690,8 +912,11 @@ async function trueBDIPlan(initialStacks, goalPayload, options = {}) {
         console.log('[Multi-Agent] Towers have dependencies, using negotiation-based planning');
         // Flatten goal chains for negotiation-based planning
         const flattenedGoal = flattenGoalChains(goalPayload);
-        flattenedGoal.push('Table');
+        if (flattenedGoal[flattenedGoal.length - 1] !== 'Table') {
+          flattenedGoal.push('Table');
+        }
         goalPayload = flattenedGoal;
+        allowIntermediateTable = true;
       } else {
         console.log('[Multi-Agent] No dependencies detected, using independent tower planning');
         return planIndependentTowers(initialStacks, goalPayload, options);
@@ -702,11 +927,21 @@ async function trueBDIPlan(initialStacks, goalPayload, options = {}) {
   }
 
   const goalChain = goalPayload;
+  const combinedBaseBlocks = Array.from(new Set([
+    ...initialBaseBlocks,
+    ...extractTowerBaseBlocks(goalChain)
+  ].filter(Boolean)));
 
   const { environment, goalDecomposition } = createMultiAgentEnvironment(
     initialStacks,
     goalChain,
-    { maxIterations, deliberationTimeout, enableNegotiation }
+    {
+      maxIterations,
+      deliberationTimeout,
+      enableNegotiation,
+      towerBaseBlocks: combinedBaseBlocks,
+      allowIntermediateTable
+    }
   );
 
   try {
@@ -722,8 +957,8 @@ async function trueBDIPlan(initialStacks, goalPayload, options = {}) {
     throw new PlanningError(`Unable to achieve goal within ${maxIterations} iterations.`, 422);
   }
 
-  const agentAMoves = finalState.moves.filter(move => move.actor === 'agent-a' || move.actor === 'Agent-A').length;
-  const agentBMoves = finalState.moves.filter(move => move.actor === 'agent-b' || move.actor === 'Agent-B').length;
+  const agentAMoves = finalState.moves.filter(move => normalizeActorId(move.actor) === 'Agent-A').length;
+  const agentBMoves = finalState.moves.filter(move => normalizeActorId(move.actor) === 'Agent-B').length;
 
   const cycleParticipation = {};
   finalState.moves.forEach((move, index) => {
@@ -731,7 +966,7 @@ async function trueBDIPlan(initialStacks, goalPayload, options = {}) {
     if (!cycleParticipation[cycle]) {
       cycleParticipation[cycle] = new Set();
     }
-    cycleParticipation[cycle].add(move.actor);
+    cycleParticipation[cycle].add(normalizeActorId(move.actor));
   });
   const totalParallelExecutions = Object.values(cycleParticipation)
     .filter(participants => participants.size > 1)
@@ -746,10 +981,7 @@ async function trueBDIPlan(initialStacks, goalPayload, options = {}) {
         deliberation: move.deliberation || {}
       };
     }
-    // Normalize actor casing for frontend compatibility (Agent-A, Agent-B)
-    const normalizedActor = move.actor === 'agent-a' ? 'Agent-A' 
-                          : move.actor === 'agent-b' ? 'Agent-B'
-                          : move.actor;
+    const normalizedActor = normalizeActorId(move.actor);
     acc[cycle].moves.push({
       block: move.block,
       to: move.to,

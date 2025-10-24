@@ -3,7 +3,7 @@
 ## TL;DR
 - Quick start: `docker compose up --build -d` from the repo root, then visit <http://localhost:3000>.
 - No Docker? `npm install`, copy `backend/.env.example` to `.env`, start MongoDB, and run `npm start` inside `backend/`.
-- Multi-agent Belief-Desire-Intention planner (two-agent execution with user-defined tower batches) with an Express + Mongo backend and ES module frontend.
+- Multi-agent Belief-Desire-Intention planner (exactly two collaborating agents regardless of tower count) with an Express + Mongo backend and ES module frontend.
 - Dashboard streams claw animations, intention timeline, live stats, and persists worlds for replay.
 
 ## Quick Start
@@ -53,7 +53,7 @@ docker compose down -v
 Project-level `.env` values are automatically mounted into Docker containers. See `backend/.env.example` for available keys.
 
 ## Architecture Overview
-Belief-Desire-Intention planning drives the simulator. A js-son-powered agent (`backend/bdi/blocksWorldAgent.js`) expands every logical move into four claw steps (move, pick, move, drop) so the frontend can animate each action while keeping stats and timelines in sync.
+Belief-Desire-Intention planning drives the simulator. A js-son-powered agent (`backend/bdi/blocksWorldAgent.js`) expands every logical move into four claw steps (move, pick, move, drop) so the frontend can animate each action while keeping stats and timelines in sync. Whether a goal describes one tower or many, only two agents (Agent-A and Agent-B) ever execute moves; additional towers are scheduled across those arms.
 
 - **Beliefs**: Current stacks, pending relations, derived `onMap`, and `clearBlocks` snapshots for every iteration.
 - **Desires**: Achieve the requested goal chain; stays active until stacks match the target configuration.
@@ -64,6 +64,8 @@ Planner loop highlights:
 2. **Deliberate** – evaluate whether the goal remains unsatisfied.
 3. **Plan** – choose the next action (`CLEAR_BLOCK`, `CLEAR_TARGET`, `STACK`).
 4. **Act** – apply the move, expand it into claw steps, append to the intention log.
+
+The simulator always renders two robotic claws (Agent-A and Agent-B). When more than two tower goals are provided, the planner interleaves extra work across those same agents so the UI never spawns invisible or duplicate arms.
 
 Run `npm run test:planner` inside `backend/` for regression scenarios and generated logs.
 
