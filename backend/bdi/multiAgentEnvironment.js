@@ -103,10 +103,7 @@ function planIndependentTowers(initialStacks, goalChains, options = {}) {
     throw new PlanningError('Independent tower planning requires at least one goal chain.', 400);
   }
 
-  if (goalChains.length > 2) {
-    throw new PlanningError('Independent tower planning currently supports up to two towers.', 400);
-  }
-
+  // No limit on number of towers - generate dynamic agent IDs
   let normalizedReferenceStacks = null;
 
   const sanitizedChains = goalChains.map((chain, index) => {
@@ -120,7 +117,12 @@ function planIndependentTowers(initialStacks, goalChains, options = {}) {
     return goalChain;
   });
 
-  const agentIds = ['Agent-A', 'Agent-B'];
+  // Generate dynamic agent IDs for unlimited towers
+  const agentIds = sanitizedChains.map((_, idx) => {
+    if (idx === 0) return 'Agent-A';
+    if (idx === 1) return 'Agent-B';
+    return `Agent-${String.fromCharCode(67 + idx - 2)}`; // Agent-C, Agent-D, etc.
+  });
   const towerPlans = sanitizedChains.map((goalChainForTower, idx) => {
     const response = planBlocksWorld(initialStacks, goalChainForTower, options);
     if (!response.goalAchieved) {
@@ -213,6 +215,28 @@ function planIndependentTowers(initialStacks, goalChains, options = {}) {
 
   const parallelExecutions = combinedMoves.filter(entry => Array.isArray(entry.moves) && entry.moves.length > 1).length;
 
+  // Build dynamic goal decomposition for unlimited agents
+  const goalDecomposition = { overlap: null };
+  towerPlans.forEach((plan, idx) => {
+    const key = idx === 0 ? 'agentA' : idx === 1 ? 'agentB' : `agent${String.fromCharCode(67 + idx - 2)}`;
+    goalDecomposition[key] = plan.goalChain.join(' -> ');
+  });
+
+  // Build dynamic statistics for unlimited agents
+  const statistics = {
+    totalConflicts: 0,
+    totalNegotiations: 0,
+    totalDeliberations: 0,
+    totalParallelExecutions: parallelExecutions,
+    conflictDetails: [],
+    negotiationDetails: []
+  };
+  
+  towerPlans.forEach((plan, idx) => {
+    const key = idx === 0 ? 'agentAMoves' : idx === 1 ? 'agentBMoves' : `agent${String.fromCharCode(67 + idx - 2)}Moves`;
+    statistics[key] = plan.moves.length;
+  });
+
   return {
     moves: combinedMoves,
     iterations: Math.max(...towerPlans.map(plan => plan.raw.iterations || 0)),
@@ -222,21 +246,8 @@ function planIndependentTowers(initialStacks, goalChains, options = {}) {
     planningApproach: 'multi-tower-independent',
     agentCount: towerPlans.length,
     relationsResolved: sanitizedChains.reduce((total, chain) => total + Math.max(chain.length - 1, 0), 0),
-    goalDecomposition: {
-      agentA: towerPlans[0]?.goalChain.join(' -> ') || null,
-      agentB: towerPlans[1]?.goalChain.join(' -> ') || null,
-      overlap: null
-    },
-    statistics: {
-      agentAMoves: towerPlans[0]?.moves.length || 0,
-      agentBMoves: towerPlans[1]?.moves.length || 0,
-      totalConflicts: 0,
-      totalNegotiations: 0,
-      totalDeliberations: 0,
-      totalParallelExecutions: parallelExecutions,
-      conflictDetails: [],
-      negotiationDetails: []
-    },
+    goalDecomposition,
+    statistics,
     plannerOptionsUsed: {
       maxIterations: options.maxIterations || 2500
     },

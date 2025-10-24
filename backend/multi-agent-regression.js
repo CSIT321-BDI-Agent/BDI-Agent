@@ -72,16 +72,19 @@ const plannerScenarios = [
     }
   },
   {
-    name: 'Three tower split (unsupported)',
-    stacks: [['C'], ['B'], ['A']],
+    name: 'Three independent towers',
+    stacks: [['A'], ['B'], ['C'], ['D'], ['E'], ['F']],
     goalChain: [
-      ['A', 'Table'],
-      ['B', 'Table'],
-      ['C', 'Table']
+      ['A', 'D', 'Table'],
+      ['B', 'E', 'Table'],
+      ['C', 'F', 'Table']
     ],
-    expectFailure: {
-      status: 400,
-      messageIncludes: 'supports up to two towers'
+    expect: {
+      planningApproach: 'multi-tower-independent',
+      agentCount: 3,
+      minParallelExecutions: 1,
+      requireConcurrentCycle: true,
+      minMoveCycles: 1
     }
   }
 ];
@@ -117,7 +120,8 @@ function validateParallelActors(result) {
   (result.moves || []).forEach((cycle) => {
     const actors = (cycle.moves || []).map((move) => move.actor);
     if (actors.length > 1) {
-      const invalid = actors.filter((actor) => actor !== 'Agent-A' && actor !== 'Agent-B');
+      // Accept Agent-A, Agent-B, Agent-C, Agent-D, etc.
+      const invalid = actors.filter((actor) => !actor.match(/^Agent-[A-Z]$/));
       if (invalid.length > 0) {
         invalidCycles.push({ cycle: cycle.cycle, actors });
       }

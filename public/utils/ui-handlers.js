@@ -1136,7 +1136,10 @@ class SimulationController {
       ? this.world.getCurrentStacks()
       : this.world.getStacks?.();
 
-    const isMultiAgent = document.getElementById('multiAgentMode')?.checked || false;
+    // Check if multi-agent mode is enabled OR if there are multiple independent towers
+    const isMultiAgentCheckbox = document.getElementById('multiAgentMode')?.checked || false;
+    const hasMultipleTowers = Array.isArray(this.goalSequence) && this.goalSequence.length > 1;
+    const isMultiAgent = isMultiAgentCheckbox || hasMultipleTowers;
 
     if (isMultiAgent) {
       const enableNegotiation = true;
