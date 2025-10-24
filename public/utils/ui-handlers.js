@@ -12,7 +12,8 @@ import {
   removeAgentClaw,
   layoutClaws,
   getAgentClaw,
-  getAllAgentClaws
+  getAllAgentClaws,
+  normalizeAgentKey
 } from './constants.js';
 import { showMessage, handleError } from './helpers.js';
 import {
@@ -89,6 +90,7 @@ class SimulationController {
     this.mutationQueue = new MutationQueue();
     this.dragManager = null;
     this.claws = {};
+    this.lastPlanAgents = new Set();
   }
 
   initialize() {
@@ -136,15 +138,29 @@ class SimulationController {
 
   syncClawRegistry() {
     ensureAgentClaw('Agent-A');
-    const primary = getAgentClaw('Agent-A');
-    const secondary = getAgentClaw('Agent-B');
+    const worldClaws = getAllAgentClaws();
+    const wantsAgentB = Boolean(this.elements.multiAgentMode?.checked) || this.lastPlanAgents.has('Agent-B');
+    const allowedKeys = wantsAgentB ? new Set(['Agent-A', 'Agent-B']) : new Set(['Agent-A']);
     this.claws = {};
-    if (primary) {
-      this.claws['Agent-A'] = primary;
-    }
-    if (secondary) {
-      this.claws['Agent-B'] = secondary;
-    }
+    worldClaws.forEach((claw) => {
+      if (!claw) return;
+      const normalizedKey = normalizeAgentKey(claw.dataset.agentKey || 'Agent-A');
+      if (!allowedKeys.has(normalizedKey)) {
+        claw.parentElement?.removeChild(claw);
+        return;
+      }
+      claw.dataset.agentKey = normalizedKey;
+      this.claws[normalizedKey] = claw;
+    });
+    allowedKeys.forEach((key) => {
+      if (!this.claws[key]) {
+        const ensured = ensureAgentClaw(key);
+        if (ensured) {
+          ensured.dataset.agentKey = key;
+          this.claws[key] = ensured;
+        }
+      }
+    });
   }
 
   getAllClaws() {
@@ -156,7 +172,61 @@ class SimulationController {
   }
 
   getClawForAgent(agentKey = 'Agent-A') {
-    return this.claws[agentKey] || this.getAllClaws()[0] || null;
+    const normalizedKey = normalizeAgentKey(agentKey);
+    return this.claws[normalizedKey] || this.getAllClaws().find(claw => normalizeAgentKey(claw.dataset.agentKey) === normalizedKey) || null;
+  }
+
+  extractAgentKeysFromPlan(planMoves = []) {
+    if (!Array.isArray(planMoves) || planMoves.length === 0) {
+      return [];
+    }
+    const agentKeys = new Set();
+    const registerMove = (move) => {
+      const key = normalizeAgentKey(move?.actor || move?.agent || '');
+      if (key) {
+        agentKeys.add(key);
+      }
+    };
+
+    planMoves.forEach((group) => {
+      if (!group) {
+        return;
+      }
+      if (Array.isArray(group.moves)) {
+        group.moves.forEach(registerMove);
+      } else {
+        registerMove(group);
+      }
+    });
+
+    return Array.from(agentKeys);
+  }
+
+  ensureClawsForPlanMoves(planMoves = []) {
+    const agentKeys = this.extractAgentKeysFromPlan(planMoves);
+    this.lastPlanAgents = new Set(agentKeys);
+
+    if (agentKeys.length === 0) {
+      this.syncClawRegistry();
+      return;
+    }
+
+    let createdNewClaw = false;
+
+    agentKeys.forEach((agentKey) => {
+      const normalizedKey = normalizeAgentKey(agentKey);
+      const existingClaw = this.claws[normalizedKey] || getAgentClaw(normalizedKey);
+      if (!existingClaw) {
+        ensureAgentClaw(normalizedKey);
+        createdNewClaw = true;
+      }
+    });
+
+    if (createdNewClaw) {
+      this.refreshClawLayout({ durationMs: 200 });
+    } else {
+      this.syncClawRegistry();
+    }
   }
 
   getWorldStacksSnapshot() {
@@ -366,6 +436,7 @@ class SimulationController {
     } else {
       removeAgentClaw('Agent-B');
       this.refreshClawLayout({ durationMs: 0 });
+      this.lastPlanAgents = new Set(['Agent-A']);
     }
     this.syncClawRegistry();
     
@@ -724,6 +795,18 @@ class SimulationController {
           detail: goalLabel
         };
       }
+      case 'CONFLICT_DETECTED': {
+        return {
+          ...base,
+          actor: mutation.actor || 'Agent',
+          block,
+          to: mutation.actualDest || 'Table',
+          reason: 'agent-conflict',
+          stepDescription: `${mutation.actor || 'Agent'} detected conflict: ${mutation.originalDest} blocked`,
+          summary: `Conflict: ${block} → Table`,
+          detail: `Original destination ${mutation.originalDest} was blocked`
+        };
+      }
       default: {
         const typeLabel = typeof mutation.type === 'string'
           ? mutation.type.replace(/_/g, ' ')
@@ -1047,6 +1130,7 @@ class SimulationController {
     }
 
     const moves = Array.isArray(plannerResponse.moves) ? [...plannerResponse.moves] : [];
+    this.ensureClawsForPlanMoves(moves);
     this.activePlan = moves;
     
     // Get the most recent manual move from the log
@@ -1136,7 +1220,10 @@ class SimulationController {
       ? this.world.getCurrentStacks()
       : this.world.getStacks?.();
 
-    const isMultiAgent = document.getElementById('multiAgentMode')?.checked || false;
+    // Check if multi-agent mode is enabled OR if there are multiple independent towers
+    const isMultiAgentCheckbox = document.getElementById('multiAgentMode')?.checked || false;
+    const hasMultipleTowers = Array.isArray(this.goalSequence) && this.goalSequence.length > 1;
+    const isMultiAgent = isMultiAgentCheckbox || hasMultipleTowers;
 
     if (isMultiAgent) {
       const enableNegotiation = true;
@@ -1326,6 +1413,8 @@ class SimulationController {
     const isMultiAgent = plannerResponse.statistics?.agentAMoves !== undefined;
     const agentCount = plannerResponse.agentCount || (isMultiAgent ? 2 : 1);
 
+    this.ensureClawsForPlanMoves(plannerResponse.moves || []);
+
     if (plannerResponse.planningApproach === 'multi-tower-independent' && Array.isArray(this.goalSequence) && this.goalSequence.length > 0) {
       this.goalSequenceIndex = this.goalSequence.length - 1;
       this.currentGoalChains = this.cloneGoalChains(this.goalSequence);
@@ -1455,6 +1544,7 @@ class SimulationController {
 
     const stepDuration = () => this.speedController.getStepDuration();
     let aborted = false;
+    let conflictOccurred = false;
 
     const availableClaws = this.getAllClaws();
 
@@ -1481,15 +1571,12 @@ class SimulationController {
       }
 
       const nextMoveGroup = this.activePlan.shift();
-      console.log('[EXEC] nextMoveGroup:', nextMoveGroup);
       
       const moveBatch = Array.isArray(nextMoveGroup?.moves)
         ? nextMoveGroup.moves.filter(Boolean)
         : nextMoveGroup
           ? [nextMoveGroup]
           : [];
-
-      console.log('[EXEC] moveBatch.length:', moveBatch.length);
 
       if (!moveBatch.length) {
         continue;
@@ -1498,12 +1585,9 @@ class SimulationController {
       const preparedMoves = moveBatch.map((move) => {
         const agentKey = move?.actor || move?.agent || 'Agent-A';
         const claw = this.getClawForAgent(agentKey) || this.getClawForAgent('Agent-A');
-        console.log(`[EXEC] Preparing ${agentKey}: ${move.block} → ${move.to}, claw:`, claw?.id);
         return { move, agentKey, claw };
       });
       
-      console.log('[EXEC] Will execute', preparedMoves.length, 'moves in parallel');
-
       const missingClaw = preparedMoves.some(({ claw }) => !claw);
       if (missingClaw) {
         showMessage('No available robotic arm to execute the next move batch. Stopping simulation.', 'error');
@@ -1532,7 +1616,6 @@ class SimulationController {
       );
       
       if (hadActiveDrag) {
-        console.log('[EXEC] Cancelling active drag before animation');
         this.dragManager.forceCancelDrag();
         // Small delay to ensure block is reattached properly
         await this.wait(50);
@@ -1545,7 +1628,6 @@ class SimulationController {
           this.dragManager?.lockBlocks([blockToLock]);
         }
 
-        console.log(`[EXEC] Launching simulateMove for ${move.actor || 'unknown'}: ${move.block} → ${move.to}`);
 
         return new Promise((resolve) => {
           simulateMove(
@@ -1555,26 +1637,49 @@ class SimulationController {
             claw,
             markTimelineStep,
             () => {
-              console.log(`[EXEC] Completed simulateMove for ${move.actor || 'unknown'}: ${move.block}`);
               if (blockToLock) {
                 this.dragManager?.unlockBlocks([blockToLock]);
               }
               resolve();
             },
-            { durationMs: stepDuration() }
+            { 
+              durationMs: stepDuration(),
+              onConflictDetected: (conflictInfo) => {
+                // Conflict detected - record it and request replan
+                conflictOccurred = true;
+                logAction(`Conflict: ${conflictInfo.block} destination ${conflictInfo.originalDest} blocked, placed on table instead`, 'system');
+                showMessage(`Conflict detected: ${conflictInfo.block} placed on table. Re-planning...`, 'warning');
+                
+                // Record the conflict as a mutation for timeline tracking
+                this.recordMutation({
+                  type: 'CONFLICT_DETECTED',
+                  block: conflictInfo.block,
+                  originalDest: conflictInfo.originalDest,
+                  actualDest: conflictInfo.actualDest,
+                  reason: conflictInfo.reason,
+                  actor: conflictInfo.actor
+                });
+                
+                // Request replan after this move completes
+                this.requestReplan('agent-conflict');
+              }
+            }
           );
         });
       });
 
-      console.log('[EXEC] Waiting for', promises.length, 'parallel animations...');
       await Promise.all(promises);
-      console.log('[EXEC] All parallel animations completed');
       
       // Update all DOM positions after parallel animations complete
       this.world.updatePositions();
-      console.log('[EXEC] World positions synchronized');
       
       this.executedMoveCount += moveBatch.length;
+      
+      // If a conflict occurred during this batch, handle checkpoint to trigger replan
+      if (conflictOccurred) {
+        conflictOccurred = false;
+        await this.handleCheckpoint();
+      }
     }
 
     this.dragManager?.clearLockedBlocks?.();

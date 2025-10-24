@@ -41,6 +41,69 @@ const plannerScenarios = [
     name: 'Frontend stress scenario',
     stacks: [['E'], ['I'], ['G', 'F', 'D', 'B', 'A', 'C'], ['H']],
     goalChain: ['A', 'B', 'C', 'D', 'E', 'F', 'Table']
+  },
+  {
+    name: 'Independent towers (parallel)',
+    stacks: [['C'], ['B'], ['A'], ['D']],
+    goalChain: [
+      ['C', 'B', 'Table'],
+      ['A', 'D', 'Table']
+    ],
+    expect: {
+      planningApproach: 'multi-tower-independent',
+      agentCount: 2,
+      minParallelExecutions: 1,
+      requireConcurrentCycle: true,
+      minMoveCycles: 1
+    }
+  },
+  {
+    name: 'Independent towers (dependency fallback)',
+    stacks: [['C', 'D'], ['A', 'B']],
+    goalChain: [
+      ['A', 'B', 'Table'],
+      ['C', 'D', 'Table']
+    ],
+    expect: {
+      planningApproach: 'true-multi-agent-bdi',
+      agentCount: 2,
+      maxParallelExecutions: 0,
+      minMoveCycles: 4
+    }
+  },
+  {
+    name: 'Three independent towers',
+    stacks: [['A'], ['B'], ['C'], ['D'], ['E'], ['F']],
+    goalChain: [
+      ['A', 'D', 'Table'],
+      ['B', 'E', 'Table'],
+      ['C', 'F', 'Table']
+    ],
+    expect: {
+      planningApproach: 'multi-tower-independent',
+      agentCount: 2,
+      minParallelExecutions: 1,
+      requireConcurrentCycle: true,
+      minMoveCycles: 1
+    }
+  },
+  {
+    name: 'Complex three independent towers',
+    stacks: [['A', 'B', 'C', 'D', 'E', 'F'], ['G', 'H', 'I'], ['J', 'K']],
+    goalChain: [
+      ['A', 'B', 'C', 'D', 'E', 'F', 'Table'],
+      ['G', 'H', 'Table'],
+      ['I', 'J', 'K', 'Table']
+    ]
+  },
+  {
+    name: 'Complex three independent towers with non-uniform start',
+    stacks: [['I'], ['D', 'E'], ['A', 'B', 'C', 'F'], ['G', 'H'], ['J'], ['K']],
+    goalChain: [
+      ['A', 'B', 'C', 'D', 'E', 'F', 'Table'],
+      ['G', 'H', 'Table'],
+      ['I', 'J', 'K', 'Table']
+    ]
   }
 ];
 
@@ -66,6 +129,10 @@ function formatStacks(stacks) {
   return JSON.stringify(stacks);
 }
 
+function hasConcurrentCycle(moves = []) {
+  return moves.some((cycle) => Array.isArray(cycle?.moves) && cycle.moves.filter(Boolean).length > 1);
+}
+
 function validateParallelActors(result) {
   const invalidCycles = [];
   (result.moves || []).forEach((cycle) => {
@@ -88,24 +155,102 @@ function validateParallelActors(result) {
 
 async function runPlannerScenario(scenario) {
   const start = Date.now();
-  const result = await trueBDIPlan(scenario.stacks, scenario.goalChain, scenario.options);
-  const elapsed = Date.now() - start;
 
-  validateParallelActors(result);
+  try {
+    const result = await trueBDIPlan(scenario.stacks, scenario.goalChain, scenario.options);
+    const elapsed = Date.now() - start;
 
-  const stats = result.statistics || {};
-  console.log(`✓ ${scenario.name}`);
-  console.log(`  Iterations: ${result.iterations}`);
-  console.log(`  Moves: ${stats.agentAMoves + stats.agentBMoves || (result.moves || []).reduce((sum, cycle) => sum + (cycle.moves ? cycle.moves.length : 0), 0)} (Agent-A: ${stats.agentAMoves ?? 'n/a'}, Agent-B: ${stats.agentBMoves ?? 'n/a'})`);
-  console.log(`  Conflicts: ${stats.totalConflicts ?? 'n/a'}, Negotiations: ${stats.totalNegotiations ?? 'n/a'}`);
-  console.log(`  Parallel cycles: ${stats.totalParallelExecutions ?? 'n/a'}`);
-  console.log(`  Time: ${elapsed}ms`);
-  console.log(`  Goal achieved: ${result.goalAchieved}`);
-  console.log(`  Stacks: ${formatStacks(scenario.stacks)}`);
-  console.log(`  Goal: ${scenario.goalChain.join(' → ')}\n`);
+    if (scenario.expectFailure) {
+      throw new Error('Scenario succeeded but was expected to fail.');
+    }
 
-  return { success: true, elapsed, result };
+    validateParallelActors(result);
+
+    const stats = result.statistics || {};
+    const agentAMoveCount = typeof stats.agentAMoves === 'number' ? stats.agentAMoves : undefined;
+    const agentBMoveCount = typeof stats.agentBMoves === 'number' ? stats.agentBMoves : undefined;
+    const totalMoves = Number.isFinite(agentAMoveCount) && Number.isFinite(agentBMoveCount)
+      ? agentAMoveCount + agentBMoveCount
+      : (result.moves || []).reduce(
+          (sum, cycle) => sum + (Array.isArray(cycle?.moves) ? cycle.moves.length : 0),
+          0
+        );
+
+    if (scenario.expect) {
+      const {
+        planningApproach,
+        agentCount,
+        minParallelExecutions,
+        maxParallelExecutions,
+        requireConcurrentCycle,
+        minMoveCycles,
+        goalAchieved
+      } = scenario.expect;
+
+      const errors = [];
+      if (planningApproach && result.planningApproach !== planningApproach) {
+        errors.push(`planningApproach expected ${planningApproach}, got ${result.planningApproach}`);
+      }
+      if (Number.isFinite(agentCount) && result.agentCount !== agentCount) {
+        errors.push(`agentCount expected ${agentCount}, got ${result.agentCount}`);
+      }
+      if (Number.isFinite(minParallelExecutions) && (stats.totalParallelExecutions ?? 0) < minParallelExecutions) {
+        errors.push(`totalParallelExecutions expected >= ${minParallelExecutions}, got ${stats.totalParallelExecutions ?? 0}`);
+      }
+      if (Number.isFinite(maxParallelExecutions) && (stats.totalParallelExecutions ?? 0) > maxParallelExecutions) {
+        errors.push(`totalParallelExecutions expected <= ${maxParallelExecutions}, got ${stats.totalParallelExecutions ?? 0}`);
+      }
+      if (requireConcurrentCycle && !hasConcurrentCycle(result.moves || [])) {
+        errors.push('expected at least one concurrent move cycle');
+      }
+      if (Number.isFinite(minMoveCycles) && (result.moves?.length ?? 0) < minMoveCycles) {
+        errors.push(`move cycles expected >= ${minMoveCycles}, got ${result.moves?.length ?? 0}`);
+      }
+      if (typeof goalAchieved === 'boolean' && result.goalAchieved !== goalAchieved) {
+        errors.push(`goalAchieved expected ${goalAchieved}, got ${result.goalAchieved}`);
+      }
+
+      if (errors.length > 0) {
+        throw new Error(`Expectation failure: ${errors.join('; ')}`);
+      }
+    }
+
+    console.log(`\u2714 ${scenario.name}`);
+    console.log(`  Iterations: ${result.iterations}`);
+    console.log(`  Moves: ${totalMoves} (Agent-A: ${agentAMoveCount ?? 'n/a'}, Agent-B: ${agentBMoveCount ?? 'n/a'})`);
+    console.log(`  Conflicts: ${stats.totalConflicts ?? 'n/a'}, Negotiations: ${stats.totalNegotiations ?? 'n/a'}`);
+    console.log(`  Parallel cycles: ${stats.totalParallelExecutions ?? 'n/a'}`);
+    console.log(`  Planning approach: ${result.planningApproach}`);
+    console.log(`  Time: ${elapsed}ms`);
+    console.log(`  Goal achieved: ${result.goalAchieved}`);
+    console.log(`  Stacks: ${formatStacks(scenario.stacks)}`);
+    console.log(`  Goal: ${Array.isArray(scenario.goalChain) ? JSON.stringify(scenario.goalChain) : scenario.goalChain}`);
+    console.log();
+
+    return { success: true, elapsed, result };
+  } catch (error) {
+    if (scenario.expectFailure) {
+      const { status, messageIncludes } = scenario.expectFailure;
+      const statusMatches = !Number.isFinite(status) || error.status === status;
+      const messageMatches = !messageIncludes || (typeof error.message === 'string' && error.message.includes(messageIncludes));
+
+      if (statusMatches && messageMatches) {
+        const elapsed = Date.now() - start;
+        console.log(`\u2714 ${scenario.name} (expected failure)`);
+        console.log(`  Status: ${error.status ?? 'n/a'}`);
+        console.log(`  Message: ${error.message}`);
+        console.log(`  Time: ${elapsed}ms`);
+        console.log();
+        return { success: true, expectedFailure: true, elapsed, error };
+      }
+
+      throw new Error(`Unexpected failure outcome: ${error.message}`);
+    }
+
+    throw error;
+  }
 }
+
 
 async function runPlannerSuite() {
   console.log('╔══════════════════════════════════════════════╗');

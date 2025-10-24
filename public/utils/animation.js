@@ -5,6 +5,7 @@
  * - 4-step robotic claw sequence (move to source, pick up, move to dest, drop)
  * - Block transitions
  * - Timeline updates after moves
+ * - Freeze/pause on user intervention
  */
 
 import { BLOCK_WIDTH, BLOCK_HEIGHT, WORLD_HEIGHT, CLAW_HEIGHT, CLAW_OFFSET, STACK_MARGIN, resetClawToHome, CLAW_HOME_TOP } from './constants.js';
@@ -15,6 +16,45 @@ const MOVING_CLASSES = ['shadow-[0_0_12px_rgba(79,209,197,0.45)]', 'ring-2', 'ri
 
 const MIN_AXIS_SEGMENT_DURATION = 80;
 const SAFE_CLAW_TOP = CLAW_HOME_TOP;
+
+// Global animation freeze state
+let animationFrozen = false;
+let freezeResolvers = [];
+
+/**
+ * Freeze all ongoing animations
+ */
+export function freezeAnimations() {
+  animationFrozen = true;
+}
+
+/**
+ * Resume all frozen animations
+ */
+export function resumeAnimations() {
+  animationFrozen = false;
+  // Resolve all waiting promises
+  freezeResolvers.forEach(resolve => resolve());
+  freezeResolvers = [];
+}
+
+/**
+ * Check if animations are currently frozen
+ */
+export function areAnimationsFrozen() {
+  return animationFrozen;
+}
+
+/**
+ * Wait while animations are frozen
+ */
+async function waitWhileFrozen() {
+  if (!animationFrozen) return;
+  
+  return new Promise(resolve => {
+    freezeResolvers.push(resolve);
+  });
+}
 
 const computeContactDuration = (stepDuration) => {
   if (!Number.isFinite(stepDuration)) {
@@ -118,6 +158,7 @@ function easeLinear(t) {
 
 /**
  * RAF-based animation loop - frame-perfect synchronization
+ * Now supports freeze/resume for user interventions
  */
 async function animateClawPath(claw, blockDiv, steps, duration) {
   if (!claw || !Array.isArray(steps) || steps.length === 0) {
@@ -167,8 +208,24 @@ async function animateClawPath(claw, blockDiv, steps, duration) {
     let currentWaypointIndex = 1;
     let segmentStartTime = performance.now();
     let animationFrameId = null;
+    let frozenSince = null;
 
-    const animate = (currentTime) => {
+    const animate = async (currentTime) => {
+      // Check if we need to freeze
+      if (animationFrozen) {
+        if (!frozenSince) {
+          frozenSince = currentTime;
+        }
+        // Wait for resume
+        await waitWhileFrozen();
+        // Resume animation - adjust timing
+        const freezeDuration = performance.now() - frozenSince;
+        segmentStartTime += freezeDuration;
+        frozenSince = null;
+        animationFrameId = window.requestAnimationFrame(animate);
+        return;
+      }
+
       if (currentWaypointIndex >= waypoints.length) {
         // Animation complete
         resolve();
@@ -243,16 +300,19 @@ function getBlockPosition(world, blockName) {
 /**
  * Simulate a single block move with 4-step claw animation
  * Each step is treated as a single timeline update for the plan
+ * Now supports conflict detection and automatic table placement
  * @param {Object} move - Move object {block, to, clawSteps}
  * @param {Object} world - World instance
  * @param {HTMLElement} worldElem - World container element
  * @param {HTMLElement} claw - Claw element
  * @param {Function} markTimelineStep - Function to mark timeline step completion
  * @param {Function} callback - Callback when animation completes
+ * @param {Object} options - Options including onConflictDetected callback
  */
 export async function simulateMove(move, world, worldElem, claw, markTimelineStep, callback, options = {}) {
   const blockName = move.block;
-  const dest = move.to;
+  const originalDest = move.to;
+  let dest = originalDest;
   const actor = move.actor || 'Agent-A';
   const duration = Number.isFinite(options.durationMs)
     ? Math.max(100, Math.round(options.durationMs))
@@ -310,14 +370,35 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
       markTimelineStep({ type: 'PICK_UP', block: blockName, actor, stepNumber: 2 });
     }
 
-  // === STEP 3: Apply the move in world state ===
-  // Update logical world state first so downstream consumers (timeline, stats) stay in sync
-  world.moveBlock(blockName, dest);
-  // Realign every other block immediately (skip the one currently attached to the claw)
-  // so the destination stack is already in place when the claw arrives.
-  world.updatePositions(blockName);
+    // === CONFLICT DETECTION: Check if destination is still valid ===
+    // Specifically, check if the destination became blocked between planning and execution.
+    let conflictDetected = false;
+    if (dest !== 'Table' && !world.isClear(dest)) {
+      // Destination is blocked - force place on table
+      conflictDetected = true;
+      console.log(`[CONFLICT] ${actor}: Destination ${dest} is blocked. Placing ${blockName} on table instead.`);
+      dest = 'Table';
+      
+      // Notify controller about conflict
+      if (typeof options.onConflictDetected === 'function') {
+        options.onConflictDetected({
+          block: blockName,
+          originalDest,
+          actualDest: 'Table',
+          reason: 'destination-blocked',
+          actor
+        });
+      }
+    }
 
-  // Calculate destination position based on new world state
+    // === STEP 3: Apply the move in world state ===
+    // Update logical world state first so downstream consumers (timeline, stats) stay in sync
+    world.moveBlock(blockName, dest);
+    // Realign every other block immediately (skip the one currently attached to the claw)
+    // so the destination stack is already in place when the claw arrives.
+    world.updatePositions(blockName);
+
+    // Calculate destination position based on new world state
     const destPos = getBlockPosition(world, blockName);
     if (!destPos) {
       throw new Error(`Block ${blockName} not found after move`);
@@ -372,8 +453,8 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     blockDiv.style.transition = '';
     
     // Manually position block at destination (updatePositions will be called by executor after all parallel moves)
-    blockDiv.style.left = `${destLeft}px`;
-    blockDiv.style.top = `${destTop}px`;
+    blockDiv.style.left = `${destPos.left}px`;
+    blockDiv.style.top = `${destPos.top}px`;
     
     // Mark step 4 complete in timeline
     if (typeof markTimelineStep === 'function') {
@@ -390,7 +471,10 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     
     // Log complete move to Action Log
     const destination = dest === 'Table' ? 'Table' : dest;
-    logMove(`Move ${blockName} → ${destination}`);
+    const logMessage = conflictDetected 
+      ? `Move ${blockName} → ${destination} (conflict: ${originalDest} blocked)`
+      : `Move ${blockName} → ${destination}`;
+    logMove(logMessage);
     
     console.log(`[ANIM END] ${actor}: ${blockName} → ${dest} completed`);
     callback();

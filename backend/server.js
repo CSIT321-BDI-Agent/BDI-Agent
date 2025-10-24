@@ -247,6 +247,13 @@ const sanitizeColourMap = (input) => {
   }, {});
 };
 
+const assignIfDefined = (target, key, value) => {
+  if (value !== undefined) {
+    target[key] = value;
+  }
+  return target;
+};
+
 const sanitizeTimelineSnapshot = (snapshot) => {
   if (!snapshot || typeof snapshot !== 'object') {
     return null;
@@ -282,10 +289,7 @@ const sanitizeTimelineSnapshot = (snapshot) => {
         status: sanitizeString(card.status) || 'pending',
         isManual: Boolean(card.isManual)
       };
-      const completedAt = sanitizeNumber(card.completedAt);
-      if (completedAt !== undefined) {
-        sanitizedCard.completedAt = completedAt;
-      }
+      assignIfDefined(sanitizedCard, 'completedAt', sanitizeNumber(card.completedAt));
       return sanitizedCard;
     })
     .filter(card => Object.keys(card).length > 0);
@@ -304,14 +308,8 @@ const sanitizeTimelineSnapshot = (snapshot) => {
           status: typeof card.status === 'string' && card.status.trim().length ? card.status.trim() : 'pending',
           isManual: Boolean(card.isManual)
         };
-        const stepNumber = sanitizeNumber(card.stepNumber);
-        if (stepNumber !== undefined) {
-          fallbackCard.stepNumber = stepNumber;
-        }
-        const completedAt = sanitizeNumber(card.completedAt);
-        if (completedAt !== undefined) {
-          fallbackCard.completedAt = completedAt;
-        }
+        assignIfDefined(fallbackCard, 'stepNumber', sanitizeNumber(card.stepNumber));
+        assignIfDefined(fallbackCard, 'completedAt', sanitizeNumber(card.completedAt));
         const stepLabel = sanitizeString(card.stepLabel);
         if (stepLabel) {
           fallbackCard.stepLabel = stepLabel;
@@ -368,9 +366,11 @@ const sanitizeTimelineSnapshot = (snapshot) => {
             moves: sanitizedGroupMoves
           };
           const groupCycle = sanitizeNumber(group.cycle);
-          if (groupCycle !== undefined) {
-            sanitizedGroup.cycle = Math.max(0, Math.floor(groupCycle));
-          }
+          assignIfDefined(
+            sanitizedGroup,
+            'cycle',
+            groupCycle !== undefined ? Math.max(0, Math.floor(groupCycle)) : undefined
+          );
           const label = sanitizeString(group.label || group.summary || group.stepLabel);
           if (label) {
             sanitizedGroup.label = label;
@@ -388,9 +388,11 @@ const sanitizeTimelineSnapshot = (snapshot) => {
   }
 
   const agentCount = sanitizeNumber(snapshot.agentCount);
-  if (agentCount !== undefined) {
-    sanitized.agentCount = Math.max(0, Math.floor(agentCount));
-  }
+  assignIfDefined(
+    sanitized,
+    'agentCount',
+    agentCount !== undefined ? Math.max(0, Math.floor(agentCount)) : undefined
+  );
 
   const clockDisplay = sanitizeString(snapshot.clockDisplay);
   if (clockDisplay) {
@@ -398,9 +400,11 @@ const sanitizeTimelineSnapshot = (snapshot) => {
   }
 
   const clockStart = sanitizeNumber(snapshot.clockStart);
-  if (clockStart !== undefined) {
-    sanitized.clockStart = Math.max(0, Math.floor(clockStart));
-  }
+  assignIfDefined(
+    sanitized,
+    'clockStart',
+    clockStart !== undefined ? Math.max(0, Math.floor(clockStart)) : undefined
+  );
 
   const mode = sanitizeString(snapshot.mode);
   if (mode) {
@@ -408,18 +412,18 @@ const sanitizeTimelineSnapshot = (snapshot) => {
   }
 
   const updatedAt = sanitizeNumber(snapshot.updatedAt);
-  if (updatedAt !== undefined) {
-    sanitized.updatedAt = Math.max(0, Math.floor(updatedAt));
-  }
+  assignIfDefined(
+    sanitized,
+    'updatedAt',
+    updatedAt !== undefined ? Math.max(0, Math.floor(updatedAt)) : undefined
+  );
 
   if (snapshot.statistics && typeof snapshot.statistics === 'object') {
     const statistics = {};
     ['agentAMoves', 'agentBMoves', 'totalConflicts', 'totalNegotiations', 'totalDeliberations', 'totalParallelExecutions']
       .forEach((key) => {
         const value = sanitizeNumber(snapshot.statistics[key]);
-        if (value !== undefined) {
-          statistics[key] = Math.max(0, Math.floor(value));
-        }
+        assignIfDefined(statistics, key, value !== undefined ? Math.max(0, Math.floor(value)) : undefined);
       });
     if (Object.keys(statistics).length > 0) {
       sanitized.statistics = statistics;
@@ -520,6 +524,16 @@ const normalizeBlocksList = (blocks) => {
   });
 };
 
+const sanitizeMultiAgentSnapshot = (raw) => {
+  if (raw == null || typeof raw !== 'object') {
+    return { enabled: false };
+  }
+
+  return {
+    enabled: Boolean(raw.enabled)
+  };
+};
+
 const sanitizeWorldPayload = (raw = {}) => {
   const {
     name,
@@ -528,7 +542,8 @@ const sanitizeWorldPayload = (raw = {}) => {
     colours,
     colors,
     timeline,
-    stats
+    stats,
+    multiAgent
   } = raw;
 
   const normalizedName = ensureNonEmptyString(name, 'Valid world name');
@@ -541,7 +556,8 @@ const sanitizeWorldPayload = (raw = {}) => {
     stacks: validateStacksPayload(stacksArray).map(stack => [...stack]),
     colours: sanitizeColourMap(colours ?? colors),
     timeline: sanitizeTimelineSnapshot(timeline),
-    stats: sanitizeStatsSnapshot(stats)
+    stats: sanitizeStatsSnapshot(stats),
+    multiAgent: sanitizeMultiAgentSnapshot(multiAgent)
   };
 };
 

@@ -337,12 +337,15 @@
                       id="stat-agent-a-moves">--</span></div>
                   <div class="flex justify-between"><strong>Agent B Moves:</strong> <span
                       id="stat-agent-b-moves">--</span></div>
-                  <div class="flex justify-between"><strong>Conflicts:</strong> <span id="stat-conflicts">--</span>
+                  <div class="flex justify-between"><strong>Destination Conflicts:</strong> <span id="stat-conflicts">--</span>
                   </div>
-                  <div class="flex justify-between"><strong>Negotiations:</strong> <span
-                      id="stat-negotiations">--</span></div>
-                  <div class="flex justify-between"><strong>Deliberations:</strong> <span
-                      id="stat-deliberations">--</span></div>
+                  <div class="flex justify-between"><strong>Manual Interventions:</strong> <span
+                      id="stat-manual-interventions">--</span></div>
+                  <div class="flex justify-between"><strong>Replans Triggered:</strong> <span
+                      id="stat-replans">--</span></div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-200/50">
+                  <p class="text-xs text-brand-dark/60 italic">Drag blocks during execution to trigger freeze & replan. Conflicts occur when destinations become blocked.</p>
                 </div>
               </div>
             </div>
@@ -381,18 +384,7 @@
   </div>
 
   <script src="config.js"></script>
-  <script type="module">
-    import { requireAuth, logout as authLogout, updateUIWithUserInfo } from './utils/auth.js';
-    requireAuth();
-
-    window.logout = authLogout;
-
-    window.addEventListener('load', () => {
-      updateUIWithUserInfo({
-        adminNav: '.admin-nav-link'
-      });
-    });
-  </script>
+  <script type="module" src="utils/dashboard-auth.js"></script>
   <script type="module" src="utils/main.js"></script>
 </body>
 

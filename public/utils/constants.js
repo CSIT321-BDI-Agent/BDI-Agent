@@ -103,6 +103,22 @@ const AGENT_CLAW_MAP = {
   }
 };
 
+export function normalizeAgentKey(agentKey) {
+  if (typeof agentKey !== 'string') return 'Agent-A';
+  const trimmed = agentKey.trim();
+  if (!trimmed) return 'Agent-A';
+  const lower = trimmed.toLowerCase();
+  if (lower === 'agent-b' || lower === 'b') {
+    return 'Agent-B';
+  }
+  return 'Agent-A';
+}
+
+function ensureClawConfig(agentKey) {
+  const normalizedKey = normalizeAgentKey(agentKey);
+  return AGENT_CLAW_MAP[normalizedKey] || AGENT_CLAW_MAP['Agent-A'];
+}
+
 const CLAW_DATA_ATTRIBUTE = 'data-agent-claw';
 
 // API Configuration
@@ -148,7 +164,8 @@ const createLabel = (text) => {
 };
 
 export function getAgentClaw(agentKey) {
-  const config = AGENT_CLAW_MAP[agentKey];
+  const normalizedKey = normalizeAgentKey(agentKey);
+  const config = ensureClawConfig(normalizedKey);
   if (!config) return null;
   return document.getElementById(config.id);
 }
@@ -160,10 +177,11 @@ export function getAllAgentClaws() {
 }
 
 function applyClawClasses(claw, config, agentKey) {
+  const normalizedKey = normalizeAgentKey(agentKey);
   claw.className = config.classes;
   claw.dataset.armClass = config.armClass;
-  if (agentKey) {
-    claw.dataset.agentKey = agentKey;
+  if (normalizedKey) {
+    claw.dataset.agentKey = normalizedKey;
   }
 }
 
@@ -189,7 +207,8 @@ export function ensureAgentClaw(agentKey) {
   const worldElem = DOM.world();
   if (!worldElem) return null;
 
-  const config = AGENT_CLAW_MAP[agentKey];
+  const normalizedKey = normalizeAgentKey(agentKey);
+  const config = ensureClawConfig(normalizedKey);
   if (!config) {
     return null;
   }
@@ -199,13 +218,14 @@ export function ensureAgentClaw(agentKey) {
     claw = document.createElement('div');
     claw.id = config.id;
     claw.setAttribute(CLAW_DATA_ATTRIBUTE, 'true');
-    claw.dataset.agentKey = agentKey;
-    applyClawClasses(claw, config, agentKey);
+    claw.dataset.agentKey = normalizedKey;
+    applyClawClasses(claw, config, normalizedKey);
     ensureLabel(claw, config.label);
     ensureClawArm(claw);
     worldElem.appendChild(claw);
   } else {
-    applyClawClasses(claw, config, agentKey);
+    claw.dataset.agentKey = normalizedKey;
+    applyClawClasses(claw, config, normalizedKey);
     ensureLabel(claw, config.label);
     ensureClawArm(claw);
   }
@@ -214,7 +234,8 @@ export function ensureAgentClaw(agentKey) {
 }
 
 export function removeAgentClaw(agentKey) {
-  const config = AGENT_CLAW_MAP[agentKey];
+  const normalizedKey = normalizeAgentKey(agentKey);
+  const config = AGENT_CLAW_MAP[normalizedKey];
   if (!config) return;
   const claw = document.getElementById(config.id);
   if (claw && claw.parentElement) {

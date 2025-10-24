@@ -52,17 +52,94 @@ function clonePendingRelation(relation) {
   };
 }
 
-function computeStateFacts(stacks, goalChain) {
+function extractChainBaseBlocks(goalChain) {
+  if (!Array.isArray(goalChain) || goalChain.length === 0) {
+    return [];
+  }
+
+  const bases = new Set();
+
+  for (let idx = 0; idx < goalChain.length; idx += 1) {
+    const token = goalChain[idx];
+    if (token !== 'Table') {
+      continue;
+    }
+
+    const candidate = goalChain[idx - 1];
+    if (candidate && candidate !== 'Table') {
+      bases.add(candidate);
+    }
+  }
+
+  if (bases.size === 0) {
+    const terminalToken = goalChain[goalChain.length - 1];
+    if (terminalToken && terminalToken !== 'Table') {
+      bases.add(terminalToken);
+    }
+  }
+
+  return Array.from(bases);
+}
+
+function normalizeRequiredBaseBlocks(requiredGroundBlocks = []) {
+  if (!Array.isArray(requiredGroundBlocks) || requiredGroundBlocks.length === 0) {
+    return [];
+  }
+
+  return requiredGroundBlocks
+    .filter(block => typeof block === 'string' && block.trim().length > 0 && block !== 'Table')
+    .map(block => block.trim().toUpperCase());
+}
+
+function computeStateFacts(stacks, goalChain, requiredGroundBlocks = []) {
   const onMap = deriveOnMap(stacks);
   const clearBlocks = Object.keys(onMap)
     .filter(block => isBlockClear(stacks, block))
     .sort();
-  const pendingRelation = selectNextRelation(stacks, goalChain);
+
+  const onTableBlocks = Object.keys(onMap)
+    .filter(block => onMap[block] === 'Table')
+    .sort();
+
+  const baseRequirementSet = new Set([
+    ...normalizeRequiredBaseBlocks(requiredGroundBlocks),
+    ...extractChainBaseBlocks(goalChain)
+  ]);
+
+  const groundedBaseBlocks = [];
+  const missingBaseBlocks = [];
+
+  baseRequirementSet.forEach(block => {
+    if (!block) {
+      return;
+    }
+
+    if (onMap[block] === 'Table') {
+      groundedBaseBlocks.push(block);
+    } else {
+      missingBaseBlocks.push(block);
+    }
+  });
+
+  groundedBaseBlocks.sort();
+  missingBaseBlocks.sort();
+
+  let pendingRelation = selectNextRelation(stacks, goalChain);
+
+  if (!pendingRelation && missingBaseBlocks.length > 0) {
+    pendingRelation = {
+      block: missingBaseBlocks[0],
+      destination: 'Table'
+    };
+  }
 
   return {
     onMap,
     clearBlocks,
-    pendingRelation: clonePendingRelation(pendingRelation)
+    pendingRelation: clonePendingRelation(pendingRelation),
+    onTableBlocks,
+    groundedBaseBlocks,
+    missingBaseBlocks
   };
 }
 
@@ -78,7 +155,11 @@ function sanitizePlannerInputs(rawStacks, rawGoalChain, options = {}) {
   const { maxIterations } = resolvePlannerOptions(options);
   const { stacks: normalizedStacks } = normalizeStacks(rawStacks);
 
-  const sanitizedGoal = sanitizeGoalChain(rawGoalChain, normalizedStacks.flat());
+  const sanitizedGoal = sanitizeGoalChain(
+    rawGoalChain,
+    normalizedStacks.flat(),
+    { allowIntermediateTable: Boolean(options.allowIntermediateTable) }
+  );
   const goalChain = sanitizedGoal[sanitizedGoal.length - 1] === 'Table'
     ? sanitizedGoal
     : [...sanitizedGoal, 'Table'];
@@ -88,9 +169,9 @@ function sanitizePlannerInputs(rawStacks, rawGoalChain, options = {}) {
   return { normalizedStacks, goalChain, maxIterations };
 }
 
-function createInitialPlannerState(stacks, goalChain) {
-  const baselineFacts = computeStateFacts(stacks, goalChain);
-  const alreadySatisfied = goalAchieved(stacks, goalChain);
+function createInitialPlannerState(stacks, goalChain, requiredGroundBlocks = []) {
+  const baselineFacts = computeStateFacts(stacks, goalChain, requiredGroundBlocks);
+  const alreadySatisfied = goalAchieved(stacks, goalChain) && baselineFacts.missingBaseBlocks.length === 0;
 
   if (alreadySatisfied) {
     return {
@@ -102,7 +183,7 @@ function createInitialPlannerState(stacks, goalChain) {
   }
 
   const workingStacks = deepCloneStacks(stacks);
-  const initialFacts = computeStateFacts(workingStacks, goalChain);
+  const initialFacts = computeStateFacts(workingStacks, goalChain, requiredGroundBlocks);
 
   const initialState = {
     stacks: workingStacks,
@@ -113,7 +194,10 @@ function createInitialPlannerState(stacks, goalChain) {
     intentionLog: [],
     onMap: initialFacts.onMap,
     clearBlocks: initialFacts.clearBlocks,
-    pendingRelation: initialFacts.pendingRelation
+    pendingRelation: initialFacts.pendingRelation,
+    onTableBlocks: initialFacts.onTableBlocks,
+    groundedBaseBlocks: initialFacts.groundedBaseBlocks,
+    missingBaseBlocks: initialFacts.missingBaseBlocks
   };
 
   return {
@@ -138,14 +222,22 @@ function buildPlannerResponse(state, goalChain, maxIterations, agentCount = 1) {
       clearBlocks: [...(state?.clearBlocks || [])],
       pendingRelation: state?.pendingRelation
         ? { ...state.pendingRelation }
-        : null
+        : null,
+      onTableBlocks: [...(state?.onTableBlocks || [])],
+      groundedBaseBlocks: [...(state?.groundedBaseBlocks || [])],
+      missingBaseBlocks: [...(state?.missingBaseBlocks || [])]
     }
   };
 }
 
 function createPlannerAgent(initialBeliefs, agentId = AGENT_ID) {
   const plannerDesires = {
-    ...Desire('achieveGoal', beliefs => !goalAchieved(beliefs.stacks, beliefs.goalChain))
+    ...Desire('achieveGoal', beliefs => {
+      const pendingBaseCount = Array.isArray(beliefs.missingBaseBlocks)
+        ? beliefs.missingBaseBlocks.length
+        : 0;
+      return pendingBaseCount > 0 || !goalAchieved(beliefs.stacks, beliefs.goalChain);
+    })
   };
 
   const beliefEntries = [
@@ -153,6 +245,9 @@ function createPlannerAgent(initialBeliefs, agentId = AGENT_ID) {
     Belief('goalChain', [...initialBeliefs.goalChain]),
     Belief('onMap', { ...(initialBeliefs.onMap || {}) }),
     Belief('clearBlocks', [...(initialBeliefs.clearBlocks || [])]),
+    Belief('onTableBlocks', [...(initialBeliefs.onTableBlocks || [])]),
+    Belief('groundedBaseBlocks', [...(initialBeliefs.groundedBaseBlocks || [])]),
+    Belief('missingBaseBlocks', [...(initialBeliefs.missingBaseBlocks || [])]),
     Belief('goalAchieved', initialBeliefs.goalAchieved)
   ];
 
@@ -346,7 +441,14 @@ function validateMoveCandidate(move, stacks) {
 
 function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
   const { normalizedStacks, goalChain, maxIterations } = sanitizePlannerInputs(rawStacks, rawGoalChain, options);
-  const { alreadySatisfied, baselineFacts, initialState } = createInitialPlannerState(normalizedStacks, goalChain);
+  const requiredBaseBlocks = Array.isArray(options.requiredBaseBlocks)
+    ? options.requiredBaseBlocks
+    : [];
+  const { alreadySatisfied, baselineFacts, initialState } = createInitialPlannerState(
+    normalizedStacks,
+    goalChain,
+    requiredBaseBlocks
+  );
 
   if (alreadySatisfied) {
     return buildPlannerResponse({
@@ -356,7 +458,10 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
       intentionLog: [],
       onMap: { ...baselineFacts.onMap },
       clearBlocks: [...baselineFacts.clearBlocks],
-      pendingRelation: null
+      pendingRelation: null,
+      onTableBlocks: [...baselineFacts.onTableBlocks],
+      groundedBaseBlocks: [...baselineFacts.groundedBaseBlocks],
+      missingBaseBlocks: [...baselineFacts.missingBaseBlocks]
     }, goalChain, maxIterations);
   }
 
@@ -396,8 +501,10 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
       }
     }
 
-    const stateFacts = computeStateFacts(nextStacks, currentState.goalChain);
-    const reachedGoal = goalAchieved(nextStacks, currentState.goalChain);
+    const stateFacts = computeStateFacts(nextStacks, currentState.goalChain, requiredBaseBlocks);
+    const structureSatisfied = goalAchieved(nextStacks, currentState.goalChain);
+    const baseSatisfied = stateFacts.missingBaseBlocks.length === 0;
+    const reachedGoal = structureSatisfied && baseSatisfied;
     stateRef.goalAchieved = reachedGoal;
 
     // If move was applied, create 4 separate cycles (one for each claw step)
@@ -421,7 +528,10 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
               ? { ...stateFacts.pendingRelation }
               : null,
             clearBlocks: [...stateFacts.clearBlocks],
-            onMap: { ...stateFacts.onMap }
+            onMap: { ...stateFacts.onMap },
+            onTableBlocks: [...stateFacts.onTableBlocks],
+            groundedBaseBlocks: [...stateFacts.groundedBaseBlocks],
+            missingBaseBlocks: [...stateFacts.missingBaseBlocks]
           }
         });
       });
@@ -436,7 +546,10 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
             ? { ...stateFacts.pendingRelation }
             : null,
           clearBlocks: [...stateFacts.clearBlocks],
-          onMap: { ...stateFacts.onMap }
+          onMap: { ...stateFacts.onMap },
+          onTableBlocks: [...stateFacts.onTableBlocks],
+          groundedBaseBlocks: [...stateFacts.groundedBaseBlocks],
+          missingBaseBlocks: [...stateFacts.missingBaseBlocks]
         }
       });
     }
@@ -454,19 +567,25 @@ function planBlocksWorld(rawStacks, rawGoalChain, options = {}) {
       intentionLog: nextIntentionLog,
       onMap: stateFacts.onMap,
       clearBlocks: stateFacts.clearBlocks,
-      pendingRelation: stateFacts.pendingRelation
+      pendingRelation: stateFacts.pendingRelation,
+      onTableBlocks: stateFacts.onTableBlocks,
+      groundedBaseBlocks: stateFacts.groundedBaseBlocks,
+      missingBaseBlocks: stateFacts.missingBaseBlocks
     };
   };
 
   const stateFilter = state => {
-    const facts = computeStateFacts(state.stacks, state.goalChain);
+    const facts = computeStateFacts(state.stacks, state.goalChain, requiredBaseBlocks);
 
     const filtered = {
       stacks: deepCloneStacks(state.stacks),
       goalChain: [...state.goalChain],
       goalAchieved: state.goalAchieved,
       onMap: { ...facts.onMap },
-      clearBlocks: [...facts.clearBlocks]
+      clearBlocks: [...facts.clearBlocks],
+      onTableBlocks: [...facts.onTableBlocks],
+      groundedBaseBlocks: [...facts.groundedBaseBlocks],
+      missingBaseBlocks: [...facts.missingBaseBlocks]
     };
 
     if (facts.pendingRelation) {

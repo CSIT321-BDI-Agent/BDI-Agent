@@ -282,10 +282,10 @@ function setCardStatus(card, status, options = {}) {
     // Time updates via clock
   } else if (status === 'completed') {
     card.element.classList.add(...CARD_COMPLETED.split(' '));
-   card.timeElement.className = TIME_DISPLAY;
-   if (card.completedAt != null) {
-     card.timeElement.textContent = formatPlannerDuration(card.completedAt);
-   }
+    card.timeElement.className = TIME_DISPLAY;
+    if (Number.isFinite(card.completedAt)) {
+      card.timeElement.textContent = formatPlannerDuration(card.completedAt);
+    }
     if (!suppressStats) {
       incrementStep();
     }

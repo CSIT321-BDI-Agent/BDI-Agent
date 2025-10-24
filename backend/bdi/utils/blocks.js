@@ -54,7 +54,9 @@ function createBlocksHelpers(PlanningError) {
     return { stacks, blocks: Array.from(seen) };
   }
 
-  function sanitizeGoalChain(rawGoalChain, availableBlocks) {
+  function sanitizeGoalChain(rawGoalChain, availableBlocks, options = {}) {
+    const { allowIntermediateTable = false } = options;
+
     if (!Array.isArray(rawGoalChain) || rawGoalChain.length < 2) {
   throw new PlanningError('Goal chain must include at least two identifiers (e.g., "A, B").');
     }
@@ -76,9 +78,11 @@ function createBlocksHelpers(PlanningError) {
       return normalized;
     });
 
-    const tableIndex = chain.indexOf('Table');
-    if (tableIndex !== -1 && tableIndex !== chain.length - 1) {
-      throw new PlanningError('"Table" can only appear as the final element in a goal chain.');
+    if (!allowIntermediateTable) {
+      const tableIndex = chain.indexOf('Table');
+      if (tableIndex !== -1 && tableIndex !== chain.length - 1) {
+        throw new PlanningError('"Table" can only appear as the final element in a goal chain.');
+      }
     }
 
     return chain;
@@ -133,6 +137,9 @@ function createBlocksHelpers(PlanningError) {
     for (let i = goalChain.length - 1; i >= 1; i -= 1) {
       const block = goalChain[i - 1];
       const destination = goalChain[i];
+      if (block === 'Table') {
+        continue;
+      }
       if (!isOn(stacks, block, destination)) {
         return { block, destination };
       }
@@ -149,6 +156,9 @@ function createBlocksHelpers(PlanningError) {
     for (let i = goalChain.length - 1; i >= 1; i -= 1) {
       const block = goalChain[i - 1];
       const destination = goalChain[i];
+      if (block === 'Table') {
+        continue;
+      }
       if (!isOn(stacks, block, destination)) {
         pending.push({ block, destination });
       }
