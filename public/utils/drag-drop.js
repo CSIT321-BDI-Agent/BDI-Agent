@@ -1,5 +1,6 @@
 import { BLOCK_WIDTH, BLOCK_HEIGHT, STACK_MARGIN, WORLD_HEIGHT } from './constants.js';
 import { showMessage } from './helpers.js';
+import { freezeAnimations, resumeAnimations } from './animation.js';
 
 const DRAGGING_CLASSES = ['ring-2', 'ring-brand-primary/60', 'shadow-xl', 'cursor-grabbing'];
 
@@ -77,6 +78,9 @@ export class BlockDragManager {
       return;
     }
 
+    // Freeze any ongoing agent animations
+    freezeAnimations();
+
     const rect = blockElem.getBoundingClientRect();
     const originSupport = this.world.on[blockName] || 'Table';
     const originStackIndex = this.world.stacks.findIndex(stack => stack.includes(blockName));
@@ -96,6 +100,8 @@ export class BlockDragManager {
     } catch (error) {
       console.error('BlockDragManager: unable to detach block for dragging', error);
       showMessage('Unable to pick up that block right now.', 'error');
+      // Resume animations if we failed
+      resumeAnimations();
       return;
     }
 
@@ -164,6 +170,8 @@ export class BlockDragManager {
 
     if (!destination) {
       this.world.restoreDetachedBlock(block, detachInfo);
+      // Resume animations after drag cancelled
+      resumeAnimations();
       return;
     }
 
@@ -172,12 +180,16 @@ export class BlockDragManager {
 
     if (!this.isMoveMeaningful(block, normalizedDest, originSupport)) {
       this.world.restoreDetachedBlock(block, detachInfo);
+      // Resume animations after drag cancelled
+      resumeAnimations();
       return;
     }
 
     if (!this.isDestinationValid(block, normalizedDest, state)) {
       showMessage(`Cannot move ${block} onto ${normalizedDest}.`, 'warning');
       this.world.restoreDetachedBlock(block, detachInfo);
+      // Resume animations after drag cancelled
+      resumeAnimations();
       return;
     }
 
@@ -186,6 +198,11 @@ export class BlockDragManager {
         ? { preferredStackIndex: destination.stackIndex }
         : {};
       this.world.placeBlock(block, normalizedDest, dropOptions);
+      
+      // Resume animations BEFORE triggering mutation callback
+      // This ensures the replan can proceed
+      resumeAnimations();
+      
       if (typeof this.onUserMutation === 'function') {
         this.onUserMutation({
           type: 'MOVE',
@@ -203,6 +220,8 @@ export class BlockDragManager {
       console.error('BlockDragManager: failed to apply move', error);
       showMessage('Unable to complete that move.', 'error');
       this.world.restoreDetachedBlock(block, detachInfo);
+      // Resume animations after error
+      resumeAnimations();
     }
   }
 
@@ -221,6 +240,9 @@ export class BlockDragManager {
 
     this.resetDragState();
     this.world?.restoreDetachedBlock(block, detachInfo);
+    
+    // Resume animations after cancel
+    resumeAnimations();
   }
 
   resetDragState() {

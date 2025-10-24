@@ -795,6 +795,18 @@ class SimulationController {
           detail: goalLabel
         };
       }
+      case 'CONFLICT_DETECTED': {
+        return {
+          ...base,
+          actor: mutation.actor || 'Agent',
+          block,
+          to: mutation.actualDest || 'Table',
+          reason: 'agent-conflict',
+          stepDescription: `${mutation.actor || 'Agent'} detected conflict: ${mutation.originalDest} blocked`,
+          summary: `Conflict: ${block} → Table`,
+          detail: `Original destination ${mutation.originalDest} was blocked`
+        };
+      }
       default: {
         const typeLabel = typeof mutation.type === 'string'
           ? mutation.type.replace(/_/g, ' ')
@@ -1532,6 +1544,7 @@ class SimulationController {
 
     const stepDuration = () => this.speedController.getStepDuration();
     let aborted = false;
+    let conflictOccurred = false;
 
     const availableClaws = this.getAllClaws();
 
@@ -1629,7 +1642,28 @@ class SimulationController {
               }
               resolve();
             },
-            { durationMs: stepDuration() }
+            { 
+              durationMs: stepDuration(),
+              onConflictDetected: (conflictInfo) => {
+                // Conflict detected - record it and request replan
+                conflictOccurred = true;
+                logAction(`Conflict: ${conflictInfo.block} destination ${conflictInfo.originalDest} blocked, placed on table instead`, 'system');
+                showMessage(`Conflict detected: ${conflictInfo.block} placed on table. Re-planning...`, 'warning');
+                
+                // Record the conflict as a mutation for timeline tracking
+                this.recordMutation({
+                  type: 'CONFLICT_DETECTED',
+                  block: conflictInfo.block,
+                  originalDest: conflictInfo.originalDest,
+                  actualDest: conflictInfo.actualDest,
+                  reason: conflictInfo.reason,
+                  actor: conflictInfo.actor
+                });
+                
+                // Request replan after this move completes
+                this.requestReplan('agent-conflict');
+              }
+            }
           );
         });
       });
@@ -1640,6 +1674,12 @@ class SimulationController {
       this.world.updatePositions();
       
       this.executedMoveCount += moveBatch.length;
+      
+      // If a conflict occurred during this batch, handle checkpoint to trigger replan
+      if (conflictOccurred) {
+        conflictOccurred = false;
+        await this.handleCheckpoint();
+      }
     }
 
     this.dragManager?.clearLockedBlocks?.();
