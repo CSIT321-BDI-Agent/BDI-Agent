@@ -371,6 +371,7 @@ export async function simulateMove(move, world, worldElem, claw, markTimelineSte
     }
 
     // === CONFLICT DETECTION: Check if destination is still valid ===
+    // Specifically, check if the destination became blocked between planning and execution.
     let conflictDetected = false;
     if (dest !== 'Table' && !world.isClear(dest)) {
       // Destination is blocked - force place on table

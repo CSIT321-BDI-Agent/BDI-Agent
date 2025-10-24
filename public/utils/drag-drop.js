@@ -199,8 +199,9 @@ export class BlockDragManager {
         : {};
       this.world.placeBlock(block, normalizedDest, dropOptions);
       
-      // Resume animations BEFORE triggering mutation callback
-      // This ensures the replan can proceed
+      // Resume animations BEFORE triggering mutation callback.
+      // This timing is intentional: resuming animations first prevents blocking the replan,
+      // ensuring that any subsequent mutation (e.g., replan) can proceed smoothly.
       resumeAnimations();
       
       if (typeof this.onUserMutation === 'function') {
