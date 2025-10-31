@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="assets/app.css" />
 </head>
 
-<body class="min-h-screen bg-brand-light font-sans text-brand-dark antialiased">
+<body class="min-h-screen bg-brand-light font-sans text-brand-dark antialiased overflow-x-hidden">
   <!-- Mobile Header -->
   <header
     class="fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-white/40 bg-white/90 px-4 py-3 shadow md:hidden">
@@ -91,7 +91,7 @@
     </div>
   </div>
 
-  <div class="app flex min-h-screen flex-col md:flex-row">
+  <div class="app flex min-h-screen w-full max-w-full flex-col overflow-x-hidden md:flex-row">
     <!-- Sidebar -->
     <aside id="sidebar" data-collapsed="false"
       class="sidebar hidden bg-brand-dark text-white transition-[width] duration-300 ease-in-out md:fixed md:inset-y-0 md:flex md:w-72 md:flex-col md:shadow-lg">
@@ -157,7 +157,7 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex flex-1 flex-col bg-brand-light pt-20 transition-all duration-300 ease-in-out md:ml-72 md:pt-10">
+    <main class="flex min-w-0 flex-1 flex-col bg-brand-light pt-20 transition-all duration-300 ease-in-out md:ml-72 md:pt-10">
       <div class="px-4 pb-10 md:px-10">
         <div class="border border-white/40 bg-white/70 p-6 shadow-card backdrop-blur">
           <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -213,15 +213,15 @@
           </div>
         </div>
 
-        <div class="mt-8 grid gap-6 lg:grid-cols-[2fr_1fr] xl:grid-cols-[2.4fr_1fr]">
-          <section class="border border-slate-200 bg-white shadow-card flex flex-col">
+        <div class="mt-8 grid min-w-0 gap-6 lg:grid-cols-[2fr_1fr] xl:grid-cols-[2.4fr_1fr]">
+          <section class="border border-slate-200 bg-white shadow-card flex min-w-0 flex-col overflow-hidden">
             <div class="border-b border-slate-200 px-6 py-4">
               <h3 class="text-lg font-semibold text-brand-dark">Simulation Environment</h3>
             </div>
-            <div class="flex-1 flex flex-col space-y-4 px-6 pb-6 pt-4">
+            <div class="flex-1 flex min-w-0 flex-col space-y-4 px-6 pb-6 pt-4">
               <div id="world-wrapper"
-                class="flex-1 relative overflow-x-auto border border-dashed border-brand-dark/30 bg-white p-4">
-                <div id="world" class="relative mx-auto h-full w-full max-w-[760px]"></div>
+                class="flex-1 relative mx-auto w-full max-w-full min-w-0 overflow-x-auto overflow-y-hidden border border-dashed border-brand-dark/30 bg-white p-4 md:mx-0">
+                <div id="world" class="relative h-full"></div>
               </div>
               <div id="messages" class="messages hidden flex-shrink-0"></div>
             </div>

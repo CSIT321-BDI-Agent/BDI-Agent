@@ -4,7 +4,8 @@
 - Quick start: `docker compose up --build -d` from the repo root, then visit <http://localhost:3000>.
 - No Docker? `npm install`, copy `backend/.env.example` to `.env`, start MongoDB, and run `npm start` inside `backend/`.
 - Two-agent BDI planner (Agent-A & Agent-B) expands each logical move into four claw steps so the dashboard can animate, log, and persist every cycle.
-- Dashboard includes live stats, action log, intention timeline, saved-world replay, admin tools, and profile management.
+- Dashboard includes live stats, action log, intention timeline, saved-world replay, admin tools, profile management, and guarded authentication flows (accounts must be `active` to sign in).
+- Save prompts use an in-app overlay component so the experience is consistent across devices without relying on browser dialogs.
 
 ## Quick Start
 ### Docker (recommended)
@@ -30,7 +31,7 @@
    # set MONGODB_URI and JWT_SECRET at minimum
    ```
 3. Start MongoDB (local instance or hosted connection exposed via `MONGODB_URI`).
-4. Build Tailwind output once (`npm run build:css`) or keep it updated (`npm run watch:css`).
+4. Build Tailwind output once (`npm run build:css`) or keep it updated (`npm run watch:css`). Most layout tweaks now live in Tailwind utility classes, so rebuild when you change `public/tailwind.css`.
 5. Run the API from `backend/`:
    ```bash
    cd backend
@@ -65,9 +66,20 @@ Planner loop highlights:
 3. **Plan** – choose the next action (`CLEAR_BLOCK`, `CLEAR_TARGET`, `STACK`).
 4. **Act** – apply the move, expand it into claw steps, append to the intention log.
 
-The simulator always renders two robotic claws (Agent-A and Agent-B). When more than two tower goals are provided, the planner interleaves extra work across those same agents so the UI never spawns invisible or duplicate arms.
+The simulator always renders two robotic claws (Agent-A and Agent-B). When more than two tower goals are provided, the planner interleaves extra work across those same agents so the UI never spawns invisible or duplicate arms. Claw rendering is now separated from the world width so prompt overlays always sit above them.
 
 Run `npm run test:planner` inside `backend/` for regression scenarios and generated logs.
+
+## Authentication & Accounts
+- Users now carry a `status` (`active`, `pending`, `suspended`). Only `active` accounts can authenticate, and protected routes double-check status server-side.
+- Frontend auth utilities persist the status alongside the JWT and refuse to store tokens if the account is inactive.
+- Signup includes a password confirmation field and stricter feedback loops.
+- Both login and saved-world fetchers detect `401/403` responses, clear stale tokens, and guide the user back to the auth screens.
+
+## Frontend UX Updates
+- Saving worlds uses a reusable overlay prompt component (`public/utils/prompt-dialog.js`) instead of the native `prompt()` API. The overlay dynamically injects its markup, captures focus, and darkens the screen with a translucent backdrop.
+- The simulation environment respects the viewport on mobile: the wrapper scrolls horizontally without pushing the rest of the dashboard wider than the device.
+- Prompt overlays sit atop the claw arms and the rest of the UI with a high z-index and dedicated backdrop click handling.
 
 ## Deployment Notes
 Railway builds from the repo root (`npm ci`) and launches `node backend/server.js`. Provide at least:
@@ -100,5 +112,5 @@ Key frontend modules:
 - Run `npm run watch:css` while working on Tailwind utilities.
 - Keep planner and persistence changes mirrored between frontend (`public/utils/persistence.js`, `timeline.js`, `stats.js`) and backend schemas.
 - Use `withRoute` and validation helpers (`backend/utils/validators.js`) for consistent API error handling.
-- Saved worlds capture stacks, colours, stats, and intention logs—update both schema and UI helpers when adding fields.
+- Saved worlds capture stacks, colours, stats, multi-agent flags, and intention logs—update both schema and UI helpers when adding fields.
 - For more subsystem detail, see [`backend/README.md`](backend/README.md) and [`public/README.md`](public/README.md).

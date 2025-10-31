@@ -42,11 +42,17 @@ document.getElementById('signupForm').addEventListener('submit', async (event) =
   const email = document.getElementById('email').value.trim();
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value.trim();
+  const confirmPassword = document.getElementById('confirmPassword').value.trim();
 
   setMessage();
 
-  if (!email || !username || !password) {
+  if (!email || !username || !password || !confirmPassword) {
     setMessage('Please complete all fields.', 'error');
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    setMessage('Passwords do not match. Please try again.', 'error');
     return;
   }
 

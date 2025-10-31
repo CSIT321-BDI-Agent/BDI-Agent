@@ -728,12 +728,13 @@ app.post('/users/signup', withRoute(async (req, res) => {
     { expiresIn: '7d' }
   );
 
-  res.status(201).json({ 
-    message: 'User created successfully', 
+  res.status(201).json({
+    message: 'User created successfully',
     userId: newUser._id,
     email: newUser.email,
     username: newUser.username,
     role: newUser.role,
+    status: newUser.status,
     token
   });
 }));
@@ -750,6 +751,15 @@ app.post('/login', withRoute(async (req, res) => {
   const isMatch = await bcrypt.compare(normalizedPassword, user.password);
   if (!isMatch) throw new HttpError(400, 'Invalid username or password');
 
+  if (!user.status) {
+    user.status = 'active';
+    await user.save();
+  }
+
+  if (user.status !== 'active') {
+    throw new HttpError(403, 'Your account is not active. Please contact an administrator.');
+  }
+
   const token = jwt.sign(
     { sub: user._id.toString(), role: user.role, username: user.username },
     JWT_SECRET,
@@ -762,7 +772,8 @@ app.post('/login', withRoute(async (req, res) => {
     email: user.email,
     username: user.username,
     role: user.role,
-    token   // 👈 send this to frontend
+    status: user.status,
+    token
   });
 }));
 
@@ -790,6 +801,7 @@ app.get('/users/me', requireAuth, withRoute(async (req, res) => {
     email: user.email,
     username: user.username,
     role: user.role,
+    status: user.status || 'active',
     savedWorldCount,
     savedWorlds,
     createdAt: user.createdAt,

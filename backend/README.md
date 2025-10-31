@@ -22,6 +22,7 @@ Point `MONGODB_URI` at a running MongoDB instance (local or hosted). The server 
 
 ## Highlights
 - JWT-secured REST API powering login, world persistence, planner access, and admin tooling.
+- User accounts carry a `status` flag (`active`, `pending`, `suspended`). Sign-in and guarded routes require `active` status server-side and client-side.
 - Multi-agent BDI planner (`bdi/multiAgentEnvironment.js`) with negotiation, independent-tower planning, and claw-step expansion. Execution is capped at two agents (Agent-A and Agent-B); additional towers are time-sliced across them.
 - Saved worlds persist stacks, colours, stats, intention timeline, and planner metadata for replay.
 - Shared utilities for validation (`utils/validators.js`), error handling (`utils/routeHandler.js`), database connectivity, and auth guards.
@@ -35,10 +36,10 @@ backend/
     multiAgentEnvironment.js Multi-agent orchestration, negotiation manager
     utils/blocks.js         Planning helpers and validation logic
   models/
-    User.js                 User schema, auth utilities, admin bootstrap
+    User.js                 User schema (role + status), auth utilities, admin bootstrap
     World.js                Saved world schema (stacks, colours, timeline, stats)
   utils/
-    auth.js                 JWT middleware (attachUser, requireAuth, checkAdmin)
+    auth.js                 JWT middleware (attachUser, requireAuth, checkAdmin, status enforcement)
     adminRoutes.js          Admin-only routes for user management
     database.js             Mongo connection / retry logic
     httpError.js            Lightweight HttpError class
@@ -54,6 +55,7 @@ backend/
 |--------|------|-------------|
 | `POST` | `/users/signup` | Create a user |
 | `POST` | `/login` | Authenticate and receive a 7-day JWT |
+| `GET`  | `/users/me` | Fetch authenticated user (role, status, saved-world summary) |
 | `GET`  | `/worlds` | List the current user's saved worlds |
 | `POST` | `/worlds` | Save a world snapshot (requires JWT) |
 | `GET`  | `/worlds/:id` | Retrieve a saved world by id |
@@ -75,7 +77,7 @@ Planner payload validation caps iteration counts, enforces single-letter block n
 | `MONGODB_URI` | Mongo connection string | Falls back through `MONGODB_URL`, `MONGO_URL`, `DATABASE_URL`, or host/port combos |
 | `JWT_SECRET` | JWT signing secret | Required outside local dev |
 | `ALLOWED_ORIGINS` | Comma-separated CORS whitelist | Defaults to development origins |
-| `ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Optional bootstrap admin | Applied once on startup |
+| `ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Optional bootstrap admin | Applied once on startup (status forced to `active`) |
 | `FRONTEND_API_BASE` | URL injected into `/config.js` response | Auto-resolved for Railway-style setups |
 
 See `server.js` for the exhaustive environment resolution matrix (supports Railway, Docker, and conventional `.env` files).
@@ -91,3 +93,4 @@ See `server.js` for the exhaustive environment resolution matrix (supports Railw
 - Keep saved world schema changes mirrored in the frontend persistence helpers.
 - Planner iterations are capped (default 2,500); tweak in `blocksWorldAgent.js` for experimentation.
 - `/config.js` endpoint mirrors resolved runtime configuration for frontend consumers; helpful when debugging API base URLs.
+- When adding new auth flows, remember that `requireAuth` and `checkAdmin` now reject users whose status is not `active`; update UI responses accordingly.

@@ -13,6 +13,8 @@
 ## Highlights
 - Dashboard-driven Blocks World simulator with live stats, intention timeline, and two synchronized claw animations (Agent-A and Agent-B only).
 - Mirrors backend capabilities: saved worlds, admin console, profile management, agent log viewer, and multi-agent playback.
+- Auth status enforcement matches the backend: the UI blocks suspended/pending accounts, clears stale tokens on 401/403 responses, and keeps the dashboard guards updated.
+- Saving worlds now uses a reusable overlay prompt that darkens the screen, supports keyboard focus management, and exposes custom header/body/label text for other flows.
 - Modular ES modules keep concerns focused (`World`, `timeline`, `stats`, `persistence`, `ui-handlers`, etc.), with selectors centralised in `constants.js`.
 - Tailwind-powered styling compiled into a single bundle (`assets/app.css`).
 
@@ -22,7 +24,7 @@
 - `profile.html` – account overview and credential update flows.
 - `agent-logs.html` – saved-world and execution log browser.
 - `import-export.html` – JSON import/export utility for backups and sharing.
-- `login.html` / `signup.html` – authentication forms.
+- `login.html` / `signup.html` — authentication forms with status-aware messaging and password confirmation.
 - `debug.html` – lightweight API tester for planner and persistence endpoints.
 
 ## Modules (`public/utils/`)
@@ -34,12 +36,13 @@
 | `timeline.js` | Intention timeline rendering, clock, snapshot/restore helpers |
 | `stats.js` | Tracks planner steps, elapsed time, status badges |
 | `persistence.js` | Save/load helpers, rebuilds snapshots into live `World` + timeline/stats |
-| `auth.js` | Login/signup helpers, JWT storage, route guards, authenticated fetch wrapper |
+| `auth.js` | Login/signup helpers, JWT storage, status tracking, route guards, authenticated fetch wrapper |
 | `navigation.js` | Sidebar + mobile navigation set-up |
 | `profile.js` | Profile dropdown and account update flows |
 | `import-export.js` | JSON validation, clipboard export, file import |
 | `agent-logs.js` | Fetches saved worlds and summarises planner runs |
 | `drag-drop.js` | Pointer-driven block drag/drop with lock support |
+| `prompt-dialog.js` | Overlay prompt factory used for saving worlds and other modal text prompts |
 
 Shared selectors live in `constants.js`, ensuring modules interact with the DOM consistently. Logger utilities sit in `logger.js` for action log entries.
 
@@ -52,7 +55,8 @@ Shared selectors live in `constants.js`, ensuring modules interact with the DOM 
 ## Development Tips
 - Frontend expects `window.APP_CONFIG` from the backend `/config.js` endpoint; keep the server running when debugging auth or API URLs.
 - Only two agents are ever rendered. If a planner response contains more towers, the simulation still schedules every move onto Agent-A and Agent-B to keep the claws visible and in sync.
-- Timeline, stats, and persistence snapshots must advance together—`persistence.js` coordinates the trio.
+- Timeline, stats, and persistence snapshots must advance together—`persistence.js` coordinates the trio and handles 401/403 responses by clearing stale auth.
 - Drag and drop interactions live in `drag-drop.js` and feed into `ui-handlers.js`; lock/unlock blocks when extending manual mutation logic.
 - Use helpers in `helpers.js` (`showMessage`, `handleError`, `normalizeWorldIdentifier`) instead of bespoke messaging/error flows.
 - Start at `main.js` to understand how each piece initialises during dashboard bootstrap before diving into specific modules.
+- The simulation viewport is constrained to the device width on mobile; keep `world-wrapper`'s overflow handling in mind when altering layout utilities.

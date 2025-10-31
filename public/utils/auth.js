@@ -13,7 +13,8 @@ const STORAGE_KEYS = {
   USERNAME: 'username',
   TOKEN: 'token',
   ROLE: 'role',
-  EMAIL: 'email'
+  EMAIL: 'email',
+  STATUS: 'userStatus'
 };
 
 /**
@@ -33,7 +34,8 @@ export function getCurrentUser() {
     username: localStorage.getItem(STORAGE_KEYS.USERNAME),
     token,
     role: localStorage.getItem(STORAGE_KEYS.ROLE) || 'user',
-    email: localStorage.getItem(STORAGE_KEYS.EMAIL)
+    email: localStorage.getItem(STORAGE_KEYS.EMAIL),
+    status: localStorage.getItem(STORAGE_KEYS.STATUS) || 'active'
   };
 }
 
@@ -42,7 +44,9 @@ export function getCurrentUser() {
  * @returns {boolean} True if user is authenticated
  */
 export function isAuthenticated() {
-  return getCurrentUser() !== null;
+  const user = getCurrentUser();
+  if (!user) return false;
+  return (typeof user.status !== 'string') || user.status === 'active';
 }
 
 /**
@@ -71,6 +75,10 @@ export function storeAuthData(data) {
   localStorage.setItem(STORAGE_KEYS.USERNAME, data.username || '');
   localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
   localStorage.setItem(STORAGE_KEYS.ROLE, data.role || 'user');
+  const resolvedStatus = typeof data.status === 'string' && data.status.trim().length
+    ? data.status.trim()
+    : 'active';
+  localStorage.setItem(STORAGE_KEYS.STATUS, resolvedStatus);
   if (Object.prototype.hasOwnProperty.call(data, 'email')) {
     if (data.email) {
       localStorage.setItem(STORAGE_KEYS.EMAIL, data.email);
@@ -89,6 +97,7 @@ export function clearAuthData() {
   localStorage.removeItem(STORAGE_KEYS.TOKEN);
   localStorage.removeItem(STORAGE_KEYS.ROLE);
   localStorage.removeItem(STORAGE_KEYS.EMAIL);
+  localStorage.removeItem(STORAGE_KEYS.STATUS);
 }
 
 /**
@@ -189,6 +198,13 @@ export async function login(username, password) {
   if (!Object.prototype.hasOwnProperty.call(data, 'email')) {
     data.email = null;
   }
+  const status = typeof data.status === 'string' && data.status.trim().length
+    ? data.status.trim()
+    : 'active';
+  if (status !== 'active') {
+    throw new Error('Your account is not active. Please contact an administrator.');
+  }
+  data.status = status;
   
   storeAuthData(data);
   return data;
@@ -232,6 +248,13 @@ export async function signup(email, username, password) {
   // Ensure username is included
   data.username = data.username || username;
   data.email = data.email || email;
+  const status = typeof data.status === 'string' && data.status.trim().length
+    ? data.status.trim()
+    : 'active';
+  if (status !== 'active') {
+    throw new Error('Your account is not active yet. Please contact an administrator.');
+  }
+  data.status = status;
   
   storeAuthData(data);
   return data;

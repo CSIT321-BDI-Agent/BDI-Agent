@@ -2,11 +2,15 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
+const USER_ROLES = ['user', 'admin'];
+const USER_STATUS = ['active', 'pending', 'suspended'];
+
 const UserSchema = new mongoose.Schema({
   email:    { type: String, required: true, unique: true },
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true }, // bcrypt hash
-  role:     { type: String, enum: ['user', 'admin'], default: 'user' } // 👈 NEW
+  role:     { type: String, enum: USER_ROLES, default: 'user' },
+  status:   { type: String, enum: USER_STATUS, default: 'active', index: true }
 }, { timestamps: true });
 
 const User = mongoose.model('User', UserSchema);
@@ -27,11 +31,11 @@ async function ensureDefaultAdmin() {
   }
 
   const hash = await bcrypt.hash(password, 10);
-  await User.create({ email, username, password: hash, role: 'admin' });
+  await User.create({ email, username, password: hash, role: 'admin', status: 'active' });
 
-  console.log(`[seed] Default admin created → ${username} (${email})`);
+  console.log(`[seed] Default admin created -> ${username} (${email})`);
 }
 
-// Export default model + named helper
 module.exports = User;
 module.exports.ensureDefaultAdmin = ensureDefaultAdmin;
+module.exports.USER_STATUS = USER_STATUS;

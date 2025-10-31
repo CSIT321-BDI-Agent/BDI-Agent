@@ -6,7 +6,7 @@
 
 import { DOM, API_BASE } from './constants.js';
 import { showMessage, handleError, normalizeWorldIdentifier } from './helpers.js';
-import { getCurrentUser, authenticatedFetch } from './auth.js';
+import { getCurrentUser, authenticatedFetch, clearAuthData } from './auth.js';
 import { logAction } from './logger.js';
 import { getIntentionTimelineSnapshot, restoreTimelineFromSnapshot, resetIntentionTimeline } from './timeline.js';
 import { updateWorldInfoFromStacks } from './dashboard-ui.js';
@@ -19,6 +19,7 @@ import {
   resetMultiAgentStats,
   setMultiAgentStatsEnabled
 } from './stats.js';
+import { promptForWorldName } from './prompt-dialog.js';
 
 const META_STORAGE_KEY = 'bdiWorldMeta';
 
@@ -169,9 +170,8 @@ const loadSelectManager = {
  * @returns {Promise<void>}}
  */
 export async function saveWorld(world) {
-  const worldName = prompt('World name?');
-  if (!worldName || worldName.trim().length === 0) {
-    showMessage('Please enter a valid world name.', 'error');
+  const worldName = await promptForWorldName();
+  if (worldName === null) {
     return;
   }
 
@@ -376,6 +376,13 @@ export async function refreshLoadList() {
       method: 'GET'
     });
 
+    if (response.status === 401 || response.status === 403) {
+      loadSelectManager.setStatus('login');
+      clearAuthData();
+      showMessage('Please sign in again to access your saved worlds.', 'warning');
+      return;
+    }
+
     if (!response.ok) {
       loadSelectManager.setStatus('failed');
       return;
@@ -384,8 +391,14 @@ export async function refreshLoadList() {
     const worlds = await response.json();
     loadSelectManager.rebuild(worlds);
   } catch (error) {
-    handleError(error, 'refreshing world list');
-    loadSelectManager.setStatus('error');
+    if (error?.message && /unauthenticated|not active|forbidden/i.test(error.message)) {
+      clearAuthData();
+      loadSelectManager.setStatus('login');
+      showMessage('Please sign in to access saved worlds.', 'warning');
+    } else {
+      handleError(error, 'refreshing world list');
+      loadSelectManager.setStatus('error');
+    }
   }
 }
 

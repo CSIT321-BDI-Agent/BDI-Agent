@@ -24,11 +24,19 @@ async function attachUser(req, _res, next) {
 
 function requireAuth(req, res, next) {
   if (!req.user) return res.status(401).json({ error: 'Unauthenticated' });
+
+  const status = typeof req.user.status === 'string' ? req.user.status : 'active';
+  if (status !== 'active') {
+    return res.status(403).json({ error: 'Account is not active' });
+  }
+
   next();
 }
 
 function checkAdmin(req, res, next) {
   if (!req.user) return res.status(401).json({ error: 'Unauthenticated' });
+  const status = typeof req.user.status === 'string' ? req.user.status : 'active';
+  if (status !== 'active') return res.status(403).json({ error: 'Account is not active' });
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admins only' });
   next();
 }
