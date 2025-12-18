@@ -5,7 +5,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
-      - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/blocks_world}
+      - MONGODB_URI=mongodb://mongo:27017/blocks_world
       - PORT=${PORT:-3000}
       - JWT_SECRET=${JWT_SECRET}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
